@@ -351,17 +351,19 @@ export class AuthService {
         logger.info({ frontendUrl, resetUrl }, 'Sending password reset email');
 
         // Queue email job
-        await QueueUtil.addJob('email', {
-            name: 'send-forgot-password-link',
-            data: {
+        // Direct send (bypass queue) to avoid Redis/BullMQ issues on Railway
+        try {
+            const { EmailService } = await import('@notifications/channels/email/email.service');
+            const emailService = new EmailService();
+            await emailService.sendForgotPasswordLink({
                 to: user.email,
-                data: {
-                    firstName: user.firstName,
-                    lastName: user.lastName,
-                    resetUrl,
-                },
-            },
-        });
+                firstName: user.firstName,
+                lastName: user.lastName,
+                resetUrl,
+            });
+        } catch (emailErr: any) {
+            logger.error({ error: emailErr.message }, 'Failed to send forgot password email directly');
+        }
     }
 
     /**
