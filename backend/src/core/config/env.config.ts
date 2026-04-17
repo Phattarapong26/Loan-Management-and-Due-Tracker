@@ -95,7 +95,7 @@ const envSchema = z.object({
 
     // SMTP Email (nodemailer)
     SMTP_HOST: z.string().default('smtp.gmail.com'),
-    SMTP_PORT: z.string().default('465'),
+    SMTP_PORT: z.string().default('587'),
     SMTP_USER: z.string().optional(),
     SMTP_PASS: z.string().optional(),
     SMTP_FROM: z.string().optional(),

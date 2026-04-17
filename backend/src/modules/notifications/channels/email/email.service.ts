@@ -45,10 +45,10 @@ export class EmailService {
             const transporter = nodemailer.createTransport({
                 host: smtpIp,
                 port: env.SMTP_PORT,
-                secure: env.SMTP_PORT === 465,
+                secure: env.SMTP_PORT === 465, // true only for port 465, false for 587 (STARTTLS)
                 auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
-                connectionTimeout: 15000,
-                socketTimeout: 15000,
+                connectionTimeout: 30000,
+                socketTimeout: 30000,
                 tls: {
                     servername: env.SMTP_HOST, // SNI must use original hostname for TLS cert
                     rejectUnauthorized: false,
