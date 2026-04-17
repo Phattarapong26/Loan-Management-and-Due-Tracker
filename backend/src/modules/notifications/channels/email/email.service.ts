@@ -35,7 +35,8 @@ export class EmailService {
             logger.info({ to: options.to }, '✅ Email sent via SendGrid');
             return true;
         } catch (error: any) {
-            logger.error(`❌ Failed to send email via SendGrid — ${error.message}`);
+            const body = error?.response?.body ?? error?.message;
+            logger.error(`❌ Failed to send email via SendGrid — ${JSON.stringify(body)}`);
             return false;
         }
     }
