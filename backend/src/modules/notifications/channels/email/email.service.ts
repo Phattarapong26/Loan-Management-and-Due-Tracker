@@ -15,7 +15,7 @@ export class EmailService {
             sgMail.setApiKey(env.SENDGRID_API_KEY);
             logger.info(`[Email Service] Initialized — SendGrid from=${env.SENDGRID_FROM ?? '(not set)'}`);
         } else {
-            logger.warn('[Email Service] SENDGRID_API_KEY not configured');
+            logger.warn(`[Email Service] SENDGRID_API_KEY not configured — key=${JSON.stringify(env.SENDGRID_API_KEY)} from=${JSON.stringify(env.SENDGRID_FROM)}`);
         }
     }
 
