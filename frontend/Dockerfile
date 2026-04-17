@@ -15,22 +15,26 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-# Use nginx for production serving
 FROM nginx:alpine AS runner
 
-# Copy built files
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# nginx config — listen on $PORT (Railway injects this)
+# nginx template — Railway will substitute $PORT at runtime
+COPY --from=builder /app/dist /usr/share/nginx/html
+
 RUN printf 'server {\n\
-    listen ${PORT:-80};\n\
+    listen $PORT;\n\
     root /usr/share/nginx/html;\n\
     index index.html;\n\
     location / {\n\
         try_files $uri $uri/ /index.html;\n\
     }\n\
-}\n' > /etc/nginx/conf.d/default.conf
+}\n' > /etc/nginx/templates/default.conf.template
+
+# Remove default config
+RUN rm /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
-CMD ["sh", "-c", "sed -i \"s/\\${PORT:-80}/${PORT:-80}/g\" /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
+# nginx docker image supports envsubst via templates/ directory automatically
+CMD ["nginx", "-g", "daemon off;"]
