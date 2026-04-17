@@ -98,10 +98,14 @@ const envSchema = z.object({
     SMTP_PORT: z.string().default('465'), // Use 465 (SSL) instead of 587 (TLS) for Railway
     SMTP_USER: z.string().optional(),
     SMTP_PASS: z.string().optional(),
-    SMTP_FROM: z.string().default('onboarding@resend.dev'), // Use Resend test email
+    SMTP_FROM: z.string().optional(),
 
-    // Resend Email API (preferred for Railway)
-    RESEND_API_KEY: z.string().optional(),
+    // SMTP Email (nodemailer)
+    SMTP_HOST: z.string().default('smtp.gmail.com'),
+    SMTP_PORT: z.string().default('465'),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASS: z.string().optional(),
+    SMTP_FROM: z.string().optional(),
 
     // Load Test Secret (development only - DO NOT use in production)
     LOAD_TEST_SECRET: z.string().optional(),
