@@ -11,19 +11,17 @@ export interface EmailOptions {
 
 export class EmailService {
     constructor() {
-        if (env.SENDGRID_API_KEY) {
-            sgMail.setApiKey(env.SENDGRID_API_KEY);
-            logger.info(`[Email Service] Initialized — SendGrid from=${env.SENDGRID_FROM ?? '(not set)'}`);
-        } else {
-            logger.warn(`[Email Service] SENDGRID_API_KEY not configured — key=${JSON.stringify(env.SENDGRID_API_KEY)} from=${JSON.stringify(env.SENDGRID_FROM)}`);
-        }
+        logger.info(`[Email Service] Initialized — SENDGRID_API_KEY=${env.SENDGRID_API_KEY ? 'SET' : 'NOT SET'} SENDGRID_FROM=${env.SENDGRID_FROM ?? 'NOT SET'}`);
     }
 
     async sendEmail(options: EmailOptions): Promise<boolean> {
         if (!env.SENDGRID_API_KEY || !env.SENDGRID_FROM) {
-            logger.warn('[Email Service] SendGrid not configured — email skipped');
+            logger.warn(`[Email Service] SendGrid not configured — key=${JSON.stringify(env.SENDGRID_API_KEY)} from=${JSON.stringify(env.SENDGRID_FROM)}`);
             return false;
         }
+
+        // Set API key on every call to ensure it's always fresh
+        sgMail.setApiKey(env.SENDGRID_API_KEY);
 
         try {
             await sgMail.send({
