@@ -1,7 +1,6 @@
 import nodemailer from 'nodemailer';
 import { env } from '@config/env.config';
 import { logger } from '@utils/common/logger.util';
-import dns from 'dns';
 
 export interface EmailOptions {
     to: string;
@@ -14,9 +13,6 @@ export class EmailService {
     private transporter: nodemailer.Transporter | null = null;
 
     constructor() {
-        // Force IPv4 DNS globally — Railway containers may prefer IPv6 which is blocked
-        dns.setDefaultResultOrder('ipv4first');
-
         logger.info('[Email Service] Initializing Nodemailer with Gmail...');
         logger.info(`[Email Service] SMTP_HOST: ${env.SMTP_HOST}`);
         logger.info(`[Email Service] SMTP_PORT: ${env.SMTP_PORT}`);

@@ -1,3 +1,7 @@
+// Force IPv4 DNS before any imports — must be first line
+import dns from 'dns';
+dns.setDefaultResultOrder('ipv4first');
+
 import { buildApp } from './app';
 import { env } from '@config/env.config';
 import { logger } from '@utils/common/logger.util';
