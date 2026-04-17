@@ -1,7 +1,6 @@
-import nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
 import { env } from '@config/env.config';
 import { logger } from '@utils/common/logger.util';
-import { resolve4 } from 'dns/promises';
 
 export interface EmailOptions {
     to: string;
@@ -10,65 +9,35 @@ export interface EmailOptions {
     html?: string;
 }
 
-/**
- * Resolve SMTP hostname to IPv4 explicitly.
- * Railway containers may resolve to IPv6 which is unreachable.
- */
-async function resolveIPv4(hostname: string): Promise<string> {
-    try {
-        const addresses = await resolve4(hostname);
-        if (addresses.length > 0) {
-            logger.info(`[Email] DNS resolved ${hostname} → ${addresses[0]} (IPv4)`);
-            return addresses[0];
-        }
-    } catch (err: any) {
-        logger.warn(`[Email] DNS resolve4 failed for ${hostname}: ${err.message}`);
-    }
-    return hostname;
-}
-
 export class EmailService {
     constructor() {
-        logger.info(`[Email Service] Initialized — host=${env.SMTP_HOST} port=${env.SMTP_PORT} user=${env.SMTP_USER ?? '(not set)'}`);
+        if (env.SENDGRID_API_KEY) {
+            sgMail.setApiKey(env.SENDGRID_API_KEY);
+            logger.info(`[Email Service] Initialized — SendGrid from=${env.SENDGRID_FROM ?? '(not set)'}`);
+        } else {
+            logger.warn('[Email Service] SENDGRID_API_KEY not configured');
+        }
     }
 
     async sendEmail(options: EmailOptions): Promise<boolean> {
-        if (!env.SMTP_USER || !env.SMTP_PASS) {
-            logger.warn('[Email Service] SMTP credentials not configured — email skipped');
+        if (!env.SENDGRID_API_KEY || !env.SENDGRID_FROM) {
+            logger.warn('[Email Service] SendGrid not configured — email skipped');
             return false;
         }
 
         try {
-            // Resolve to IPv4 to bypass Railway IPv6 routing issue
-            const smtpIp = await resolveIPv4(env.SMTP_HOST);
-
-            const transporter = nodemailer.createTransport({
-                host: smtpIp,
-                port: env.SMTP_PORT,
-                secure: env.SMTP_PORT === 465, // true only for port 465, false for 587 (STARTTLS)
-                auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
-                connectionTimeout: 30000,
-                socketTimeout: 30000,
-                tls: {
-                    servername: env.SMTP_HOST, // SNI must use original hostname for TLS cert
-                    rejectUnauthorized: false,
-                },
-            } as any);
-
-            logger.info({ to: options.to, smtpIp, port: env.SMTP_PORT }, '[Email Service] Sending...');
-
-            const info = await transporter.sendMail({
-                from: env.SMTP_FROM || env.SMTP_USER,
+            await sgMail.send({
+                from: env.SENDGRID_FROM as string,
                 to: options.to,
                 subject: options.subject,
-                text: options.text,
+                text: options.text ?? '',
                 html: options.html,
-            });
+            } as any);
 
-            logger.info({ messageId: info.messageId, to: options.to }, '✅ Email sent');
+            logger.info({ to: options.to }, '✅ Email sent via SendGrid');
             return true;
         } catch (error: any) {
-            logger.error(`❌ Failed to send email — ${error.message} | Code: ${error.code}`);
+            logger.error(`❌ Failed to send email via SendGrid — ${error.message}`);
             return false;
         }
     }
