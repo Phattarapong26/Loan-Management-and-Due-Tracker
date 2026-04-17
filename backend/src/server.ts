@@ -42,10 +42,13 @@ async function start() {
         });
         logger.info(`✅ Query logging enabled`);
 
-        // Validate LINE credentials before starting server
-        await validateLineCredentials({
-            testConnectivity: env.isProduction, // Test connectivity in production
-            failOnConnectivityError: env.isProduction, // Fail startup in production if connectivity fails
+        // Validate LINE credentials in the background - non-blocking so a
+        // credential issue never prevents the server from starting.
+        validateLineCredentials({
+            testConnectivity: env.isProduction,
+            failOnConnectivityError: false, // Never abort startup on connectivity failure
+        }).catch((error) => {
+            logger.warn({ error }, '⚠️ LINE credential validation failed (non-fatal) - server is running but LINE features may not work correctly');
         });
 
         // Build app
