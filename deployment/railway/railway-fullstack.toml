@@ -1,34 +1,30 @@
 # Railway Full Stack Configuration
-# This file configures both backend and frontend services
+# ใช้ไฟล์นี้เป็น reference เท่านั้น
+# Railway จะ detect backend/railway.toml และ frontend/railway.toml อัตโนมัติ
 
-# Backend Service
-[[services]]
-name = "backend"
-source = "backend"
+# ─── Backend Service ───────────────────────────────────────────────────────────
+# Source: backend/
+# Build: Dockerfile (backend/Dockerfile)
+# Start: npx prisma migrate deploy && npm start
+# Health: GET /health → {"status":"healthy"}
+# Port: 3000 (Railway auto-assigns $PORT)
 
-[services.backend.build]
-builder = "NIXPACKS"
-buildCommand = "npm ci && npx prisma generate && npm run build"
+# ─── Frontend Service ──────────────────────────────────────────────────────────
+# Source: frontend/
+# Build: Dockerfile (frontend/Dockerfile) with VITE_API_URL build arg
+# Start: serve -s dist -l $PORT
+# Health: GET /
+# Port: 5173 (Railway auto-assigns $PORT)
 
-[services.backend.deploy]
-startCommand = "npm start"
-healthcheckPath = "/health"
-healthcheckTimeout = 300
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 10
+# ─── Required Services ─────────────────────────────────────────────────────────
+# PostgreSQL: Railway plugin → DATABASE_URL auto-injected
+# Redis:      Railway plugin → REDIS_URL auto-injected
 
-# Frontend Service
-[[services]]
-name = "frontend"
-source = "frontend"
-
-[services.frontend.build]
-builder = "NIXPACKS"
-buildCommand = "npm ci && npm run build"
-
-[services.frontend.deploy]
-startCommand = "npm run preview -- --host 0.0.0.0 --port $PORT"
-healthcheckPath = "/"
-healthcheckTimeout = 300
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 10
+# ─── Deploy Order ──────────────────────────────────────────────────────────────
+# 1. Add PostgreSQL plugin
+# 2. Add Redis plugin
+# 3. Deploy Backend (set env vars)
+# 4. Copy Backend URL → set VITE_API_URL in Frontend
+# 5. Deploy Frontend
+# 6. Copy Frontend URL → update CORS_ORIGIN and FRONTEND_URL in Backend
+# 7. Redeploy Backend

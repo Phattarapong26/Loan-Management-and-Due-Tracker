@@ -93,13 +93,6 @@ const envSchema = z.object({
     // Google Gemini AI
     GEMINI_API_KEY: z.string().optional(),
 
-    // SMTP Email
-    SMTP_HOST: z.string().default('smtp.gmail.com'),
-    SMTP_PORT: z.string().default('465'), // Use 465 (SSL) instead of 587 (TLS) for Railway
-    SMTP_USER: z.string().optional(),
-    SMTP_PASS: z.string().optional(),
-    SMTP_FROM: z.string().optional(),
-
     // SMTP Email (nodemailer)
     SMTP_HOST: z.string().default('smtp.gmail.com'),
     SMTP_PORT: z.string().default('465'),

@@ -1,19 +1,14 @@
+# nixpacks.toml — ใช้เฉพาะถ้า Railway ไม่ detect Dockerfile อัตโนมัติ
+# แนะนำให้ใช้ Dockerfile แทน (backend/Dockerfile, frontend/Dockerfile)
+
 [phases.setup]
 nixPkgs = ["nodejs_20", "openssl"]
 
 [phases.install]
-cmds = [
-  "cd backend",
-  "echo '=== Checking files ===' && ls -la",
-  "echo '=== Installing dependencies ===' && npm install"
-]
+cmds = ["npm ci"]
 
 [phases.build]
-cmds = [
-  "cd backend",
-  "npx prisma generate",
-  "npm run build"
-]
+cmds = ["npx prisma generate", "npm run build"]
 
 [start]
-cmd = "cd backend && npm start"
+cmd = "npx prisma migrate deploy && npm start"

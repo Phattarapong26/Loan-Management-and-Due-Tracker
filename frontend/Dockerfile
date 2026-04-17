@@ -48,5 +48,5 @@ RUN npm install -g serve
 # Expose port
 EXPOSE 5173
 
-# Start the application using serve
-CMD ["serve", "-s", "dist", "-l", "5173"]
+# Start the application using serve (Railway injects $PORT)
+CMD ["sh", "-c", "serve -s dist -l ${PORT:-5173}"]

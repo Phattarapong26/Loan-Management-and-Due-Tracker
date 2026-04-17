@@ -1,6 +1,3 @@
-# Railway Backend Service Configuration
-# Place this file at: backend/railway.toml (or set in Railway dashboard)
-
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
