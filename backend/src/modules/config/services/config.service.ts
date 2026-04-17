@@ -10,11 +10,16 @@ export class ConfigService {
     private static instance: ConfigService;
 
     constructor(redis?: Redis) {
-        this.redis = redis || new Redis({
-            host: process.env.REDIS_HOST || 'localhost',
-            port: parseInt(process.env.REDIS_PORT || '6379', 10),
-            password: process.env.REDIS_PASSWORD || undefined,
-        });
+        this.redis = redis || (
+            process.env.REDIS_URL
+                ? new Redis(process.env.REDIS_URL, { lazyConnect: true, tls: process.env.REDIS_URL.startsWith('rediss://') ? {} : undefined })
+                : new Redis({
+                    host: process.env.REDIS_HOST || 'localhost',
+                    port: parseInt(process.env.REDIS_PORT || '6379', 10),
+                    password: process.env.REDIS_PASSWORD || undefined,
+                    lazyConnect: true,
+                })
+        );
     }
 
     static getInstance(redis?: Redis): ConfigService {
