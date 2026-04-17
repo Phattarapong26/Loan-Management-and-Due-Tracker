@@ -26,7 +26,8 @@ export class EmailService {
 
         try {
             this.transporter = nodemailer.createTransport({
-                host: env.SMTP_HOST,
+                // Use Gmail IPv4 directly to avoid IPv6 ENETUNREACH on Railway
+                host: env.SMTP_HOST === 'smtp.gmail.com' ? '74.125.133.108' : env.SMTP_HOST,
                 port: env.SMTP_PORT,
                 secure: env.SMTP_PORT === 465,
                 auth: {
@@ -35,8 +36,11 @@ export class EmailService {
                 },
                 connectionTimeout: 10000,
                 socketTimeout: 10000,
-                // Force IPv4 — Railway may not support IPv6 outbound
                 family: 4,
+                tls: {
+                    servername: 'smtp.gmail.com', // SNI — required when using IP directly
+                    rejectUnauthorized: false,
+                },
             });
 
             logger.info(
