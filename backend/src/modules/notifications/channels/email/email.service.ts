@@ -24,13 +24,16 @@ export class EmailService {
         sgMail.setApiKey(env.SENDGRID_API_KEY);
 
         try {
-            await sgMail.send({
+            const msg: any = {
                 from: env.SENDGRID_FROM as string,
                 to: options.to,
                 subject: options.subject,
-                text: options.text ?? '',
-                html: options.html,
-            } as any);
+            };
+            if (options.html) msg.html = options.html;
+            if (options.text) msg.text = options.text;
+            if (!msg.html && !msg.text) msg.text = ' '; // SendGrid requires at least one content field
+
+            await sgMail.send(msg);
 
             logger.info({ to: options.to }, '✅ Email sent via SendGrid');
             return true;
