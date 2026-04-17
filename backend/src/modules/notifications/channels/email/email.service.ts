@@ -35,6 +35,8 @@ export class EmailService {
                 },
                 connectionTimeout: 10000,
                 socketTimeout: 10000,
+                // Force IPv4 — Railway may not support IPv6 outbound
+                family: 4,
             });
 
             logger.info(
