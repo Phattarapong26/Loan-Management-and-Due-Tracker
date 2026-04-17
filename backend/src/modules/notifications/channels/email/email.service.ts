@@ -13,20 +13,33 @@ export class EmailService {
     private transporter: nodemailer.Transporter;
 
     constructor() {
+        const port = env.SMTP_PORT;
+        // port 465 → SSL (secure=true), port 587 → STARTTLS (secure=false)
+        const secure = port === 465;
+
         this.transporter = nodemailer.createTransport({
             host: env.SMTP_HOST,
-            port: env.SMTP_PORT,
-            secure: env.SMTP_PORT === 465,
+            port,
+            secure,
             auth: {
                 user: env.SMTP_USER,
                 pass: env.SMTP_PASS,
             },
-            tls: {
-                rejectUnauthorized: false,
-            },
+            // For port 587 STARTTLS
+            ...(!secure && {
+                requireTLS: true,
+                tls: { rejectUnauthorized: false },
+            }),
+            // For port 465 SSL
+            ...(secure && {
+                tls: { rejectUnauthorized: false },
+            }),
+            connectionTimeout: 10000,
+            greetingTimeout: 10000,
+            socketTimeout: 15000,
         });
 
-        logger.info('[Email Service] Initialized with nodemailer SMTP');
+        logger.info(`[Email Service] Initialized — host=${env.SMTP_HOST} port=${port} secure=${secure}`);
     }
 
     async sendEmail(options: EmailOptions): Promise<boolean> {
