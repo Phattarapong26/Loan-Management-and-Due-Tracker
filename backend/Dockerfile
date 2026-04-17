@@ -34,6 +34,8 @@ FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+# Railway injects PORT — expose it so the container is reachable
+EXPOSE 3000
 
 # Copy necessary files
 COPY --from=builder /app/dist ./dist
@@ -45,4 +47,4 @@ COPY --from=builder /app/prisma ./prisma
 EXPOSE 3000
 
 # Start the application
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && npm start"]
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && PORT=${PORT:-3000} npm start"]
