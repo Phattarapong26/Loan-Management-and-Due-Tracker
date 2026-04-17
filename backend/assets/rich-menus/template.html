@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINE Rich Menu Templates - K-Bank Style</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Prompt', 'Kanit', 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f8f9fa;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #1a1a1a;
+            font-weight: 700;
+        }
+        
+        .menu-wrapper {
+            margin-bottom: 40px;
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        
+        .menu-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #1a1a1a;
+        }
+        
+        .menu-subtitle {
+            font-size: 14px;
+            color: #6c757d;
+            margin-bottom: 24px;
+        }
+        
+        .rich-menu {
+            width: 100%;
+            max-width: 800px;
+            aspect-ratio: 2500 / 1686;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr 1fr;
+            gap: 1px;
+            background: #e9ecef;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+        }
+        
+        .menu-button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 600;
+            position: relative;
+        }
+        
+        .menu-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+        }
+        
+        .menu-icon {
+            font-size: 42px;
+            margin-bottom: 12px;
+            opacity: 0.95;
+        }
+        
+        .menu-text {
+            font-size: 18px;
+            text-align: center;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+        
+        /* K-Bank Inspired Theme - Clean Green & White */
+        .customer .menu-button {
+            background: white;
+            color: #00AA5B;
+        }
+        
+        .customer .menu-button:nth-child(odd) {
+            background: #f8fdfb;
+        }
+        
+        .customer .menu-button:hover {
+            background: #00AA5B;
+            color: white;
+        }
+        
+        /* Officer Menu - Professional Blue-Green */
+        .officer .menu-button {
+            background: white;
+            color: #0088CC;
+        }
+        
+        .officer .menu-button:nth-child(odd) {
+            background: #f7fcff;
+        }
+        
+        .officer .menu-button:hover {
+            background: #0088CC;
+            color: white;
+        }
+        
+        /* Manager Menu - Executive Green */
+        .manager .menu-button {
+            background: white;
+            color: #00875A;
+        }
+        
+        .manager .menu-button:nth-child(odd) {
+            background: #f6fdf9;
+        }
+        
+        .manager .menu-button:hover {
+            background: #00875A;
+            color: white;
+        }
+        
+        /* Admin Menu - System Teal */
+        .admin .menu-button {
+            background: white;
+            color: #00695C;
+        }
+        
+        .admin .menu-button:nth-child(odd) {
+            background: #f5fbfa;
+        }
+        
+        .admin .menu-button:hover {
+            background: #00695C;
+            color: white;
+        }
+        
+        .specs {
+            margin-top: 24px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #495057;
+            line-height: 1.8;
+        }
+        
+        .instructions {
+            text-align: center;
+            margin-top: 40px;
+            padding: 32px;
+            background: linear-gradient(135deg, #00AA5B 0%, #00875A 100%);
+            color: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,170,91,0.3);
+        }
+        
+        .instructions h2 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        
+        .instructions p {
+            margin: 12px 0;
+            font-size: 16px;
+            opacity: 0.95;
+        }
+        
+        .instructions code {
+            background: rgba(255,255,255,0.2);
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+        }
+        
+        @media print {
+            body {
+                background: white;
+            }
+            .menu-wrapper {
+                page-break-after: always;
+            }
+            .instructions {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 LINE Rich Menu Templates</h1>
+        
+        <!-- Customer Menu -->
+        <div class="menu-wrapper">
+            <div class="menu-title">1. Customer Menu (ลูกค้า)</div>
+            <div class="menu-subtitle">ไฟล์: customer-menu.png | ขนาด: 2500 x 1686 px | Theme: K-Bank Green</div>
+            <div class="rich-menu customer">
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="fas fa-wallet"></i></div>
+                    <div class="menu-text">ยอดคงเหลือ</div>
+                </div>
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="far fa-calendar-check"></i></div>
+                    <div class="menu-text">กำหนดชำระ</div>
+                </div>
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="fas fa-history"></i></div>
+                    <div class="menu-text">ประวัติ</div>
+                </div>
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="far fa-credit-card"></i></div>
+                    <div class="menu-text">ชำระเงิน</div>
+                </div>
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="far fa-comment-dots"></i></div>
+                    <div class="menu-text">ติดต่อ</div>
+                </div>
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="fas fa-th"></i></div>
+                    <div class="menu-text">เมนู</div>
+                </div>
+            </div>
+            <div class="specs">
+                <strong>สี:</strong> K-Bank Green (#00AA5B) + White<br>
+                <strong>Role:</strong> USER<br>
+                <strong>ปุ่ม:</strong> ยอดคงเหลือ | กำหนดชำระ | ประวัติ | ชำระเงิน | ติดต่อ | เมนู
+            </div>
+        </div>
+        
+        <!-- Officer Menu -->
+        <div class="menu-wrapper">
+            <div class="menu-title">2. Officer Menu (เจ้าหน้าที่สินเชื่อ)</div>
+            <div class="menu-subtitle">ไฟล์: officer-menu.png | ขนาด: 2500 x 1686 px | Theme: Professional Blue</div>
+            <div class="rich-menu officer">
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="far fa-clipboard"></i></div>
+                    <div class="menu-text">งานวันนี้</div>
+                </div>
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="far fa-user-circle"></i></div>
+                    <div class="menu-text">ลูกค้า</div>
+                </div>
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="far fa-edit"></i></div>
+                    <div class="menu-text">บันทึก</div>
+                </div>
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="fas fa-chart-pie"></i></div>
+                    <div class="menu-text">สรุป</div>
+                </div>
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="fas fa-chart-line"></i></div>
+                    <div class="menu-text">รายงาน</div>
+                </div>
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="fas fa-th"></i></div>
+                    <div class="menu-text">เมนู</div>
+                </div>
+            </div>
+            <div class="specs">
+                <strong>สี:</strong> Professional Blue (#0088CC) + White<br>
+                <strong>Role:</strong> OFFICER<br>
+                <strong>ปุ่ม:</strong> งานวันนี้ | ลูกค้า | บันทึก | สรุป | รายงาน | เมนู
+            </div>
+        </div>
+        
+        <!-- Manager Menu -->
+        <div class="menu-wrapper">
+            <div class="menu-title">3. Manager Menu (ผู้จัดการสาขา)</div>
+            <div class="menu-subtitle">ไฟล์: manager-menu.png | ขนาด: 2500 x 1686 px | Theme: Executive Green</div>
+            <div class="rich-menu manager">
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="far fa-check-circle"></i></div>
+                    <div class="menu-text">อนุมัติ</div>
+                </div>
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="fas fa-tachometer-alt"></i></div>
+                    <div class="menu-text">KPI</div>
+                </div>
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="menu-text">NPL</div>
+                </div>
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="fas fa-users"></i></div>
+                    <div class="menu-text">ทีม</div>
+                </div>
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="fas fa-file-chart-line"></i></div>
+                    <div class="menu-text">รายงาน</div>
+                </div>
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="fas fa-th"></i></div>
+                    <div class="menu-text">เมนู</div>
+                </div>
+            </div>
+            <div class="specs">
+                <strong>สี:</strong> Executive Green (#00875A) + White<br>
+                <strong>Role:</strong> MANAGER<br>
+                <strong>ปุ่ม:</strong> อนุมัติ | KPI | NPL | ทีม | รายงาน | เมนู
+            </div>
+        </div>
+        
+        <!-- Admin Menu -->
+        <div class="menu-wrapper">
+            <div class="menu-title">4. Admin Menu (ผู้ดูแลระบบ)</div>
+            <div class="menu-subtitle">ไฟล์: admin-menu.png | ขนาด: 2500 x 1686 px | Theme: System Teal</div>
+            <div class="rich-menu admin">
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="fas fa-server"></i></div>
+                    <div class="menu-text">ระบบ</div>
+                </div>
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="far fa-user"></i></div>
+                    <div class="menu-text">ผู้ใช้</div>
+                </div>
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="far fa-building"></i></div>
+                    <div class="menu-text">สาขา</div>
+                </div>
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="fas fa-chart-bar"></i></div>
+                    <div class="menu-text">รายงาน</div>
+                </div>
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="fas fa-cog"></i></div>
+                    <div class="menu-text">ตั้งค่า</div>
+                </div>
+                <div class="menu-button">
+                    <div class="menu-icon"><i class="fas fa-th"></i></div>
+                    <div class="menu-text">เมนู</div>
+                </div>
+            </div>
+            <div class="specs">
+                <strong>สี:</strong> System Teal (#00695C) + White<br>
+                <strong>Role:</strong> ADMIN<br>
+                <strong>ปุ่ม:</strong> ระบบ | ผู้ใช้ | สาขา | รายงาน | ตั้งค่า | เมนู
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h2>🚀 วิธีใช้งาน Rich Menu Templates</h2>
+            <p><strong>ขั้นตอนที่ 1:</strong> เปิดไฟล์นี้ในเบราว์เซอร์ (Chrome แนะนำ)</p>
+            <p><strong>ขั้นตอนที่ 2:</strong> Screenshot แต่ละ menu หรือใช้ Figma/Canva ออกแบบใหม่</p>
+            <p><strong>ขั้นตอนที่ 3:</strong> Resize เป็น 2500 x 1686 pixels (สำคัญมาก!)</p>
+            <p><strong>ขั้นตอนที่ 4:</strong> บันทึกเป็น PNG ในโฟลเดอร์ backend/assets/rich-menus/</p>
+            <p><strong>ขั้นตอนที่ 5:</strong> รัน <code>npx tsx src/scripts/init-rich-menus.ts</code></p>
+            <p><strong>ขั้นตอนที่ 6:</strong> ทดสอบทุก role ด้วย <code>npx tsx src/scripts/test-all-rich-menus.ts</code></p>
+        </div>
+    </div>
+</body>
+</html>

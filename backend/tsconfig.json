@@ -1,0 +1,134 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "ESNext",
+        "lib": [
+            "ES2022"
+        ],
+        "moduleResolution": "bundler",
+        "rootDir": "./src",
+        "outDir": "./dist",
+        "baseUrl": "./src",
+        "ignoreDeprecations": "6.0",
+        "paths": {
+            "@/*": [
+                "./*"
+            ],
+            // Core infrastructure
+            "@core/*": [
+                "core/*"
+            ],
+            "@config/*": [
+                "core/config/*"
+            ],
+            "@middlewares/*": [
+                "core/middleware/*"
+            ],
+            "@utils/*": [
+                "core/utils/*"
+            ],
+            // Modules (new structure)
+            "@modules/*": [
+                "modules/*"
+            ],
+            // Individual modules for convenience
+            "@auth/*": [
+                "modules/auth/*"
+            ],
+            "@users/*": [
+                "modules/users/*"
+            ],
+            "@customers/*": [
+                "modules/customers/*"
+            ],
+            "@loans/*": [
+                "modules/loans/*"
+            ],
+            "@payments/*": [
+                "modules/payments/*"
+            ],
+            "@disbursements/*": [
+                "modules/disbursements/*"
+            ],
+            "@invoices/*": [
+                "modules/invoices/*"
+            ],
+            "@documents/*": [
+                "modules/documents/*"
+            ],
+            "@notifications/*": [
+                "modules/notifications/*"
+            ],
+            "@line/*": [
+                "modules/line/*"
+            ],
+            "@collections/*": [
+                "modules/collections/*"
+            ],
+            "@reports/*": [
+                "modules/reports/*"
+            ],
+            "@branches/*": [
+                "modules/branches/*"
+            ],
+            "@calendar/*": [
+                "modules/calendar/*"
+            ],
+            "@expenses/*": [
+                "modules/expenses/*"
+            ],
+            "@transactions/*": [
+                "modules/transactions/*"
+            ],
+            "@config-mgmt/*": [
+                "modules/config-management/*"
+            ],
+            "@products/*": [
+                "modules/products/*"
+            ],
+            "@core-services/*": [
+                "modules/core-services/*"
+            ],
+            "@monitoring/*": [
+                "modules/monitoring/*"
+            ],
+            // Shared and jobs
+            "@shared/*": [
+                "shared/*"
+            ],
+            "@jobs/*": [
+                "jobs/*"
+            ]
+        },
+        "resolveJsonModule": true,
+        "allowJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "strict": true,
+        "noImplicitAny": true,
+        "strictNullChecks": true,
+        "strictFunctionTypes": true,
+        "strictBindCallApply": true,
+        "strictPropertyInitialization": true,
+        "noImplicitThis": true,
+        "alwaysStrict": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "noUncheckedIndexedAccess": true,
+        "skipLibCheck": true,
+        "allowSyntheticDefaultImports": true
+    },
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "**/*.spec.ts"
+    ]
+}

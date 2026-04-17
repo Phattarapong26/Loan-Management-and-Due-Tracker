@@ -1,0 +1,99 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: duetracker-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: duetracker
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - duetracker-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: duetracker-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - duetracker-network
+
+  # Backend API
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: duetracker-backend
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/duetracker
+      REDIS_URL: redis://redis:6379
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      PORT: 3000
+      JWT_SECRET: dev-jwt-secret-key-change-in-production
+      JWT_REFRESH_SECRET: dev-jwt-refresh-secret-key-change-in-production
+      SESSION_SECRET: dev-session-secret-key-change-in-production
+      ENCRYPTION_KEY: "498872ed4febe35d11e53c4d523415087ad1a6b2f0e67bdf73dade1266d31409"
+      BACKEND_URL: http://localhost:3000
+      FRONTEND_URL: http://localhost:5173
+      CORS_ORIGIN: http://localhost:5173
+      LINE_OA_ID: "@186krrbq"
+      LINE_CHANNEL_ACCESS_TOKEN: "tUW8OkX4MbZ2ObcNReV8U+Rls3umowBFcteq0qT4cc6HwuJ+pWBL6cqbbAl3vE1H09Hnv+rd14YjHZXyI2Xv5lHDgFZ37fh9LLxkyx4mhDp7UyV/XRvdSHUPCF0PRjvRhVw7pPa0pM8ZlIuS8zD1sQdB04t89/1O/w1cDnyilFU="
+      LINE_CHANNEL_SECRET: "aee13b8ce5206c3531278dd9ce0ad347"
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - duetracker-network
+
+  # Frontend Web App
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:3000
+        VITE_BACKEND_URL: http://localhost:3000
+    container_name: duetracker-frontend
+    environment:
+      VITE_API_URL: http://localhost:3000
+      VITE_BACKEND_URL: http://localhost:3000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - duetracker-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  duetracker-network:
+    driver: bridge

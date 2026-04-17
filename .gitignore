@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Build outputs
+dist/
+*/dist/
+build/
+*/build/
+
+# Environment files (secrets)
+.env
+*/.env
+backend/.env
+frontend/.env
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes
+postgres_data/
+redis_data/
+
+# Test files
+*.test-output
+coverage/
+
+# Temp files
+*.tmp
+*.temp
+SECURITY_ISSUE_FIXED.md
+LOGIN_ISSUE_FIXED.md
+FINAL_SUMMARY.txt
+READY_TO_DEPLOY.md
+START_DEPLOYMENT.md
+TEST_SUMMARY.md
+TEAM_ANNOUNCEMENT.md
+RESTRUCTURE_SUMMARY.md

@@ -1,0 +1,928 @@
+// SME Bank Database Schema
+// สร้างจาก Database จริง - ใช้กับ https://dbml.dbdiagram.io
+// Generated: 2026-02-09T12:43:51.269Z
+// ใช้ inline ref เพื่อให้ dbdiagram.io รองรับได้ถูกต้อง
+
+Project SME_Bank_2026 {
+  database_type: 'PostgreSQL'
+  Note: 'SME Bank 2026 - จาก Local Database'
+}
+
+Table aging_analysis {
+  id text [pk, not null]
+  loan_id text [not null, ref: > loans.id]
+  customer_id text [not null, ref: > customers.id]
+  branch_id text [not null, ref: > branches.id]
+  current_age int [not null]
+  aging_bucket varchar [not null]
+  principal_overdue numeric
+  interest_overdue numeric
+  penalty_overdue numeric
+  total_overdue numeric
+  collection_agent_id text [ref: > users.id]
+  collection_strategy varchar
+  next_action_date date
+  status varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table aml_checks {
+  id text [pk, not null]
+  customer_id text [not null, ref: > customers.id]
+  check_type varchar [not null]
+  check_result varchar [not null]
+  match_score numeric
+  matched_names json
+  check_data json
+  performed_by text [ref: > users.id]
+  performed_at timestamp
+  reviewed_by text [ref: > users.id]
+  reviewed_at timestamp
+  notes text
+  created_at timestamp
+}
+
+Table approval_limits {
+  id text [pk, not null]
+  role varchar [not null]
+  min_amount numeric [not null]
+  max_amount numeric
+  approval_level text [not null]
+  requires_next_level boolean [not null]
+  sla_hours int [not null]
+  status text [not null]
+  created_by text [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table audit_logs {
+  id text [pk, not null]
+  user_id text [ref: > users.id]
+  action text [not null]
+  entity text [not null]
+  entity_id text
+  changes json
+  ip_address text
+  user_agent text
+  metadata json
+  created_at timestamp [not null]
+}
+
+Table blocked_ips {
+  id text [pk, not null]
+  ip_address text [not null]
+  reason text [not null]
+  blocked_by text
+  expires_at timestamp
+  created_at timestamp [not null]
+}
+
+Table branches {
+  id text [pk, not null]
+  code text [not null]
+  name text [not null]
+  address text
+  phone text
+  status varchar [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table budget_consumption {
+  id text [pk, not null]
+  product_budget_id text [not null, ref: > product_budgets.id]
+  loan_id text [not null, ref: > loans.id]
+  branch_id text [not null, ref: > branches.id]
+  requested_amount numeric [not null]
+  approved_amount numeric [not null]
+  disbursed_amount numeric
+  consumption_type varchar [not null]
+  status varchar
+  consumption_date date [not null]
+  consumption_time timestamp [not null]
+  processed_by text [ref: > users.id]
+  released_amount numeric
+  released_at timestamp
+  released_by text [ref: > users.id]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table calendar_events {
+  id text [pk, not null]
+  branch_id text [ref: > branches.id]
+  created_by text [not null, ref: > users.id]
+  title text [not null]
+  description text
+  start_date timestamp [not null]
+  end_date timestamp
+  all_day boolean [not null]
+  event_type varchar [not null]
+  category varchar
+  loan_id text [ref: > loans.id]
+  customer_id text [ref: > customers.id]
+  recurring boolean [not null]
+  recurrence_rule text
+  reminder_minutes varchar
+  location text
+  attendees varchar
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table collection_workflow_steps {
+  id text [pk, not null]
+  days_overdue_from int [not null]
+  days_overdue_to int
+  action_type varchar [not null]
+  template_id text
+  priority varchar [not null]
+  assigned_role varchar [not null]
+  sla_hours int [not null]
+  is_active boolean
+  created_by text [not null, ref: > users.id]
+  created_at timestamp
+}
+
+Table contact_logs {
+  id text [pk, not null]
+  customer_id text [not null, ref: > customers.id]
+  loan_id text [ref: > loans.id]
+  officer_id text [not null, ref: > users.id]
+  contact_date timestamp [not null]
+  contact_status varchar [not null]
+  contact_method varchar [not null]
+  notes text [not null]
+  promised_date timestamp
+  task_id text
+  next_follow_up_date timestamp
+  outcome varchar
+  created_at timestamp [not null]
+}
+
+Table conversation_states {
+  id text [pk, not null]
+  line_user_id text [not null]
+  flow text [not null]
+  step text [not null]
+  data json
+  state text [not null]
+  expires_at timestamp [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table credit_line_drawdowns {
+  id text [pk, not null]
+  credit_line_id text [not null, ref: > credit_lines.id]
+  drawdown_number varchar [not null]
+  amount numeric [not null]
+  purpose text [not null]
+  drawdown_date date [not null]
+  maturity_date date [not null]
+  interest_rate numeric [not null]
+  status varchar
+  created_by text [not null, ref: > users.id]
+  created_at timestamp
+}
+
+Table credit_lines {
+  id text [pk, not null]
+  customer_id text [not null, ref: > customers.id]
+  credit_line_number varchar [not null]
+  approved_limit numeric [not null]
+  current_balance numeric
+  available_balance numeric
+  utilization_rate numeric
+  interest_rate numeric [not null]
+  start_date date [not null]
+  expiry_date date [not null]
+  review_date date
+  status varchar
+  created_by text [not null, ref: > users.id]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table customer_active_products {
+  id text [pk, not null]
+  customer_id text [not null, ref: > customers.id]
+  loan_product_id text [not null, ref: > loan_products.id]
+  loan_id text [not null, ref: > loans.id]
+  activated_at timestamp [not null]
+  deactivated_at timestamp
+  status text [not null]
+}
+
+Table customers {
+  id text [pk, not null]
+  user_id text [ref: > users.id]
+  branch_id text [not null, ref: > branches.id]
+  customer_code text [not null]
+  business_name text [not null]
+  business_type text
+  business_registration_date date
+  business_registration_type varchar
+  registered_capital numeric
+  business_size varchar
+  industry_code varchar
+  business_age_years int
+  number_of_employees int
+  phone text [not null]
+  email text
+  address text
+  business_address text
+  business_phone text
+  thai_id text
+  tax_id text [not null]
+  shareholders json
+  signatories json
+  annual_revenue numeric
+  net_profit numeric
+  total_assets numeric
+  total_liabilities numeric
+  debt_to_equity_ratio numeric
+  ai_extracted_data json
+  ai_confidence_score numeric
+  ai_processed_at timestamp
+  ai_warnings varchar
+  status varchar [not null]
+  document_complete boolean [not null]
+  line_user_id text
+  line_linked_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  created_by text [not null]
+}
+
+Table data_access_logs {
+  id text [pk, not null]
+  user_id text [not null, ref: > users.id]
+  customer_id text [not null, ref: > customers.id]
+  access_type varchar [not null]
+  access_path text [not null]
+  accessed_fields varchar
+  purpose text
+  ip_address text
+  user_agent text
+  created_at timestamp
+}
+
+Table documents {
+  id text [pk, not null]
+  customer_id text [ref: > customers.id]
+  document_type text [not null]
+  file_name text [not null]
+  file_path text [not null]
+  file_size int [not null]
+  mime_type text [not null]
+  file_hash text [not null]
+  ai_processed boolean [not null]
+  ai_status text
+  extracted_data json
+  confidence_score numeric
+  review_status varchar [not null]
+  reviewed_by text
+  reviewed_at timestamp
+  review_notes text
+  rejected_reason text
+  uploaded_by text [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  enhanced_data json
+  document_subtype text
+  processing_version text
+}
+
+Table expenses {
+  id text [pk, not null]
+  branch_id text [not null, ref: > branches.id]
+  created_by text [not null, ref: > users.id]
+  category varchar [not null]
+  amount numeric [not null]
+  description text [not null]
+  receipt_path text
+  status varchar [not null]
+  approved_by text [ref: > users.id]
+  approved_at timestamp
+  rejected_by text [ref: > users.id]
+  rejected_at timestamp
+  rejected_reason text
+  reimbursed boolean [not null]
+  reimbursed_at timestamp
+  reimbursed_by text [ref: > users.id]
+  expense_date timestamp [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table interest_rate_tiers {
+  id text [pk, not null]
+  loan_product_id text [ref: > loan_products.id]
+  interest_rate numeric [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  effective_from timestamp [not null]
+  effective_until timestamp
+  grace_period_days int [not null]
+  max_amount numeric
+  min_amount numeric [not null]
+  status text [not null]
+  tier_name text [not null]
+}
+
+Table invoice_access_logs {
+  id text [pk, not null]
+  resource_id text [not null]
+  customer_id text [not null, ref: > customers.id]
+  success boolean [not null]
+  attempted_at timestamp [not null]
+  ip_address text
+  user_agent text
+  created_at timestamp [not null]
+}
+
+Table invoices {
+  id text [pk, not null]
+  payment_schedule_id text [not null, ref: > payment_schedules.id]
+  loan_id text [not null, ref: > loans.id]
+  customer_id text [not null, ref: > customers.id]
+  invoice_number text [not null]
+  invoice_date timestamp [not null]
+  due_date timestamp [not null]
+  invoice_data json [not null]
+  status varchar [not null]
+  sent_at timestamp
+  sent_via text
+  viewed_at timestamp
+  generated_by text [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table loan_approval_workflow {
+  id text [pk, not null]
+  loan_id text [not null, ref: > loans.id]
+  approval_level int [not null]
+  approver_id text [ref: > users.id]
+  approval_status varchar
+  approved_amount numeric
+  approval_notes text
+  sla_deadline timestamp
+  completed_at timestamp
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table loan_disbursements {
+  id text [pk, not null]
+  loan_id text [not null, ref: > loans.id]
+  disbursement_no int [not null]
+  amount numeric [not null]
+  purpose text [not null]
+  requested_date timestamp [not null]
+  status varchar [not null]
+  approved_by text [ref: > users.id]
+  approved_at timestamp
+  rejected_by text [ref: > users.id]
+  rejected_at timestamp
+  rejected_reason text
+  disbursed_by text [ref: > users.id]
+  disbursed_at timestamp
+  disbursement_method text
+  reference_no text
+  next_disbursement_date timestamp
+  notes text
+  created_by text [not null, ref: > users.id]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table loan_interest_history {
+  id text [pk, not null]
+  loan_id text [not null, ref: > loans.id]
+  payment_number int [not null]
+  outstanding_balance numeric [not null]
+  applied_rate numeric [not null]
+  tier_name text
+  grace_period_days int [not null]
+  interest_amount numeric [not null]
+  calculated_at timestamp [not null]
+  effective_date timestamp [not null]
+}
+
+Table loan_products {
+  id text [pk, not null]
+  product_code text [not null]
+  product_name text [not null]
+  product_name_en text
+  description text
+  purpose varchar
+  eligibility varchar
+  target_business varchar
+  min_revenue numeric
+  max_revenue numeric
+  min_years_in_business int
+  min_loan_amount numeric
+  max_loan_amount numeric [not null]
+  total_project_budget numeric
+  interest_rate_type varchar [not null]
+  interest_rate_year_1_3 numeric
+  interest_rate_year_4_plus numeric
+  interest_rate_formula text
+  government_subsidy boolean [not null]
+  subsidy_details text
+  loan_type varchar [not null]
+  max_term_months int [not null]
+  grace_period_months int
+  collateral_required boolean [not null]
+  collateral_details text
+  guarantee_options varchar
+  benefits varchar
+  fee_waivers varchar
+  project_start_date timestamp
+  project_end_date timestamp
+  status varchar [not null]
+  is_popular boolean [not null]
+  display_order int [not null]
+  created_by text [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table loans {
+  id text [pk, not null]
+  customer_id text [not null, ref: > customers.id]
+  branch_id text [not null, ref: > branches.id]
+  officer_id text [not null, ref: > users.id]
+  contract_number text
+  principal numeric [not null]
+  interest_rate numeric [not null]
+  term_months int [not null]
+  current_principal numeric
+  interest_calculation_method text
+  last_interest_calculation_date timestamp
+  accumulated_interest numeric
+  payment_day int [not null]
+  first_payment_date timestamp
+  payment_day_adjustment text
+  dscr numeric
+  dscr_status text
+  monthly_payment numeric
+  total_interest numeric
+  allow_early_payment boolean
+  early_payment_penalty_rate numeric
+  status varchar [not null]
+  sla_status varchar
+  sla_deadline timestamp
+  approved_by text [ref: > users.id]
+  approved_at timestamp
+  rejected_by text
+  rejected_at timestamp
+  rejected_reason text
+  approval_level varchar [not null]
+  current_approval_level varchar
+  approval_history json
+  disbursement_date timestamp
+  maturity_date timestamp
+  outstanding_balance numeric [not null]
+  next_payment_date timestamp
+  next_payment_amount numeric
+  last_payment_date timestamp
+  overdue_days int [not null]
+  total_disbursed numeric [not null]
+  remaining_amount numeric
+  product_config_id text
+  product_config json
+  loan_product_id text [ref: > loan_products.id]
+  start_date timestamp
+  end_date timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table next_payment_invoices {
+  id text [pk, not null]
+  invoice_number text [not null]
+  loan_id text [not null, ref: > loans.id]
+  customer_id text [not null, ref: > customers.id]
+  payment_schedule_id text [not null, ref: > payment_schedules.id]
+  invoice_data json [not null]
+  status varchar [not null]
+  generated_by text [not null, ref: > users.id]
+  sent_at timestamp
+  sent_via text
+  sent_by text [ref: > users.id]
+  paid_at timestamp
+  paid_amount numeric
+  payment_method text
+  receipt_number text
+  valid_until timestamp [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table notification_actions {
+  id text [pk, not null]
+  notification_type text [not null]
+  action_id text [not null]
+  label text [not null]
+  link text [not null]
+  required_roles varchar
+  required_permissions varchar
+  requires_confirmation boolean [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table notification_audience_rules {
+  id text [pk, not null]
+  notification_type text [not null]
+  allowed_roles varchar
+  allowed_branches varchar
+  description text
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table notifications {
+  id text [pk, not null]
+  user_id text [not null, ref: > users.id]
+  type varchar [not null]
+  title text [not null]
+  message text [not null]
+  link text
+  metadata json
+  read boolean [not null]
+  read_at timestamp
+  priority text [not null]
+  event_id text
+  dedup_key text
+  archived boolean [not null]
+  archived_at timestamp
+  audience_roles varchar
+  action_id text
+  action_label text
+  created_at timestamp [not null]
+}
+
+Table payment_receipts {
+  id text [pk, not null]
+  receipt_number text [not null]
+  payment_id text [not null, ref: > payments.id]
+  loan_id text [not null, ref: > loans.id]
+  customer_id text [not null, ref: > customers.id]
+  invoice_id text [ref: > next_payment_invoices.id]
+  amount numeric [not null]
+  payment_date timestamp [not null]
+  payment_method text [not null]
+  receipt_data json [not null]
+  status varchar [not null]
+  issued_by text [not null, ref: > users.id]
+  issued_at timestamp [not null]
+  sent_at timestamp
+  sent_via text
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table payment_schedules {
+  id text [pk, not null]
+  loan_id text [not null, ref: > loans.id]
+  payment_number int [not null]
+  payment_date timestamp [not null]
+  principal_amount numeric [not null]
+  interest_amount numeric [not null]
+  total_payment numeric [not null]
+  remaining_balance numeric [not null]
+  status varchar [not null]
+  paid_at timestamp
+  statement_number text
+  days_overdue int [not null]
+  penalty_amount numeric [not null]
+  compound_interest_amount numeric [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table payment_timeline_events {
+  id text [pk, not null]
+  loan_id text [not null, ref: > loans.id]
+  payment_schedule_id text [not null, ref: > payment_schedules.id]
+  event_type varchar [not null]
+  scheduled_date timestamp [not null]
+  executed_at timestamp
+  status varchar [not null]
+  metadata json
+  error_message text
+  retry_count int [not null]
+  max_retries int [not null]
+  next_retry_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table payments {
+  id text [pk, not null]
+  loan_id text [not null, ref: > loans.id]
+  payment_schedule_id text [ref: > payment_schedules.id]
+  amount numeric [not null]
+  payment_date timestamp [not null]
+  payment_method varchar [not null]
+  payment_type varchar [not null]
+  interest_saved numeric
+  penalty_amount numeric
+  notes text
+  reference text
+  payment_gateway varchar
+  gateway_reference text
+  gateway_response json
+  bank_name varchar
+  account_number varchar
+  verified boolean
+  verified_by text
+  verified_at timestamp
+  created_at timestamp [not null]
+  created_by text [not null, ref: > users.id]
+}
+
+Table penalty_rules {
+  id text [pk, not null]
+  loan_product_id text [ref: > loan_products.id]
+  rule_name text [not null]
+  days_overdue_from int [not null]
+  days_overdue_to int
+  penalty_type text [not null]
+  penalty_rate numeric
+  penalty_amount numeric
+  compound_interest boolean [not null]
+  compound_rate numeric
+  is_default boolean [not null]
+  status text [not null]
+  created_by text [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table principal_prepayments {
+  id text [pk, not null]
+  loan_id text [not null, ref: > loans.id]
+  payment_schedule_id text [ref: > payment_schedules.id]
+  amount numeric [not null]
+  prepayment_date date [not null]
+  interest_saved numeric
+  new_monthly_payment numeric
+  new_maturity_date date
+  penalty_amount numeric
+  processed_by text [ref: > users.id]
+  processed_at timestamp
+  created_at timestamp
+}
+
+Table privacy_consents {
+  id text [pk, not null]
+  customer_id text [not null, ref: > customers.id]
+  consent_type varchar [not null]
+  consent_version varchar [not null]
+  consent_text text [not null]
+  given boolean [not null]
+  given_at timestamp
+  withdrawn boolean
+  withdrawn_at timestamp
+  ip_address text
+  user_agent text
+  created_at timestamp
+}
+
+Table product_budgets {
+  id text [pk, not null]
+  product_id text [not null, ref: > loan_products.id]
+  product_code text [not null]
+  product_name text [not null]
+  fiscal_year int [not null]
+  quarter int
+  total_budget_amount numeric [not null]
+  committed_amount numeric
+  disbursed_amount numeric
+  pending_amount numeric
+  available_amount numeric
+  utilization_rate numeric
+  warning_threshold numeric
+  critical_threshold numeric
+  budget_status varchar
+  budget_owner text [ref: > users.id]
+  notes text
+  created_by text [not null, ref: > users.id]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table product_configs {
+  id text [pk, not null]
+  product_code text [not null]
+  product_name text [not null]
+  description text
+  config json [not null]
+  status varchar [not null]
+  active_from timestamp [not null]
+  active_until timestamp
+  version int [not null]
+  created_by text [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table promptpay_qr_codes {
+  id text [pk, not null]
+  loan_id text [not null]
+  payment_ref text [not null]
+  amount_expected numeric [not null]
+  qr_code_data text [not null]
+  expires_at timestamp [not null]
+  status varchar [not null]
+  used_at timestamp
+  created_at timestamp [not null]
+}
+
+Table registration_tokens {
+  id text [pk, not null]
+  line_user_id text [not null]
+  token text [not null]
+  user_id text
+  expires_at timestamp [not null]
+  used boolean [not null]
+  created_at timestamp [not null]
+}
+
+Table security_alerts {
+  id text [pk, not null]
+  type text [not null]
+  severity text [not null]
+  title text [not null]
+  description text [not null]
+  ip_address text [not null]
+  user_id text [ref: > users.id]
+  endpoint text [not null]
+  status text [not null]
+  resolved_at timestamp
+  metadata json
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table security_events {
+  id text [pk, not null]
+  user_id text [ref: > users.id]
+  ip_address text [not null]
+  user_agent text
+  endpoint text [not null]
+  method text [not null]
+  threat_type text [not null]
+  severity text [not null]
+  description text [not null]
+  payload text
+  blocked boolean [not null]
+  metadata json
+  created_at timestamp [not null]
+}
+
+Table sessions {
+  id text [pk, not null]
+  user_id text [not null, ref: > users.id]
+  token text [not null]
+  refresh_token text
+  ip_address text
+  user_agent text
+  is_valid boolean [not null]
+  expires_at timestamp [not null]
+  created_at timestamp [not null]
+  previous_token text
+  previous_token_expires_at timestamp
+  previous_refresh_token text
+}
+
+Table suspicious_transaction_reports {
+  id text [pk, not null]
+  report_number varchar [not null]
+  customer_id text [ref: > customers.id]
+  transaction_id text [ref: > transactions.id]
+  suspicion_type varchar [not null]
+  suspicion_details text [not null]
+  reported_by text [not null, ref: > users.id]
+  reported_at timestamp
+  review_status varchar
+  submitted_to varchar
+  submitted_at timestamp
+  amlo_reference varchar
+  created_at timestamp
+}
+
+Table system_configs {
+  id text [pk, not null]
+  key text [not null]
+  value text [not null]
+  category text [not null]
+  description text
+  updated_by text [ref: > users.id]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table task_assignments {
+  id text [pk, not null]
+  task_id text [not null]
+  task_type varchar
+  assigned_to text [not null, ref: > users.id]
+  assigned_by text [not null, ref: > users.id]
+  priority varchar [not null]
+  due_date date [not null]
+  completion_date date
+  status varchar
+  notes text
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table thai_banks {
+  id text [pk, not null]
+  bank_code varchar [not null]
+  bank_name varchar [not null]
+  bank_name_th varchar [not null]
+  bank_name_en varchar [not null]
+  logo_url text
+  color_code varchar
+  is_active boolean
+  created_at timestamp
+}
+
+Table token_refresh_audit {
+  id text [pk, not null]
+  user_id text [not null, ref: > users.id]
+  session_id text [not null, ref: > sessions.id]
+  old_access_token text
+  new_access_token text
+  old_refresh_token text
+  new_refresh_token text
+  ip_address varchar
+  user_agent text
+  refresh_reason varchar
+  created_at timestamp [not null]
+}
+
+Table transactions {
+  id text [pk, not null]
+  user_id text [not null, ref: > users.id]
+  loan_id text [ref: > loans.id]
+  type varchar [not null]
+  amount numeric [not null]
+  currency text [not null]
+  status varchar [not null]
+  from_account text
+  to_account text
+  reference text
+  description text
+  metadata json
+  processed_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table users {
+  id text [pk, not null]
+  email text [not null]
+  password_hash text [not null]
+  first_name text [not null]
+  last_name text [not null]
+  phone_number text
+  role varchar [not null]
+  status varchar [not null]
+  branch_id text [ref: > branches.id]
+  must_change_password boolean [not null]
+  password_changed_at timestamp
+  national_id text
+  line_user_id text
+  line_linked_at timestamp
+  line_active boolean [not null]
+  line_notifications_enabled boolean [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  last_login_at timestamp
+  monthly_target numeric
+}
+
+Table year_interest_tiers {
+  id text [pk, not null]
+  loan_product_id text [not null, ref: > loan_products.id]
+  tier_type text [not null]
+  start_year int [not null]
+  end_year text [not null]
+  rate numeric
+  formula text
+  min_rate numeric
+  max_rate numeric
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+

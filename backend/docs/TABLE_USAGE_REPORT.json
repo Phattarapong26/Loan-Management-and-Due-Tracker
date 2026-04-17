@@ -1,0 +1,698 @@
+{
+  "generatedAt": "2026-02-21T01:04:38.755Z",
+  "summary": {
+    "total": 72,
+    "used": 43,
+    "unused": 29,
+    "lightlyUsed": 12,
+    "heavilyUsed": 19
+  },
+  "tables": [
+    {
+      "modelName": "Loan",
+      "tableName": "loans",
+      "usedInCode": true,
+      "usageCount": 542,
+      "usageLocations": [
+        "core/middleware/security/permission.middleware.ts",
+        "core/middleware/common/cache-control.middleware.ts",
+        "core/decorators/cache.decorator.ts",
+        "core/utils/optimistic-locking.util.ts",
+        "core/utils/calculation/reference-generator.util.ts"
+      ]
+    },
+    {
+      "modelName": "User",
+      "tableName": "users",
+      "usedInCode": true,
+      "usageCount": 330,
+      "usageLocations": [
+        "core/middleware/security/auth.middleware.ts",
+        "core/utils/security/sql-security.util.ts",
+        "utils/logging/structured-logger.util.ts",
+        "shared/services/loan-officer-task.service.ts",
+        "shared/services/monitoring.service.ts"
+      ]
+    },
+    {
+      "modelName": "Payment",
+      "tableName": "payments",
+      "usedInCode": true,
+      "usageCount": 321,
+      "usageLocations": [
+        "core/middleware/common/cache-control.middleware.ts",
+        "core/middleware/circuit-breaker.middleware.ts",
+        "core/utils/calculation/reference-generator.util.ts",
+        "__tests__/unit/services/payment-receipt.service.test.ts",
+        "__tests__/unit/services/next-payment-invoice.service.test.ts"
+      ]
+    },
+    {
+      "modelName": "Customer",
+      "tableName": "customers",
+      "usedInCode": true,
+      "usageCount": 187,
+      "usageLocations": [
+        "core/middleware/security/permission.middleware.ts",
+        "core/middleware/common/cache-control.middleware.ts",
+        "__tests__/security/sql-injection-simple.test.ts",
+        "__tests__/security/sql-injection.test.ts",
+        "__tests__/integration/thai-banking.test.ts"
+      ]
+    },
+    {
+      "modelName": "Invoice",
+      "tableName": "invoices",
+      "usedInCode": true,
+      "usageCount": 109,
+      "usageLocations": [
+        "core/utils/calculation/reference-generator.util.ts",
+        "__tests__/unit/services/payment-receipt.service.test.ts",
+        "__tests__/unit/services/next-payment-invoice.service.test.ts",
+        "__tests__/unit/services/enhanced-payment-system.test.ts",
+        "__tests__/integration/enhanced-payment-system.test.ts"
+      ]
+    },
+    {
+      "modelName": "PaymentSchedule",
+      "tableName": "payment_schedules",
+      "usedInCode": true,
+      "usageCount": 107,
+      "usageLocations": [
+        "__tests__/unit/services/principal-calculator.service.test.ts",
+        "__tests__/integration/payment-timeline.test.ts",
+        "__tests__/integration/enhanced-payment-system.test.ts",
+        "jobs/schedulers/payment-timeline.job.ts",
+        "jobs/schedulers/payment-reminder.job.ts"
+      ]
+    },
+    {
+      "modelName": "Branch",
+      "tableName": "branches",
+      "usedInCode": true,
+      "usageCount": 92,
+      "usageLocations": [
+        "core/utils/calculation/reference-generator.util.ts",
+        "shared/repositories/contract-number.service.ts",
+        "__tests__/integration/thai-banking.test.ts",
+        "__tests__/integration/database.test.ts",
+        "__tests__/integration/payment-validation.test.ts"
+      ]
+    },
+    {
+      "modelName": "SystemConfig",
+      "tableName": "system_configs",
+      "usedInCode": true,
+      "usageCount": 68,
+      "usageLocations": [
+        "__tests__/unit/interest-rate.service.test.ts",
+        "__tests__/integration/api.test.ts",
+        "scripts/delete-all-rich-menus.ts",
+        "scripts/reset-rich-menus-simple.ts",
+        "modules/loans/calculators/interest-rate.service.ts"
+      ]
+    },
+    {
+      "modelName": "LoanProduct",
+      "tableName": "loan_products",
+      "usedInCode": true,
+      "usageCount": 62,
+      "usageLocations": [
+        "core/decorators/cache.decorator.ts",
+        "shared/repositories/contract-number.service.ts",
+        "__tests__/unit/loan-product-interest-calculation.test.ts",
+        "__tests__/integration/thai-banking.test.ts",
+        "__tests__/integration/enhanced-payment-system.test.ts"
+      ]
+    },
+    {
+      "modelName": "Transaction",
+      "tableName": "transactions",
+      "usedInCode": true,
+      "usageCount": 60,
+      "usageLocations": [
+        "modules/loans/repositories/loan.repository.ts",
+        "modules/loans/services/loan.service.ts",
+        "modules/payments/services/payment.service.ts",
+        "modules/payments/services/payment-safe.service.ts",
+        "modules/products/services/product-budget.service.ts"
+      ]
+    },
+    {
+      "modelName": "Document",
+      "tableName": "documents",
+      "usedInCode": true,
+      "usageCount": 54,
+      "usageLocations": [
+        "shared/services/application-status.service.ts",
+        "jobs/schedulers/pdf-cleanup.job.ts",
+        "jobs/schedulers/secure-document-cleanup.job.ts",
+        "modules/customers/services/business-profile.service.ts",
+        "modules/customers/services/customer.service.ts"
+      ]
+    },
+    {
+      "modelName": "Notification",
+      "tableName": "notifications",
+      "usedInCode": true,
+      "usageCount": 54,
+      "usageLocations": [
+        "jobs/schedulers/payment-reminder.job.ts",
+        "modules/loans/services/loan.service.ts",
+        "modules/payments/services/payment-timeline.service.ts",
+        "modules/invoices/services/payment-receipt.service.ts",
+        "modules/disbursements/services/disbursement.service.ts"
+      ]
+    },
+    {
+      "modelName": "Session",
+      "tableName": "sessions",
+      "usedInCode": true,
+      "usageCount": 49,
+      "usageLocations": [
+        "core/middleware/security/auth.middleware.ts",
+        "__tests__/unit/services/auth.service.test.ts",
+        "__tests__/security/raw-sql-security.test.ts",
+        "__tests__/security/sql-injection.test.ts",
+        "scripts/security-audit.ts"
+      ]
+    },
+    {
+      "modelName": "ContactLog",
+      "tableName": "contact_logs",
+      "usedInCode": true,
+      "usageCount": 46,
+      "usageLocations": [
+        "shared/services/loan-officer-task.service.ts",
+        "modules/payments/services/payment-information.service.ts",
+        "modules/line/services/core/line-webhook.service.ts",
+        "modules/ai/services/database-query.service.ts",
+        "modules/collections/repositories/contact-log.repository.ts"
+      ]
+    },
+    {
+      "modelName": "Expense",
+      "tableName": "expenses",
+      "usedInCode": true,
+      "usageCount": 34,
+      "usageLocations": [
+        "modules/expenses/repositories/expense.repository.ts",
+        "modules/expenses/models/expense.model.ts",
+        "modules/expenses/controllers/expense.controller.ts",
+        "modules/expenses/services/expense.service.ts",
+        "routes/index.ts"
+      ]
+    },
+    {
+      "modelName": "PaymentReceipt",
+      "tableName": "payment_receipts",
+      "usedInCode": true,
+      "usageCount": 32,
+      "usageLocations": [
+        "__tests__/unit/services/payment-receipt.service.test.ts",
+        "__tests__/unit/services/enhanced-payment-system.test.ts",
+        "__tests__/integration/enhanced-payment-system.test.ts",
+        "modules/payments/workers/payment.worker.ts",
+        "modules/invoices/controllers/payment-receipt.controller.ts"
+      ]
+    },
+    {
+      "modelName": "NextPaymentInvoice",
+      "tableName": "next_payment_invoices",
+      "usedInCode": true,
+      "usageCount": 24,
+      "usageLocations": [
+        "__tests__/unit/services/next-payment-invoice.service.test.ts",
+        "__tests__/unit/services/enhanced-payment-system.test.ts",
+        "__tests__/integration/payment-timeline.test.ts",
+        "__tests__/integration/enhanced-payment-system.test.ts",
+        "modules/payments/services/payment-timeline.service.ts"
+      ]
+    },
+    {
+      "modelName": "AuditLog",
+      "tableName": "audit_logs",
+      "usedInCode": true,
+      "usageCount": 24,
+      "usageLocations": [
+        "core/middleware/security/sanitize.middleware.ts",
+        "core/middleware/logging/audit.middleware.ts",
+        "app.ts",
+        "modules/loans/calculators/interest-rate.service.ts",
+        "modules/ai/services/database-query.service.ts"
+      ]
+    },
+    {
+      "modelName": "RegistrationToken",
+      "tableName": "registration_tokens",
+      "usedInCode": true,
+      "usageCount": 21,
+      "usageLocations": [
+        "modules/line/services/registration/line-registration.service.ts",
+        "modules/line/services/registration/line-qr-registration.service.ts"
+      ]
+    },
+    {
+      "modelName": "PaymentTimelineEvent",
+      "tableName": "payment_timeline_events",
+      "usedInCode": true,
+      "usageCount": 17,
+      "usageLocations": [
+        "__tests__/integration/payment-timeline.test.ts",
+        "jobs/schedulers/payment-timeline.job.ts",
+        "modules/payments/controllers/payment-timeline.controller.ts",
+        "modules/payments/services/payment-timeline.service.ts"
+      ]
+    },
+    {
+      "modelName": "ProductConfig",
+      "tableName": "product_configs",
+      "usedInCode": true,
+      "usageCount": 16,
+      "usageLocations": [
+        "modules/loans/services/loan.service.ts",
+        "modules/config-management/repositories/product-config.repository.ts",
+        "modules/config-management/services/config.service.ts",
+        "modules/documents/services/secure-document.service.ts"
+      ]
+    },
+    {
+      "modelName": "LoanDisbursement",
+      "tableName": "loan_disbursements",
+      "usedInCode": true,
+      "usageCount": 16,
+      "usageLocations": [
+        "core/utils/calculation/reference-generator.util.ts",
+        "shared/services/application-status.service.ts",
+        "modules/loans/services/loan-approval.service.ts",
+        "modules/disbursements/repositories/disbursement.repository.ts",
+        "modules/disbursements/services/disbursement.service.ts"
+      ]
+    },
+    {
+      "modelName": "CalendarEvent",
+      "tableName": "calendar_events",
+      "usedInCode": true,
+      "usageCount": 16,
+      "usageLocations": [
+        "modules/calendar/repositories/calendar-event.repository.ts",
+        "modules/calendar/controllers/calendar-event.controller.ts",
+        "modules/calendar/services/calendar-event.service.ts",
+        "modules/reports/services/dashboard.service.ts",
+        "routes/index.ts"
+      ]
+    },
+    {
+      "modelName": "SecurityEvent",
+      "tableName": "security_events",
+      "usedInCode": true,
+      "usageCount": 15,
+      "usageLocations": [
+        "modules/monitoring/services/security-monitor.service.ts"
+      ]
+    },
+    {
+      "modelName": "ConversationState",
+      "tableName": "conversation_states",
+      "usedInCode": true,
+      "usageCount": 14,
+      "usageLocations": [
+        "shared/services/error-handling.service.ts",
+        "modules/line/services/registration/line-registration.service.ts",
+        "modules/line/services/core/line-session.service.ts",
+        "modules/line/services/core/line-webhook.service.ts",
+        "modules/collections/services/line-contact-logging-flow.service.ts"
+      ]
+    },
+    {
+      "modelName": "CustomerBusinessProfile",
+      "tableName": "customer_business_profiles",
+      "usedInCode": true,
+      "usageCount": 14,
+      "usageLocations": [
+        "modules/customers/services/business-profile.service.ts"
+      ]
+    },
+    {
+      "modelName": "product_budgets",
+      "tableName": "product_budgets",
+      "usedInCode": true,
+      "usageCount": 11,
+      "usageLocations": [
+        "modules/products/services/product-budget.service.ts",
+        "modules/products/services/product-budget-safe.service.ts"
+      ]
+    },
+    {
+      "modelName": "PenaltyRule",
+      "tableName": "penalty_rules",
+      "usedInCode": true,
+      "usageCount": 9,
+      "usageLocations": [
+        "modules/payments/services/penalty-calculator.service.ts",
+        "modules/collections/services/dynamic-penalty.service.ts"
+      ]
+    },
+    {
+      "modelName": "CustomerActiveProduct",
+      "tableName": "customer_active_products",
+      "usedInCode": true,
+      "usageCount": 6,
+      "usageLocations": [
+        "modules/customers/services/customer-loan-restriction.service.ts"
+      ]
+    },
+    {
+      "modelName": "SecurityAlert",
+      "tableName": "security_alerts",
+      "usedInCode": true,
+      "usageCount": 6,
+      "usageLocations": [
+        "modules/monitoring/services/security-monitor.service.ts"
+      ]
+    },
+    {
+      "modelName": "SecureDocumentToken",
+      "tableName": "secure_document_tokens",
+      "usedInCode": true,
+      "usageCount": 6,
+      "usageLocations": [
+        "modules/documents/routes/secure-document.routes.ts",
+        "modules/documents/services/secure-document.service.ts"
+      ]
+    },
+    {
+      "modelName": "InterestRateTier",
+      "tableName": "interest_rate_tiers",
+      "usedInCode": true,
+      "usageCount": 4,
+      "usageLocations": [
+        "__tests__/integration/enhanced-payment-system.test.ts",
+        "modules/loans/calculators/dynamic-interest-calculator.service.ts"
+      ]
+    },
+    {
+      "modelName": "BlockedIP",
+      "tableName": "blocked_ips",
+      "usedInCode": true,
+      "usageCount": 4,
+      "usageLocations": [
+        "modules/monitoring/services/security-monitor.service.ts"
+      ]
+    },
+    {
+      "modelName": "aging_analysis",
+      "tableName": "aging_analysis",
+      "usedInCode": true,
+      "usageCount": 3,
+      "usageLocations": [
+        "modules/collections/services/bucket-roll-rates.service.ts"
+      ]
+    },
+    {
+      "modelName": "budget_consumption",
+      "tableName": "budget_consumption",
+      "usedInCode": true,
+      "usageCount": 3,
+      "usageLocations": [
+        "modules/products/services/product-budget.service.ts"
+      ]
+    },
+    {
+      "modelName": "ApprovalLimit",
+      "tableName": "approval_limits",
+      "usedInCode": true,
+      "usageCount": 2,
+      "usageLocations": [
+        "modules/loans/services/loan-approval.service.ts"
+      ]
+    },
+    {
+      "modelName": "YearInterestTier",
+      "tableName": "year_interest_tiers",
+      "usedInCode": true,
+      "usageCount": 2,
+      "usageLocations": [
+        "modules/loans/services/loan-product.service.ts"
+      ]
+    },
+    {
+      "modelName": "CustomerCreditBureau",
+      "tableName": "customer_credit_bureaus",
+      "usedInCode": true,
+      "usageCount": 2,
+      "usageLocations": [
+        "modules/customers/services/business-profile.service.ts",
+        "modules/collections/services/collection-filter.service.ts"
+      ]
+    },
+    {
+      "modelName": "CustomerBankStatement",
+      "tableName": "customer_bank_statements",
+      "usedInCode": true,
+      "usageCount": 2,
+      "usageLocations": [
+        "modules/customers/services/business-profile.service.ts"
+      ]
+    },
+    {
+      "modelName": "CustomerVATRecord",
+      "tableName": "customer_vat_records",
+      "usedInCode": true,
+      "usageCount": 1,
+      "usageLocations": [
+        "modules/customers/services/business-profile.service.ts"
+      ]
+    },
+    {
+      "modelName": "CustomerFinancialStatement",
+      "tableName": "customer_financial_statements",
+      "usedInCode": true,
+      "usageCount": 1,
+      "usageLocations": [
+        "modules/customers/services/business-profile.service.ts"
+      ]
+    },
+    {
+      "modelName": "CustomerBankStatementMonth",
+      "tableName": "customer_bank_statement_months",
+      "usedInCode": true,
+      "usageCount": 1,
+      "usageLocations": [
+        "modules/customers/services/business-profile.service.ts"
+      ]
+    },
+    {
+      "modelName": "DocumentAccessLog",
+      "tableName": "document_access_logs",
+      "usedInCode": true,
+      "usageCount": 1,
+      "usageLocations": [
+        "modules/documents/services/secure-document.service.ts"
+      ]
+    },
+    {
+      "modelName": "LoanInterestHistory",
+      "tableName": "loan_interest_history",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "NotificationAudienceRule",
+      "tableName": "notification_audience_rules",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "NotificationAction",
+      "tableName": "notification_actions",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "PromptPayQRCode",
+      "tableName": "promptpay_qr_codes",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "InvoiceAccessLog",
+      "tableName": "invoice_access_logs",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "aml_checks",
+      "tableName": "aml_checks",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "collection_workflow_steps",
+      "tableName": "collection_workflow_steps",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "credit_line_drawdowns",
+      "tableName": "credit_line_drawdowns",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "credit_lines",
+      "tableName": "credit_lines",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "data_access_logs",
+      "tableName": "data_access_logs",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "loan_approval_workflow",
+      "tableName": "loan_approval_workflow",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "principal_prepayments",
+      "tableName": "principal_prepayments",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "privacy_consents",
+      "tableName": "privacy_consents",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "suspicious_transaction_reports",
+      "tableName": "suspicious_transaction_reports",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "task_assignments",
+      "tableName": "task_assignments",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "thai_banks",
+      "tableName": "thai_banks",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "CustomerInvestment",
+      "tableName": "customer_investments",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "CustomerWorkingCapital",
+      "tableName": "customer_working_capitals",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "CustomerProjection",
+      "tableName": "customer_projections",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "CustomerComment",
+      "tableName": "customer_comments",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "CustomerBusinessHistory",
+      "tableName": "customer_business_histories",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "CustomerShareholder",
+      "tableName": "customer_shareholders",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "CustomerExecutive",
+      "tableName": "customer_executives",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "CustomerLoanRequest",
+      "tableName": "customer_loan_requests",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "CustomerCollateral",
+      "tableName": "customer_collaterals",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "CustomerSupplier",
+      "tableName": "customer_suppliers",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "CustomerCustomer",
+      "tableName": "customer_customers",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "CustomerDSCRAnalysis",
+      "tableName": "customer_dscr_analysis",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    },
+    {
+      "modelName": "CustomerApprovalComment",
+      "tableName": "customer_approval_comments",
+      "usedInCode": false,
+      "usageCount": 0,
+      "usageLocations": []
+    }
+  ]
+}

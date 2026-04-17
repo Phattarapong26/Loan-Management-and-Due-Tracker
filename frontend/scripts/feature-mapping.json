@@ -1,0 +1,148 @@
+{
+    "features": {
+        "auth": {
+            "pages": [
+                "Login.tsx",
+                "LineRegistration.tsx"
+            ],
+            "components": [
+                "auth"
+            ]
+        },
+        "customers": {
+            "pages": [
+                "Customers.tsx",
+                "CustomerDetail.tsx"
+            ],
+            "components": []
+        },
+        "loans": {
+            "pages": [
+                "Loans.tsx",
+                "LoanDetail.tsx"
+            ],
+            "components": []
+        },
+        "payments": {
+            "pages": [
+                "Payments.tsx"
+            ],
+            "components": []
+        },
+        "approvals": {
+            "pages": [
+                "Approvals.tsx"
+            ],
+            "components": []
+        },
+        "collections": {
+            "pages": [
+                "CollectionsReminders.tsx"
+            ],
+            "components": []
+        },
+        "documents": {
+            "pages": [
+                "Documents.tsx",
+                "DocumentUploadTest.tsx"
+            ],
+            "components": [
+                "documents"
+            ]
+        },
+        "branches": {
+            "pages": [
+                "Branches.tsx"
+            ],
+            "components": []
+        },
+        "expenses": {
+            "pages": [
+                "Expenses.tsx"
+            ],
+            "components": []
+        },
+        "reports": {
+            "pages": [
+                "Reports.tsx"
+            ],
+            "components": []
+        },
+        "dashboard": {
+            "pages": [
+                "Dashboard.tsx",
+                "dashboards"
+            ],
+            "components": [
+                "dashboard"
+            ]
+        },
+        "notifications": {
+            "pages": [
+                "Notifications.tsx"
+            ],
+            "components": []
+        },
+        "calendar": {
+            "pages": [
+                "CalendarPage.tsx"
+            ],
+            "components": []
+        },
+        "settings": {
+            "pages": [
+                "Settings.tsx"
+            ],
+            "components": [
+                "settings"
+            ]
+        },
+        "users": {
+            "pages": [
+                "Users.tsx"
+            ],
+            "components": []
+        }
+    },
+    "shared": {
+        "components": {
+            "ui": [
+                "components/ui"
+            ],
+            "layout": [
+                "components/layout"
+            ],
+            "other": [
+                "components/NavLink.tsx",
+                "components/ThreeBackground.tsx"
+            ]
+        },
+        "hooks": [
+            "hooks"
+        ],
+        "lib": [
+            "lib"
+        ],
+        "types": [
+            "types"
+        ],
+        "integrations": [
+            "integrations"
+        ],
+        "config": [
+            "config"
+        ]
+    },
+    "app": {
+        "files": [
+            "App.tsx",
+            "main.tsx",
+            "App.css",
+            "index.css"
+        ]
+    },
+    "specialCases": {
+        "Index.tsx": "remove",
+        "NotFound.tsx": "app/pages"
+    }
+}

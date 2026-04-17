@@ -1,0 +1,504 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Alert Dialog Animations */
+@keyframes alert-slide-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes alert-slide-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.95);
+  }
+}
+
+@keyframes alert-backdrop-in {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(4px);
+  }
+}
+
+@keyframes alert-backdrop-out {
+  from {
+    opacity: 1;
+    backdrop-filter: blur(4px);
+  }
+  to {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+}
+
+@keyframes alert-icon-bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes alert-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-2px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(2px);
+  }
+}
+
+/* Apply animations to alert components */
+.alert-dialog-content {
+  animation: alert-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.alert-dialog-content[data-state="closed"] {
+  animation: alert-slide-out 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.alert-dialog-overlay {
+  animation: alert-backdrop-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.alert-dialog-overlay[data-state="closed"] {
+  animation: alert-backdrop-out 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.alert-icon-bounce {
+  animation: alert-icon-bounce 0.6s ease-in-out;
+}
+
+.alert-error-shake {
+  animation: alert-shake 0.5s ease-in-out;
+}
+
+/* K Bank style enhancements */
+.alert-kbank-style {
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  backdrop-filter: blur(16px);
+}
+
+.alert-kbank-button {
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.alert-kbank-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.alert-kbank-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Branch Loan Management System - Design System */
+/* Modern Blue Admin Dashboard Theme */
+
+@layer base {
+  :root {
+    /* Core Brand Colors - Modern Blue */
+    --background: 220 25% 97%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Primary Blue - Main brand color */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Soft blue-gray */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    /* Muted - Subtle backgrounds */
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    /* Accent - Light blue highlights */
+    --accent: 217 91% 95%;
+    --accent-foreground: 217 91% 45%;
+
+    /* Status Colors */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+
+    /* UI Elements */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 91% 60%;
+
+    --radius: 0.75rem;
+
+    /* Sidebar Tokens */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 91% 95%;
+    --sidebar-accent-foreground: 217 91% 45%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217 91% 60%;
+
+    /* Custom Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(217 91% 50%) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 36%) 0%, hsl(142 76% 30%) 100%);
+    --gradient-warning: linear-gradient(135deg, hsl(38 92% 50%) 0%, hsl(38 92% 45%) 100%);
+    --gradient-info: linear-gradient(135deg, hsl(199 89% 48%) 0%, hsl(199 89% 40%) 100%);
+    
+    /* Chart Colors */
+    --chart-1: 217 91% 60%;
+    --chart-2: 199 89% 48%;
+    --chart-3: 142 76% 36%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 280 67% 52%;
+    
+    /* Shadow Tokens */
+    --shadow-sm: 0 1px 2px 0 hsl(220 9% 46% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(220 9% 46% / 0.1), 0 2px 4px -2px hsl(220 9% 46% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(220 9% 46% / 0.1), 0 4px 6px -4px hsl(220 9% 46% / 0.1);
+    --shadow-card: 0 1px 3px 0 hsl(220 9% 46% / 0.1), 0 1px 2px -1px hsl(220 9% 46% / 0.1);
+  }
+
+  .dark {
+    --background: 222 47% 7%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 10%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 10%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
+
+    --success: 142 76% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 212 27% 84%;
+
+    --sidebar-background: 222 47% 10%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 17%;
+    --sidebar-ring: 217 91% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  /* Stat Card Styles */
+  .stat-card {
+    @apply bg-card rounded-xl p-6 transition-all duration-300 hover:shadow-lg;
+    box-shadow: var(--shadow-card);
+  }
+
+  .stat-card-primary {
+    background: var(--gradient-primary);
+    @apply text-primary-foreground;
+  }
+
+  .stat-card-success {
+    background: var(--gradient-success);
+    @apply text-white;
+  }
+
+  .stat-card-warning {
+    background: var(--gradient-warning);
+    @apply text-white;
+  }
+
+  .stat-card-info {
+    background: var(--gradient-info);
+    @apply text-white;
+  }
+
+  /* Chart Container */
+  .chart-container {
+    @apply bg-card rounded-xl p-6;
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Dashboard Layout */
+  .dashboard-grid {
+    @apply grid gap-6;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+
+  /* Badge Variants */
+  .badge-trend-up {
+    @apply bg-success/10 text-success px-2 py-1 rounded-full text-xs font-medium;
+  }
+
+  .badge-trend-down {
+    @apply bg-destructive/10 text-destructive px-2 py-1 rounded-full text-xs font-medium;
+  }
+
+  /* Sidebar Active State */
+  .sidebar-item-active {
+    @apply bg-primary text-primary-foreground;
+  }
+
+  /* Welcome Banner */
+  .welcome-banner {
+    @apply bg-card rounded-xl p-6 relative overflow-hidden;
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Hexagon Pattern for cards */
+  .hexagon-pattern {
+    background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0l17.32 10v20L20 40 2.68 30V10L20 0z' fill='%234A90D9' fill-opacity='0.1'/%3E%3C/svg%3E");
+    background-size: 40px 40px;
+  }
+}
+
+@layer utilities {
+  .text-gradient-primary {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-primary);
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.5s ease-out forwards;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-out forwards;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Mobile Responsive Utilities */
+@layer utilities {
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Safe area insets for mobile devices */
+  .safe-area-inset-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-inset-left {
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-area-inset-right {
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* Touch-optimized interactions */
+  .touch-manipulation {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent text selection on touch */
+  .touch-none {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+}
+
+/* Review Modal Styles */
+@layer components {
+  .data-table {
+    @apply w-full border-collapse;
+  }
+
+  .data-table th {
+    @apply bg-muted text-muted-foreground text-xs font-semibold uppercase tracking-wider px-4 py-3 text-left border-b border-border;
+  }
+
+  .data-table td {
+    @apply px-4 py-3 text-sm border-b border-border;
+  }
+
+  .data-table tbody tr:hover {
+    @apply bg-muted/50;
+  }
+
+  .section-header {
+    @apply flex items-center gap-2 text-lg font-semibold text-foreground mb-4;
+  }
+
+  .badge-status {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .badge-success {
+    @apply badge-status bg-green-50 text-green-700 ring-1 ring-green-600/20;
+  }
+
+  .badge-warning {
+    @apply badge-status bg-amber-50 text-amber-700 ring-1 ring-amber-600/20;
+  }
+
+  .badge-info {
+    @apply badge-status bg-blue-50 text-blue-700 ring-1 ring-blue-600/20;
+  }
+
+  .badge-error {
+    @apply badge-status bg-red-50 text-red-700 ring-1 ring-red-600/20;
+  }
+
+  .dark .badge-success {
+    @apply bg-green-900/30 text-green-400 ring-green-500/30;
+  }
+
+  .dark .badge-warning {
+    @apply bg-amber-900/30 text-amber-400 ring-amber-500/30;
+  }
+
+  .dark .badge-info {
+    @apply bg-blue-900/30 text-blue-400 ring-blue-500/30;
+  }
+
+  .dark .badge-error {
+    @apply bg-red-900/30 text-red-400 ring-red-500/30;
+  }
+}
+
+@layer base {
+  :root {
+    --shadow-modal: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  }
+
+  .dark {
+    --shadow-modal: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  }
+}

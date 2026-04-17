@@ -1,0 +1,52 @@
+# Docker Ignore File
+# Exclude from Docker build context
+
+# Frontend (deploy separately)
+frontend/
+
+# Development files
+*.md
+!README.md
+
+# Tests
+**/__tests__/
+**/*.test.ts
+**/*.spec.ts
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+
+# Local scripts
+railway-*.sh
+generate-secrets.sh
+test-*.sh
+
+# Documentation (not needed in container)
+RAILWAY_*.md
+DEPLOYMENT_*.md
+QUICK_START.md
+START_HERE.md
+ENV_SETUP_GUIDE.md
+SETUP_COMPLETE.md
+README_*.md
+
+# Keep these important files
+!backend/package.json
+!backend/package-lock.json
+!backend/tsconfig.json
+!backend/prisma/schema.prisma

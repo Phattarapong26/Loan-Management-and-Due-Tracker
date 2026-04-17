@@ -1,0 +1,19 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "openssl"]
+
+[phases.install]
+cmds = [
+  "cd backend",
+  "echo '=== Checking files ===' && ls -la",
+  "echo '=== Installing dependencies ===' && npm install"
+]
+
+[phases.build]
+cmds = [
+  "cd backend",
+  "npx prisma generate",
+  "npm run build"
+]
+
+[start]
+cmd = "cd backend && npm start"

@@ -1,0 +1,59 @@
+# Railway Ignore File
+# Files and directories to exclude from Railway deployment
+
+# Frontend (deploy separately)
+frontend/
+
+# Development files
+*.md
+!README.md
+!RAILWAY_DEPLOYMENT.md
+
+# Tests
+**/__tests__/
+**/*.test.ts
+**/*.spec.ts
+backend/docs/
+backend/prisma/seedTest/
+
+# Database exports
+backend/database-exports/
+
+# Scripts (not needed in production)
+backend/scripts/
+scripts/
+
+# Development dependencies
+.vscode/
+.idea/
+
+# Logs
+*.log
+backend_tunnel.log
+frontend_tunnel.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Environment (Railway provides these)
+.env.local
+.env.*.local
+
+# Uploads (will be created at runtime)
+backend/uploads/**/*
+
+# Temporary files
+*.tmp
+~$*.xlsx
+~$*.docx
+
+# Archives
+docs/archive/
+
+# Local scripts
+railway-*.sh
