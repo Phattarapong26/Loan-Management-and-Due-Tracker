@@ -414,18 +414,24 @@ export class LineRichMenuEnhancedService {
 
         const filename = filenames[role];
         if (filename) {
-            // Primary: assets/rich-menus/ (relative to process.cwd() = backend/)
-            const assetPath = path.resolve(process.cwd(), 'assets/rich-menus', filename);
-            if (fs.existsSync(assetPath)) {
-                const stats = fs.statSync(assetPath);
-                if (stats.size <= 1_000_000) {
-                    console.log(`📁 Using image from assets: ${filename}`);
-                    return fs.readFileSync(assetPath);
+            const candidates = [
+                path.resolve(process.cwd(), 'assets/rich-menus', filename),
+                path.resolve(__dirname, '../assets/rich-menus', filename),
+                path.resolve(__dirname, '../../assets/rich-menus', filename),
+                path.resolve(process.cwd(), '../assets/rich-menus', filename),
+            ];
+
+            for (const candidate of candidates) {
+                if (fs.existsSync(candidate)) {
+                    const stats = fs.statSync(candidate);
+                    if (stats.size <= 1_000_000) {
+                        console.log(`📁 Using image from assets: ${candidate}`);
+                        return fs.readFileSync(candidate);
+                    }
+                    console.warn(`⚠️ Image ${candidate} exceeds 1MB (${stats.size} bytes), falling back to generated`);
                 }
-                console.warn(`⚠️ Image ${filename} exceeds 1MB (${stats.size} bytes), falling back to generated`);
-            } else {
-                console.warn(`⚠️ Image not found at ${assetPath}, falling back to generated`);
             }
+            console.warn(`⚠️ Rich menu image not found for ${role}. cwd=${process.cwd()} __dirname=${__dirname}`);
         }
 
         // Fallback: generate simple colored image

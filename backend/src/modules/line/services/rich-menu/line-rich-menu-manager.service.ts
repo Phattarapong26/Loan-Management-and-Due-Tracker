@@ -138,12 +138,24 @@ export class RichMenuManager {
         const filename = filenames[normalizedRole];
         if (!filename) return null;
 
-        // Primary: backend/assets/rich-menus/ (images stored in repo)
-        const primaryPath = path.resolve(__dirname, '../../../assets/rich-menus', filename);
-        if (fs.existsSync(primaryPath)) return primaryPath;
+        // tsup bundles to dist/ so __dirname = /app/dist
+        // assets are copied to /app/assets by Dockerfile
+        const candidates = [
+            path.resolve(process.cwd(), 'assets/rich-menus', filename),        // /app/assets/rich-menus/
+            path.resolve(__dirname, '../assets/rich-menus', filename),          // /app/assets/rich-menus/ (from dist/)
+            path.resolve(__dirname, '../../assets/rich-menus', filename),       // one level up
+            path.resolve(process.cwd(), '../assets/rich-menus', filename),      // fallback
+        ];
 
-        // Fallback: ../public/richmenu/ (legacy path)
-        return path.resolve(__dirname, '../../../public/richmenu', filename);
+        for (const candidate of candidates) {
+            if (fs.existsSync(candidate)) {
+                console.log(`📁 Found rich menu image: ${candidate}`);
+                return candidate;
+            }
+        }
+
+        console.warn(`⚠️ Rich menu image not found for ${normalizedRole}. cwd=${process.cwd()} __dirname=${__dirname}\nTried:\n${candidates.join('\n')}`);
+        return null;
     }
 
     private tryReadRoleRichMenuImage(role: string): Buffer | null {
@@ -595,7 +607,15 @@ export class RichMenuManager {
                 if (richMenuId) {
                     // Task 4.1.9: Store Rich Menu ID in SystemConfig
                     await this.storeRichMenuId(role, richMenuId);
-                    console.log(`✅ Rich Menu created for ${role}: ${richMenuId}`);
+
+                    // Upload image immediately after creation
+                    const imageBuffer = this.tryReadRoleRichMenuImage(role) ?? this.createSimpleRichMenuImage(role);
+                    const uploaded = await this.uploadRichMenuImage(richMenuId, imageBuffer, 'image/png');
+                    if (uploaded) {
+                        console.log(`✅ Rich Menu created for ${role}: ${richMenuId}`);
+                    } else {
+                        console.warn(`⚠️ Rich Menu created for ${role}: ${richMenuId} (image upload failed)`);
+                    }
                 } else {
                     console.error(`❌ Failed to create Rich Menu for ${role}`);
                 }
