@@ -30,7 +30,6 @@ export class EmailService {
                 host: env.SMTP_HOST,       // smtp.gmail.com
                 port: env.SMTP_PORT,       // 587
                 secure: env.SMTP_PORT === 465, // true only for port 465 (SSL); false uses STARTTLS on 587
-                family: 4,                 // Force IPv4 — prevents ENETUNREACH on IPv6-only hosts
                 auth: {
                     user: env.SMTP_USER,   // Gmail address
                     pass: env.SMTP_PASS,   // Gmail App Password
