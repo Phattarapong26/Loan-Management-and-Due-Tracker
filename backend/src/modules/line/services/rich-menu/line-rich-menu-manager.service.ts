@@ -138,7 +138,11 @@ export class RichMenuManager {
         const filename = filenames[normalizedRole];
         if (!filename) return null;
 
-        // backend/ is the typical working directory; public/ is at repo root.
+        // Primary: backend/assets/rich-menus/ (images stored in repo)
+        const primaryPath = path.resolve(process.cwd(), 'assets/rich-menus', filename);
+        if (fs.existsSync(primaryPath)) return primaryPath;
+
+        // Fallback: ../public/richmenu/ (legacy path)
         return path.resolve(process.cwd(), '../public/richmenu', filename);
     }
 
