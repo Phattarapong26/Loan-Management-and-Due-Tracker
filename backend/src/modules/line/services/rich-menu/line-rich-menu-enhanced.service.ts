@@ -4,6 +4,8 @@
  */
 
 import axios from 'axios';
+import * as fs from 'fs';
+import * as path from 'path';
 import { env } from '@config/env.config';
 import { prisma } from '@config/database.config';
 
@@ -80,8 +82,8 @@ export class LineRichMenuEnhancedService {
                 const richMenuId = response.data.richMenuId;
                 console.log(`Created rich menu for ${role}: ${richMenuId}`);
 
-                // Create a simple colored image for the rich menu
-                const imageBuffer = await this.createSimpleRichMenuImage(role);
+                // Load image from assets or generate fallback
+                const imageBuffer = await this.getRichMenuImageBuffer(role);
                 const imageUploaded = await this.uploadRichMenuImage(richMenuId, role, imageBuffer);
 
                 if (imageUploaded) {
@@ -377,7 +379,7 @@ export class LineRichMenuEnhancedService {
     /**
      * Upload rich menu image
      */
-    private async uploadRichMenuImage(richMenuId: string, _role: string, imageBuffer: Buffer): Promise<boolean> {
+    private async uploadRichMenuImage(richMenuId: string, role: string, imageBuffer: Buffer): Promise<boolean> {
         try {
             await axios.post(
                 `https://api-data.line.me/v2/bot/richmenu/${richMenuId}/content`,
@@ -396,6 +398,38 @@ export class LineRichMenuEnhancedService {
             console.error('Error uploading rich menu image:', error);
             return false;
         }
+    }
+
+    /**
+     * Try to read role image from assets/rich-menus/, fallback to generated image
+     */
+    private async getRichMenuImageBuffer(role: string): Promise<Buffer> {
+        const filenames: Record<string, string> = {
+            USER: 'customer.png',
+            CUSTOMER: 'customer.png',
+            OFFICER: 'officer.png',
+            MANAGER: 'manager.png',
+            ADMIN: 'admin.png',
+        };
+
+        const filename = filenames[role];
+        if (filename) {
+            // Primary: assets/rich-menus/ (relative to process.cwd() = backend/)
+            const assetPath = path.resolve(process.cwd(), 'assets/rich-menus', filename);
+            if (fs.existsSync(assetPath)) {
+                const stats = fs.statSync(assetPath);
+                if (stats.size <= 1_000_000) {
+                    console.log(`📁 Using image from assets: ${filename}`);
+                    return fs.readFileSync(assetPath);
+                }
+                console.warn(`⚠️ Image ${filename} exceeds 1MB (${stats.size} bytes), falling back to generated`);
+            } else {
+                console.warn(`⚠️ Image not found at ${assetPath}, falling back to generated`);
+            }
+        }
+
+        // Fallback: generate simple colored image
+        return await this.createSimpleRichMenuImage(role);
     }
 
     /**
