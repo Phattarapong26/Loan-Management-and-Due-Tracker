@@ -93,9 +93,12 @@ const envSchema = z.object({
     // Google Gemini AI
     GEMINI_API_KEY: z.string().optional(),
 
-    // SendGrid Email
-    SENDGRID_API_KEY: z.string().optional(),
-    SENDGRID_FROM: z.string().optional(),
+    // SMTP Email (nodemailer)
+    SMTP_HOST: z.string().default('smtp.gmail.com'),
+    SMTP_PORT: z.string().default('587'),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASS: z.string().optional(),
+    SMTP_FROM: z.string().optional(),
 
     // Load Test Secret (development only - DO NOT use in production)
     LOAD_TEST_SECRET: z.string().optional(),
@@ -116,6 +119,7 @@ export const env = {
     RATE_LIMIT_TIME_WINDOW: parseInt(parsed.data.RATE_LIMIT_TIME_WINDOW, 10),
     QUEUE_CONCURRENCY: parseInt(parsed.data.QUEUE_CONCURRENCY, 10),
     MAX_SESSIONS_PER_USER: parseInt(parsed.data.MAX_SESSIONS_PER_USER, 10),
+    SMTP_PORT: parseInt(parsed.data.SMTP_PORT, 10),
     isDevelopment: parsed.data.NODE_ENV === 'development',
     isProduction: parsed.data.NODE_ENV === 'production',
     isTest: parsed.data.NODE_ENV === 'test',
