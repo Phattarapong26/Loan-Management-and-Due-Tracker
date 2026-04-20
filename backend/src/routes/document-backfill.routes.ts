@@ -15,6 +15,7 @@ import {
     runLineBackfill,
     backfillPaymentReceipts,
     backfillContractPdfs,
+    backfillInvoices,
     getBackfillLastRunStatus,
 } from '@jobs/schedulers/line-backfill.job';
 import { prisma } from '@config/database.config';
@@ -142,13 +143,14 @@ export async function documentBackfillRoutes(app: FastifyInstance): Promise<void
             const taskMap: Record<string, () => Promise<{ created: number; failed: number; skipped: number }>> = {
                 receipts: backfillPaymentReceipts,
                 contracts: backfillContractPdfs,
+                invoices: backfillInvoices,
             };
 
             const taskFn = taskMap[task];
             if (!taskFn) {
                 return reply.code(400).send({
                     success: false,
-                    message: `Unknown task "${task}". Valid: receipts, contracts`,
+                    message: `Unknown task "${task}". Valid: receipts, contracts, invoices`,
                 });
             }
 

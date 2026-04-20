@@ -2,13 +2,12 @@
  * LINE Data Backfill Job
  *
  * Backfills historical records created BEFORE the LINE integration existed.
- * Customers couldn't see their data on LINE because these records were never
- * linked to timeline events, receipts, or contract PDFs.
  *
  * Tasks (in order):
- *  A. Payment Timeline Events  - schedules with no timeline events
+ *  A. Payment Timeline Events  - ALL schedules with no timeline events
  *  B. Payment Receipts         - completed payments with no receipt (NO LINE send)
  *  C. Contract PDFs            - disbursed loans with no contract PDF
+ *  D. Invoices                 - payment schedules with no invoice record
  *
  * Rules:
  *  - Batch size: 15 records, 800ms delay between batches
@@ -21,6 +20,7 @@ import * as cron from 'node-cron';
 import { prisma } from '@config/database.config';
 import { PaymentTimelineService } from '@payments/services/payment-timeline.service';
 import { PaymentReceiptService } from '@invoices/services/payment-receipt.service';
+import { InvoiceService } from '@invoices/services/invoice.service';
 import { DisbursementService } from '@disbursements/services/disbursement.service';
 import { logger } from '@utils/common/logger.util';
 
@@ -41,6 +41,8 @@ export interface BackfillStats {
     receiptsFailed: number;
     contractsCreated: number;
     contractsFailed: number;
+    invoicesCreated: number;
+    invoicesFailed: number;
     durationMs: number;
     ranAt: string;
 }
@@ -64,6 +66,8 @@ export async function runLineBackfill(): Promise<BackfillStats> {
         receiptsFailed: 0,
         contractsCreated: 0,
         contractsFailed: 0,
+        invoicesCreated: 0,
+        invoicesFailed: 0,
         durationMs: 0,
         ranAt: new Date().toISOString(),
     };
@@ -93,6 +97,15 @@ export async function runLineBackfill(): Promise<BackfillStats> {
         stats.contractsFailed = result.failed;
     } catch (err) {
         logger.error({ err }, 'Task C (contracts) failed entirely');
+    }
+
+    // Task D: Invoices
+    try {
+        const result = await backfillInvoices();
+        stats.invoicesCreated = result.created;
+        stats.invoicesFailed = result.failed;
+    } catch (err) {
+        logger.error({ err }, 'Task D (invoices) failed entirely');
     }
 
     stats.durationMs = Date.now() - startTime;
@@ -131,7 +144,6 @@ export async function backfillPaymentTimelines(): Promise<BackfillTaskResult> {
 
     const schedules = await prisma.paymentSchedule.findMany({
         where: {
-            status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] },
             loan: { status: { in: ['ACTIVE', 'DISBURSED'] } },
             NOT: { paymentTimelineEvents: { some: {} } },
         },
@@ -332,6 +344,67 @@ export async function backfillContractPdfs(): Promise<BackfillTaskResult> {
 
     logger.info({ created, failed, skipped }, 'Task C complete');
     return { created, failed, skipped };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Task D: Invoices (NextPaymentInvoice per PaymentSchedule)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function backfillInvoices(): Promise<BackfillTaskResult> {
+    logger.info('LINE backfill Task D: Invoices');
+
+    // Resolve admin user for generatedBy FK
+    const adminUser = await prisma.user.findFirst({
+        where: { role: 'ADMIN', status: 'ACTIVE' },
+        select: { id: true },
+    });
+
+    if (!adminUser) {
+        logger.error('Task D: no active ADMIN user found — cannot backfill invoices');
+        return { created: 0, failed: 0, skipped: 0 };
+    }
+
+    const schedules = await prisma.paymentSchedule.findMany({
+        where: {
+            loan: { status: { in: ['ACTIVE', 'DISBURSED'] } },
+            NOT: { nextPaymentInvoices: { some: {} } },
+        },
+        select: { id: true, loanId: true, paymentNumber: true },
+        orderBy: { paymentDate: 'asc' },
+    });
+
+    logger.info({ total: schedules.length }, 'Task D: schedules needing invoices');
+
+    const invoiceService = new InvoiceService();
+    let created = 0;
+    let failed = 0;
+
+    for (let i = 0; i < schedules.length; i += BATCH_SIZE) {
+        const batch = schedules.slice(i, i + BATCH_SIZE);
+
+        for (const schedule of batch) {
+            try {
+                await invoiceService.saveInvoice(schedule.id, adminUser.id);
+                created++;
+                logger.debug({ scheduleId: schedule.id }, 'Task D: invoice created');
+            } catch (err) {
+                failed++;
+                logger.error({ err, scheduleId: schedule.id }, 'Task D: failed to create invoice');
+            }
+        }
+
+        logger.info(
+            { processed: Math.min(i + BATCH_SIZE, schedules.length), total: schedules.length, created, failed },
+            'Task D: batch processed'
+        );
+
+        if (i + BATCH_SIZE < schedules.length) {
+            await sleep(BATCH_DELAY_MS);
+        }
+    }
+
+    logger.info({ created, failed }, 'Task D complete');
+    return { created, failed, skipped: 0 };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

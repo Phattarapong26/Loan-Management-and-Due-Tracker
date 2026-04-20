@@ -1038,6 +1038,8 @@ export interface BackfillLastRunStatus {
     receiptsFailed: number;
     contractsCreated: number;
     contractsFailed: number;
+    invoicesCreated: number;
+    invoicesFailed: number;
     durationMs: number;
     ranAt: string;
 }
@@ -1052,7 +1054,7 @@ export const documentBackfillApi = {
     runAll: () =>
         apiClient.post<{ message: string }>('/api/admin/document-backfill/run', {}),
 
-    runTask: (task: 'receipts' | 'contracts') =>
+    runTask: (task: 'receipts' | 'contracts' | 'invoices') =>
         apiClient.post<{ message: string }>(`/api/admin/document-backfill/run/${task}`, {}),
 };
 

@@ -109,7 +109,7 @@ const DocumentBackfill: React.FC = () => {
             color: 'text-orange-500',
             bgColor: 'bg-orange-50 dark:bg-orange-950',
             stat: stats?.invoices,
-            canRun: false, // invoices generate on-demand, no backfill task
+            canRun: true,
         },
     ];
 
@@ -188,6 +188,15 @@ const DocumentBackfill: React.FC = () => {
                                         </p>
                                     </div>
                                     <div>
+                                        <p className="text-muted-foreground">Invoice</p>
+                                        <p className="font-medium">
+                                            <span className="text-green-600">+{lastRun.invoicesCreated ?? 0}</span>
+                                            {(lastRun.invoicesFailed ?? 0) > 0 && (
+                                                <span className="text-red-500 ml-1">/ {lastRun.invoicesFailed} fail</span>
+                                            )}
+                                        </p>
+                                    </div>
+                                    <div>
                                         <p className="text-muted-foreground">ใช้เวลา</p>
                                         <p className="font-medium">{(lastRun.durationMs / 1000).toFixed(1)}s</p>
                                     </div>
@@ -243,7 +252,7 @@ const DocumentBackfill: React.FC = () => {
                                             size="sm"
                                             className="w-full"
                                             disabled={runningTask !== null || isComplete}
-                                            onClick={() => runTaskMutation.mutate(key as 'receipts' | 'contracts')}
+                                            onClick={() => runTaskMutation.mutate(key as 'receipts' | 'contracts' | 'invoices')}
                                         >
                                             {runningTask === key ? (
                                                 <Loader2 className="h-3 w-3 mr-2 animate-spin" />
