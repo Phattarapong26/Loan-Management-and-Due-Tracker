@@ -31,13 +31,13 @@ export async function documentBackfillRoutes(app: FastifyInstance): Promise<void
                 const missingReceipts = await prisma.payment.count({
                     where: {
                         NOT: { paymentReceipts: { some: {} } },
-                        loan: { status: { in: ['ACTIVE', 'DISBURSED', 'PAID', 'CLOSED', 'NPL', 'DEFAULTED'] } },
+                        loan: { status: { in: ['ACTIVE', 'DISBURSED', 'CLOSED', 'NPL', 'DEFAULTED'] } },
                     },
                 });
 
                 const totalPayments = await prisma.payment.count({
                     where: {
-                        loan: { status: { in: ['ACTIVE', 'DISBURSED', 'PAID', 'CLOSED', 'NPL', 'DEFAULTED'] } },
+                        loan: { status: { in: ['ACTIVE', 'DISBURSED', 'CLOSED', 'NPL', 'DEFAULTED'] } },
                     },
                 });
 

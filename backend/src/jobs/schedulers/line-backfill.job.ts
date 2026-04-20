@@ -198,7 +198,7 @@ export async function backfillPaymentReceipts(): Promise<BackfillTaskResult> {
     const payments = await prisma.payment.findMany({
         where: {
             NOT: { paymentReceipts: { some: {} } },
-            loan: { status: { in: ['ACTIVE', 'DISBURSED', 'PAID', 'CLOSED', 'NPL', 'DEFAULTED'] } },
+            loan: { status: { in: ['ACTIVE', 'DISBURSED', 'CLOSED', 'NPL', 'DEFAULTED'] } },
         },
         select: {
             id: true,
