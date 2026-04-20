@@ -2,6 +2,7 @@ import { logger } from '@utils/common/logger.util';
 import { NextPaymentInvoiceService } from '@invoices/services/next-payment-invoice.service';
 import { LineNotificationService } from '@line/services/messaging/line-notification.service';
 import { PaymentTimelineRepository } from '../repositories/payment-timeline.repository';
+import { prisma } from '@config/database.config';
 
 
 export interface PaymentTimelineEvent {
@@ -44,6 +45,16 @@ export class PaymentTimelineService {
         this.nextPaymentInvoiceService = new NextPaymentInvoiceService();
         this.lineNotificationService = new LineNotificationService();
         this.timelineRepository = new PaymentTimelineRepository();
+    }
+
+    /** Resolve a real user ID for system-generated records (FK constraint) */
+    private async resolveSystemUserId(): Promise<string> {
+        const admin = await prisma.user.findFirst({
+            where: { role: 'ADMIN', status: 'ACTIVE' },
+            select: { id: true },
+        });
+        if (!admin) throw new Error('No active ADMIN user found for system operations');
+        return admin.id;
     }
 
     /**
@@ -322,10 +333,10 @@ export class PaymentTimelineService {
     }
 
     private async executeInvoiceGeneration(event: any): Promise<void> {
-        // ออก Invoice และส่งไปยัง LINE
+        const systemUserId = await this.resolveSystemUserId();
         const invoice = await this.nextPaymentInvoiceService.generateNextPaymentInvoice(
             event.loanId,
-            'SYSTEM'
+            systemUserId
         );
 
         // ส่ง Invoice ผ่าน LINE
@@ -388,9 +399,10 @@ export class PaymentTimelineService {
         });
 
         // ออก Invoice ใหม่ที่รวมค่าปรับ
+        const systemUserId = await this.resolveSystemUserId();
         const invoice = await this.nextPaymentInvoiceService.generateNextPaymentInvoice(
             event.loanId,
-            'SYSTEM'
+            systemUserId
         );
 
         // ส่ง Invoice ผ่าน LINE
