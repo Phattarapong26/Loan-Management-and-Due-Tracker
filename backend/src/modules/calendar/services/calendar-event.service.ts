@@ -92,7 +92,7 @@ export class CalendarEventService {
         if (input.assignedTo) {
             await this.calendarEventRepository.createTaskAssignment({
                 taskId: event.id,
-                taskType: 'CALENDAR_EVENT',
+                taskType: 'OTHER',
                 assignedTo: input.assignedTo,
                 assignedBy: createdBy,
                 priority: input.priority || 'MEDIUM',
