@@ -8,9 +8,10 @@ import { Label } from '@/shared/components/ui/label';
 import { UserAvatar } from '@/shared/components/ui/user-avatar';
 import { AvatarPicker } from '@/shared/components/ui/avatar-picker';
 import { useAuth } from '@/shared/contexts/AuthContext';
-import { User as UserIcon, Camera, Save } from 'lucide-react';
+import { User as UserIcon, Camera, Save, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/shared/lib/api-client';
+import { usersApi } from '@/shared/lib/api-endpoints';
 import type { User } from '@/shared/types/user';
 
 export default function Profile() {
@@ -26,7 +27,7 @@ export default function Profile() {
     phoneNumber: '',
   });
 
-  const updateProfileMutation = useMutation<User | null, Error, { avatar?: string }>({
+  const updateAvatarMutation = useMutation<User | null, Error, { avatar?: string }>({
     mutationFn: async (data: { avatar?: string }): Promise<User | null> => {
       const { data: responseData, error } = await apiClient.patch<User>(`/api/users/${user?.id}`, data);
       if (error) throw new Error(error.message);
@@ -34,23 +35,44 @@ export default function Profile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
-      toast.success('อัพเดทโปรไฟล์สำเร็จ');
+      toast.success('อัพเดทรูปโปรไฟล์สำเร็จ');
     },
     onError: (error: Error) => {
-      toast.error('ไม่สามารถอัพเดทโปรไฟล์ได้', {
-        description: error.message,
+      toast.error('ไม่สามารถอัพเดทรูปโปรไฟล์ได้', { description: error.message });
+    },
+  });
+
+  const saveProfileMutation = useMutation({
+    mutationFn: async () => {
+      if (!user?.id) throw new Error('ไม่พบข้อมูลผู้ใช้');
+      const { data: responseData, error } = await usersApi.update(user.id, {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        phoneNumber: formData.phoneNumber.trim() || undefined,
       });
+      if (error) throw new Error(error.message);
+      return responseData;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+      toast.success('บันทึกข้อมูลสำเร็จ');
+    },
+    onError: (error: Error) => {
+      toast.error('ไม่สามารถบันทึกข้อมูลได้', { description: error.message });
     },
   });
 
   const handleAvatarSelect = (avatarUrl: string): void => {
     setSelectedAvatar(avatarUrl);
-    updateProfileMutation.mutate({ avatar: avatarUrl });
+    updateAvatarMutation.mutate({ avatar: avatarUrl });
   };
 
   const handleSaveProfile = (): void => {
-    // TODO: Implement profile update
-    toast.info('ฟีเจอร์นี้กำลังพัฒนา');
+    if (!formData.firstName.trim()) {
+      toast.error('กรุณากรอกชื่อ');
+      return;
+    }
+    saveProfileMutation.mutate();
   };
 
   if (!user) {
@@ -173,9 +195,12 @@ export default function Profile() {
             )}
 
             <div className="flex justify-end pt-4">
-              <Button onClick={handleSaveProfile}>
-                <Save className="h-4 w-4 mr-2" />
-                บันทึกข้อมูล
+              <Button onClick={handleSaveProfile} disabled={saveProfileMutation.isPending}>
+                {saveProfileMutation.isPending ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />กำลังบันทึก...</>
+                ) : (
+                  <><Save className="h-4 w-4 mr-2" />บันทึกข้อมูล</>
+                )}
               </Button>
             </div>
           </CardContent>
