@@ -106,13 +106,16 @@ export class LoanRepository {
             rejectedReason?: string | null;
             disbursementDate?: Date | null;
             maturityDate?: Date | null;
-            firstPaymentDate?: Date | null; // Add firstPaymentDate
-            paymentDay?: number; // Add paymentDay
+            firstPaymentDate?: Date | null;
+            paymentDay?: number;
             outstandingBalance?: number;
             nextPaymentDate?: Date | null;
             nextPaymentAmount?: number | null;
             lastPaymentDate?: Date | null;
             overdueDays?: number;
+            approvalLevel?: string;
+            currentApprovalLevel?: string;
+            approvalHistory?: string;
         },
         branchId?: string,
         tx?: Prisma.TransactionClient
@@ -128,13 +131,16 @@ export class LoanRepository {
         if (data.rejectedReason !== undefined) updateData.rejectedReason = data.rejectedReason;
         if (data.disbursementDate !== undefined) updateData.disbursementDate = data.disbursementDate;
         if (data.maturityDate !== undefined) updateData.maturityDate = data.maturityDate;
-        if (data.firstPaymentDate !== undefined) updateData.firstPaymentDate = data.firstPaymentDate; // Add firstPaymentDate
-        if (data.paymentDay !== undefined) updateData.paymentDay = data.paymentDay; // Add paymentDay
+        if (data.firstPaymentDate !== undefined) updateData.firstPaymentDate = data.firstPaymentDate;
+        if (data.paymentDay !== undefined) updateData.paymentDay = data.paymentDay;
         if (data.outstandingBalance !== undefined) updateData.outstandingBalance = data.outstandingBalance;
         if (data.nextPaymentDate !== undefined) updateData.nextPaymentDate = data.nextPaymentDate;
         if (data.nextPaymentAmount !== undefined) updateData.nextPaymentAmount = data.nextPaymentAmount;
         if (data.lastPaymentDate !== undefined) updateData.lastPaymentDate = data.lastPaymentDate;
         if (data.overdueDays !== undefined) updateData.overdueDays = data.overdueDays;
+        if (data.approvalLevel !== undefined) updateData.approvalLevel = data.approvalLevel;
+        if (data.currentApprovalLevel !== undefined) updateData.currentApprovalLevel = data.currentApprovalLevel;
+        if (data.approvalHistory !== undefined) updateData.approvalHistory = data.approvalHistory;
 
         return db.loan.update({
             where: {

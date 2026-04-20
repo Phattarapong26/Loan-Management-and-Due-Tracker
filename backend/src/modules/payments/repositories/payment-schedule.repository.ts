@@ -704,4 +704,50 @@ export class PaymentScheduleRepository {
         });
     }
 
+    /**
+     * Find first pending (UNPAID or OVERDUE) schedule for a loan (for listLoans derived fields)
+     */
+    async findFirstPendingByLoanId(loanId: string): Promise<{
+        paymentNumber: number;
+        paymentDate: Date;
+        status: string;
+    } | null> {
+        return this.db.paymentSchedule.findFirst({
+            where: {
+                loanId,
+                status: { in: ['UNPAID', 'OVERDUE'] },
+            },
+            orderBy: { paymentNumber: 'asc' },
+            select: {
+                paymentNumber: true,
+                paymentDate: true,
+                status: true,
+            },
+        });
+    }
+
+    /**
+     * Find schedule signals for multiple loans (for credit assessment in listLoans)
+     */
+    async findSignalsByLoanIds(loanIds: string[]): Promise<Array<{
+        loanId: string;
+        paymentDate: Date;
+        status: string;
+        paidAt: Date | null;
+        daysOverdue: number | null;
+    }>> {
+        if (loanIds.length === 0) return [];
+        return this.db.paymentSchedule.findMany({
+            where: { loanId: { in: loanIds } },
+            select: {
+                loanId: true,
+                paymentDate: true,
+                status: true,
+                paidAt: true,
+                daysOverdue: true,
+            },
+        });
+    }
+
 }
+

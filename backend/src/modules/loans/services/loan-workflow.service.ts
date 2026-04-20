@@ -4,9 +4,8 @@
  * Manages multi-level loan approval workflow
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { LoanWorkflowRepository } from '../repositories/loan-workflow.repository';
+import { LoanRepository } from '../repositories/loan.repository';
 
 export interface CreateWorkflowInput {
   loanId: string;
@@ -42,172 +41,49 @@ export interface WorkflowWithDetails {
 }
 
 export class LoanWorkflowService {
+  private workflowRepository: LoanWorkflowRepository;
+  private loanRepository: LoanRepository;
+
+  constructor() {
+    this.workflowRepository = new LoanWorkflowRepository();
+    this.loanRepository = new LoanRepository();
+  }
+
   /**
    * Create new loan approval workflow
    */
   async createWorkflow(data: CreateWorkflowInput): Promise<WorkflowWithDetails> {
-    const workflow = await prisma.loan_approval_workflow.create({
-      data: {
-        loan_id: data.loanId,
-        approval_level: data.approvalLevel || 1,
-        approver_id: data.approverId,
-        approval_status: data.approvalStatus || 'PENDING',
-        approved_amount: data.approvedAmount,
-        approval_notes: data.approvalNotes,
-        sla_deadline: data.slaDeadline,
-        created_at: new Date(),
-        updated_at: new Date(),
-      },
-      include: {
-        loans: {
-          select: {
-            id: true,
-            principal: true,
-            status: true,
-            customer: {
-              select: {
-                id: true,
-                businessName: true,
-              },
-            },
-          },
-        },
-        users: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            role: true,
-          },
-        },
-      },
-    });
-
-    return workflow as WorkflowWithDetails;
+    return this.workflowRepository.create(data) as Promise<WorkflowWithDetails>;
   }
 
   /**
    * Get workflow by loan ID
    */
   async getWorkflowsByLoanId(loanId: string): Promise<WorkflowWithDetails[]> {
-    const workflows = await prisma.loan_approval_workflow.findMany({
-      where: { loan_id: loanId },
-      include: {
-        loans: {
-          select: {
-            id: true,
-            principal: true,
-            status: true,
-            customer: {
-              select: {
-                id: true,
-                businessName: true,
-              },
-            },
-          },
-        },
-        users: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            role: true,
-          },
-        },
-      },
-      orderBy: { created_at: 'desc' },
-    });
-
-    return workflows as WorkflowWithDetails[];
+    return this.workflowRepository.findManyByLoanId(loanId) as Promise<WorkflowWithDetails[]>;
   }
 
   /**
    * Get workflow by ID
    */
   async getWorkflowById(workflowId: string): Promise<WorkflowWithDetails | null> {
-    const workflow = await prisma.loan_approval_workflow.findUnique({
-      where: { id: workflowId },
-      include: {
-        loans: {
-          select: {
-            id: true,
-            principal: true,
-            status: true,
-            customer: {
-              select: {
-                id: true,
-                businessName: true,
-              },
-            },
-          },
-        },
-        users: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            role: true,
-          },
-        },
-      },
-    });
-
-    return workflow as WorkflowWithDetails | null;
+    return this.workflowRepository.findById(workflowId) as Promise<WorkflowWithDetails | null>;
   }
 
   /**
    * Update workflow
    */
   async updateWorkflow(workflowId: string, data: UpdateWorkflowInput): Promise<WorkflowWithDetails> {
-    const workflow = await prisma.loan_approval_workflow.update({
-      where: { id: workflowId },
-      data: {
-        ...data,
-        updated_at: new Date(),
-      },
-      include: {
-        loans: {
-          select: {
-            id: true,
-            principal: true,
-            status: true,
-            customer: {
-              select: {
-                id: true,
-                businessName: true,
-              },
-            },
-          },
-        },
-        users: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            role: true,
-          },
-        },
-      },
-    });
+    const workflow = await this.workflowRepository.update(workflowId, data) as WorkflowWithDetails;
 
     // Update loan status if workflow is completed
     if (data.approvalStatus === 'APPROVED') {
-      await prisma.loan.update({
-        where: { id: workflow.loan_id },
-        data: { status: 'APPROVED' },
-      });
+      await this.loanRepository.updateStatus(workflow.loan_id, 'APPROVED');
     } else if (data.approvalStatus === 'REJECTED') {
-      await prisma.loan.update({
-        where: { id: workflow.loan_id },
-        data: { status: 'REJECTED' },
-      });
+      await this.loanRepository.updateStatus(workflow.loan_id, 'REJECTED');
     }
 
-    return workflow as WorkflowWithDetails;
+    return workflow;
   }
 
   /**
@@ -242,46 +118,7 @@ export class LoanWorkflowService {
    * Get pending workflows for approver
    */
   async getPendingWorkflows(approverId?: string, limit = 50): Promise<WorkflowWithDetails[]> {
-    const where: any = {
-      approval_status: 'PENDING',
-      completed_at: null,
-    };
-
-    if (approverId) {
-      where.approver_id = approverId;
-    }
-
-    const workflows = await prisma.loan_approval_workflow.findMany({
-      where,
-      include: {
-        loans: {
-          select: {
-            id: true,
-            principal: true,
-            status: true,
-            customer: {
-              select: {
-                id: true,
-                businessName: true,
-              },
-            },
-          },
-        },
-        users: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            role: true,
-          },
-        },
-      },
-      orderBy: { created_at: 'asc' },
-      take: limit,
-    });
-
-    return workflows as WorkflowWithDetails[];
+    return this.workflowRepository.findPending(approverId, limit) as Promise<WorkflowWithDetails[]>;
   }
 
   /**
@@ -294,57 +131,7 @@ export class LoanWorkflowService {
     approvalLevel?: number;
     limit?: number;
   }): Promise<WorkflowWithDetails[]> {
-    const where: any = {};
-
-    if (filters?.status) {
-      where.approval_status = filters.status;
-    }
-
-    if (filters?.approverId) {
-      where.approver_id = filters.approverId;
-    }
-
-    if (filters?.approvalLevel) {
-      where.approval_level = filters.approvalLevel;
-    }
-
-    if (filters?.customerId) {
-      where.loans = {
-        customerId: filters.customerId,
-      };
-    }
-
-    const workflows = await prisma.loan_approval_workflow.findMany({
-      where,
-      include: {
-        loans: {
-          select: {
-            id: true,
-            principal: true,
-            status: true,
-            customer: {
-              select: {
-                id: true,
-                businessName: true,
-              },
-            },
-          },
-        },
-        users: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            role: true,
-          },
-        },
-      },
-      orderBy: { created_at: 'desc' },
-      take: filters?.limit || 50,
-    });
-
-    return workflows as WorkflowWithDetails[];
+    return this.workflowRepository.findMany(filters) as Promise<WorkflowWithDetails[]>;
   }
 
   /**
@@ -358,24 +145,14 @@ export class LoanWorkflowService {
     averageApprovalTime: number;
     overdueCount: number;
   }> {
-    const [total, pending, approved, rejected] = await Promise.all([
-      prisma.loan_approval_workflow.count(),
-      prisma.loan_approval_workflow.count({ where: { approval_status: 'PENDING' } }),
-      prisma.loan_approval_workflow.count({ where: { approval_status: 'APPROVED' } }),
-      prisma.loan_approval_workflow.count({ where: { approval_status: 'REJECTED' } }),
+    const [total, pending, approved, rejected, completedWorkflows, overdueCount] = await Promise.all([
+      this.workflowRepository.countByStatus(),
+      this.workflowRepository.countByStatus('PENDING'),
+      this.workflowRepository.countByStatus('APPROVED'),
+      this.workflowRepository.countByStatus('REJECTED'),
+      this.workflowRepository.findCompletedForAverageTime(),
+      this.workflowRepository.countOverdue(),
     ]);
-
-    // Calculate average approval time for completed workflows
-    const completedWorkflows = await prisma.loan_approval_workflow.findMany({
-      where: {
-        approval_status: { in: ['APPROVED', 'REJECTED'] },
-        completed_at: { not: null },
-      },
-      select: {
-        created_at: true,
-        completed_at: true,
-      },
-    });
 
     let averageApprovalTime = 0;
     if (completedWorkflows.length > 0) {
@@ -383,27 +160,10 @@ export class LoanWorkflowService {
         const time = workflow.completed_at!.getTime() - workflow.created_at!.getTime();
         return sum + time;
       }, 0);
-      averageApprovalTime = totalTime / completedWorkflows.length / (1000 * 60 * 60); // Convert to hours
+      averageApprovalTime = totalTime / completedWorkflows.length / (1000 * 60 * 60); // hours
     }
 
-    // Count overdue workflows
-    const overdueCount = await prisma.loan_approval_workflow.count({
-      where: {
-        approval_status: 'PENDING',
-        sla_deadline: {
-          lt: new Date(),
-        },
-      },
-    });
-
-    return {
-      total,
-      pending,
-      approved,
-      rejected,
-      averageApprovalTime,
-      overdueCount,
-    };
+    return { total, pending, approved, rejected, averageApprovalTime, overdueCount };
   }
 
   /**
@@ -411,7 +171,7 @@ export class LoanWorkflowService {
    */
   async reassignWorkflow(workflowId: string, _newApproverId: string): Promise<WorkflowWithDetails> {
     return this.updateWorkflow(workflowId, {
-      approvalStatus: 'PENDING', // Reset to pending for new approver
+      approvalStatus: 'PENDING',
     });
   }
 
@@ -419,9 +179,7 @@ export class LoanWorkflowService {
    * Delete workflow
    */
   async deleteWorkflow(workflowId: string): Promise<void> {
-    await prisma.loan_approval_workflow.delete({
-      where: { id: workflowId },
-    });
+    await this.workflowRepository.delete(workflowId);
   }
 }
 

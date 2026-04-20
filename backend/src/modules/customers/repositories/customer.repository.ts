@@ -605,4 +605,37 @@ export class CustomerRepository {
             take,
         }) as any;
     }
+
+    /**
+     * Find latest credit bureau record for a customer (for getLoan credit assessment)
+     */
+    async findLatestCreditBureau(customerId: string): Promise<{
+        nplStatus: boolean | null;
+        totalLimit: any;
+        totalOutstanding: any;
+    } | null> {
+        return this.db.customerCreditBureau.findFirst({
+            where: { customerId },
+            orderBy: [{ createdAt: 'desc' }],
+            select: { nplStatus: true, totalLimit: true, totalOutstanding: true },
+        });
+    }
+
+    /**
+     * Find latest credit bureau records for multiple customers (for listLoans credit assessment)
+     */
+    async findCreditBureauByCustomerIds(customerIds: string[]): Promise<Array<{
+        customerId: string;
+        nplStatus: boolean | null;
+        totalLimit: any;
+        totalOutstanding: any;
+    }>> {
+        if (customerIds.length === 0) return [];
+        return this.db.customerCreditBureau.findMany({
+            where: { customerId: { in: customerIds } },
+            orderBy: [{ createdAt: 'desc' }],
+            select: { customerId: true, nplStatus: true, totalLimit: true, totalOutstanding: true },
+        });
+    }
 }
+

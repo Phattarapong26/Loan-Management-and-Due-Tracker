@@ -1,10 +1,12 @@
 import { FastifyRequest } from 'fastify';
 import { LoanRepository } from '../repositories/loan.repository';
+import { LoanProductRepository } from '../repositories/loan-product.repository';
 import { PaymentScheduleRepository } from '@payments/repositories/payment-schedule.repository';
 import { ProductConfigRepository } from '@config-mgmt/repositories/product-config.repository';
 import { SystemConfigRepository } from '@config-mgmt/repositories/system-config.repository';
 import { CustomerRepository } from '@customers/repositories/customer.repository';
 import { BranchRepository } from '@branches/repositories/branch.repository';
+import { UserRepository } from '@users/repositories/user.repository';
 import { calculateDSCR, generatePaymentSchedule } from '@utils/calculation/calculation.util';
 import { CreateLoanInput, ApproveLoanInput, RejectLoanInput } from '../models/loan.model';
 import { QueueUtil } from '@utils/common/queue.util';
@@ -38,21 +40,25 @@ function getRequiredApprovalLevel(loanAmount: number): 'OFFICER' | 'MANAGER' | '
  */
 export class LoanService {
     private loanRepository: LoanRepository;
+    private loanProductRepository: LoanProductRepository;
     private paymentScheduleRepository: PaymentScheduleRepository;
     private disbursementRepository: DisbursementRepository;
     private productConfigRepository: ProductConfigRepository;
     private systemConfigRepository: SystemConfigRepository;
     private customerRepository: CustomerRepository;
     private branchRepository: BranchRepository;
+    private userRepository: UserRepository;
 
     constructor() {
         this.loanRepository = new LoanRepository();
+        this.loanProductRepository = new LoanProductRepository();
         this.paymentScheduleRepository = new PaymentScheduleRepository();
         this.disbursementRepository = new DisbursementRepository();
         this.productConfigRepository = new ProductConfigRepository();
         this.systemConfigRepository = new SystemConfigRepository();
         this.customerRepository = new CustomerRepository();
         this.branchRepository = new BranchRepository();
+        this.userRepository = new UserRepository();
     }
 
     /**
@@ -64,23 +70,11 @@ export class LoanService {
         termMonths: number,
         loanAmount: number
     ): Promise<number> {
-        const { prisma } = await import('@config/database.config');
         const { InterestRateService } = await import('@loans/calculators/interest-rate.service');
         const interestRateService = new InterestRateService();
 
         // Fetch loan product with tiers
-        const loanProduct = await prisma.loanProduct.findUnique({
-            where: { id: loanProductId },
-            include: {
-                yearInterestTiers: {
-                    orderBy: { startYear: 'asc' }
-                },
-                interestRateTiers: {
-                    where: { status: 'ACTIVE' },
-                    orderBy: { minAmount: 'asc' }
-                }
-            }
-        });
+        const loanProduct = await this.loanProductRepository.findByIdWithAllTiers(loanProductId) as any;
 
         if (!loanProduct) {
             throw new Error('Loan product not found');
@@ -408,12 +402,8 @@ export class LoanService {
 
         // 🔔 Send notification to branch manager for approval
         try {
-            const { prisma } = await import('@config/database.config');
             const customer = await this.customerRepository.findById(input.customerId);
-            const officer = await prisma.user.findUnique({
-                where: { id: officerId },
-                select: { firstName: true, lastName: true },
-            });
+            const officer = await this.userRepository.findById(officerId);
 
             if (customer && officer) {
                 await notificationHelper.sendLoanApprovalRequest({
@@ -513,11 +503,7 @@ export class LoanService {
         // Credit bureau (latest snapshot)
         const customerId = (loan as any).customerId as string | undefined;
         const ncb = customerId
-            ? await prisma.customerCreditBureau.findFirst({
-                  where: { customerId },
-                  orderBy: [{ createdAt: 'desc' }],
-                  select: { nplStatus: true, totalLimit: true, totalOutstanding: true },
-              })
+            ? await this.customerRepository.findLatestCreditBureau(customerId)
             : null;
 
         const limit = ncb?.totalLimit ? Number(ncb.totalLimit) : 0;
@@ -610,18 +596,7 @@ export class LoanService {
         const loansWithDerived = await Promise.all(
             (result?.loans || []).map(async (loan: any) => {
 	                try {
-	                    const pending = await prisma.paymentSchedule.findFirst({
-	                        where: {
-	                            loanId: loan.id,
-	                            status: { in: ['UNPAID', 'OVERDUE'] },
-	                        },
-	                        orderBy: { paymentNumber: 'asc' },
-	                        select: {
-	                            paymentNumber: true,
-	                            paymentDate: true,
-	                            status: true,
-	                        },
-	                    });
+	                    const pending = await this.paymentScheduleRepository.findFirstPendingByLoanId(loan.id);
 
                     const outstanding = Number(loan.outstandingBalance || 0);
                     const interestRate = Number(loan.interestRate || 0);
@@ -674,16 +649,7 @@ export class LoanService {
 		        // Pull schedule history signals from payment_schedules (no schema changes)
 		        const scheduleRows =
 	            loanIds.length > 0
-	                ? await prisma.paymentSchedule.findMany({
-	                      where: { loanId: { in: loanIds } },
-	                      select: {
-	                          loanId: true,
-	                          paymentDate: true,
-	                          status: true,
-	                          paidAt: true,
-	                          daysOverdue: true,
-	                      },
-	                  })
+	                ? await this.paymentScheduleRepository.findSignalsByLoanIds(loanIds)
 	                : [];
 
 		        const scheduleSignalsByLoan = new Map<
@@ -761,16 +727,7 @@ export class LoanService {
 
 	        const ncbRows =
 	            uniqueCustomerIds.length > 0
-	                ? await prisma.customerCreditBureau.findMany({
-	                      where: { customerId: { in: uniqueCustomerIds } },
-	                      orderBy: [{ createdAt: 'desc' }],
-	                      select: {
-	                          customerId: true,
-	                          nplStatus: true,
-	                          totalLimit: true,
-	                          totalOutstanding: true,
-	                      },
-	                  })
+	                ? await this.customerRepository.findCreditBureauByCustomerIds(uniqueCustomerIds)
 	                : [];
 
 	        const ncbByCustomer = new Map<string, { nplStatus: boolean; creditUtilization?: number }>();

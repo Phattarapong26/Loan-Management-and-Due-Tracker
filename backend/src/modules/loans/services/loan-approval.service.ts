@@ -15,10 +15,14 @@
  * This service maps SENIOR_MANAGER and DIRECTOR to HQ for compatibility
  */
 
-import { prisma } from '@config/database.config';
 import axios from 'axios';
 import { env } from '@config/env.config';
 import { ApprovalLevel as PrismaApprovalLevel, UserRole } from '@prisma/client';
+import { ApprovalLimitRepository } from '../repositories/approval-limit.repository';
+import { LoanRepository } from '../repositories/loan.repository';
+import { UserRepository } from '@users/repositories/user.repository';
+import { CustomerRepository } from '@customers/repositories/customer.repository';
+import { DisbursementRepository } from '@disbursements/repositories/disbursement.repository';
 
 const LINE_MESSAGING_API = 'https://api.line.me/v2/bot';
 
@@ -39,9 +43,19 @@ export interface ApprovalHistoryEntry {
 
 export class LoanApprovalService {
     private accessToken: string;
+    private approvalLimitRepository: ApprovalLimitRepository;
+    private loanRepository: LoanRepository;
+    private userRepository: UserRepository;
+    private customerRepository: CustomerRepository;
+    private disbursementRepository: DisbursementRepository;
 
     constructor() {
         this.accessToken = env.LINE_CHANNEL_ACCESS_TOKEN || '';
+        this.approvalLimitRepository = new ApprovalLimitRepository();
+        this.loanRepository = new LoanRepository();
+        this.userRepository = new UserRepository();
+        this.customerRepository = new CustomerRepository();
+        this.disbursementRepository = new DisbursementRepository();
     }
 
     /**
@@ -57,29 +71,14 @@ export class LoanApprovalService {
         try {
             // If userRole provided, check their approval limit
             if (userRole) {
-                const limit = await prisma.approvalLimit.findFirst({
-                    where: {
-                        role: userRole,
-                        status: 'ACTIVE',
-                        minAmount: { lte: loanAmount },
-                        OR: [
-                            { maxAmount: { gte: loanAmount } },
-                            { maxAmount: null }
-                        ]
-                    },
-                    orderBy: { maxAmount: 'desc' }
-                });
-
+                const limit = await this.approvalLimitRepository.findFirstForRoleAndAmount(userRole, loanAmount);
                 if (limit) {
                     return limit.approvalLevel as ApprovalLevel;
                 }
             }
 
             // Get all active approval limits
-            const limits = await prisma.approvalLimit.findMany({
-                where: { status: 'ACTIVE' },
-                orderBy: { maxAmount: 'asc' },
-            });
+            const limits = await this.approvalLimitRepository.findAllActive();
 
             // Find the appropriate limit
             for (const limit of limits) {
@@ -135,34 +134,14 @@ export class LoanApprovalService {
     async sendApprovalNotification(loanId: string, approverId: string): Promise<boolean> {
         try {
             // Get loan details with customer and risk info
-            const loan = await prisma.loan.findUnique({
-                where: { id: loanId },
-                include: {
-                    customer: {
-                        select: {
-                            id: true,
-                            businessName: true,
-                            phone: true,
-                            aiConfidenceScore: true,
-                        },
-                    },
-                    loanProduct: {
-                        select: {
-                            productName: true,
-                        },
-                    },
-                },
-            });
+            const loan = await this.loanRepository.findById(loanId) as any;
 
             if (!loan) {
                 throw new Error('Loan not found');
             }
 
             // Get approver's LINE user ID
-            const approver = await prisma.user.findUnique({
-                where: { id: approverId },
-                select: { lineUserId: true, lineActive: true },
-            });
+            const approver = await this.userRepository.findById(approverId);
 
             if (!approver?.lineUserId || !approver.lineActive) {
                 console.log(`Approver ${approverId} does not have active LINE account`);
@@ -344,21 +323,13 @@ export class LoanApprovalService {
      */
     async approveLoan(loanId: string, approverId: string, reason?: string): Promise<boolean> {
         try {
-            const loan = await prisma.loan.findUnique({
-                where: { id: loanId },
-                include: {
-                    customer: true,
-                },
-            });
+            const loan = await this.loanRepository.findById(loanId) as any;
 
             if (!loan) {
                 throw new Error('Loan not found');
             }
 
-            const approver = await prisma.user.findUnique({
-                where: { id: approverId },
-                select: { firstName: true, lastName: true, role: true },
-            });
+            const approver = await this.userRepository.findForApproval(approverId);
 
             if (!approver) {
                 throw new Error('Approver not found');
@@ -387,29 +358,23 @@ export class LoanApprovalService {
 
             if (isFinalApproval) {
                 // Final approval - update loan status
-                await prisma.loan.update({
-                    where: { id: loanId },
-                    data: {
-                        status: 'APPROVED',
-                        approvalLevel: requiredLevel as PrismaApprovalLevel,
-                        currentApprovalLevel: requiredLevel as PrismaApprovalLevel,
-                        approvalHistory: JSON.stringify(approvalHistory),
-                        approvedBy: approverId,
-                        approvedAt: new Date(),
-                    },
+                await this.loanRepository.update(loanId, {
+                    status: 'APPROVED',
+                    approvalLevel: requiredLevel as PrismaApprovalLevel,
+                    currentApprovalLevel: requiredLevel as PrismaApprovalLevel,
+                    approvalHistory: JSON.stringify(approvalHistory),
+                    approvedBy: approverId,
+                    approvedAt: new Date(),
                 });
 
                 // Task 6.1.10: Create LoanDisbursement record
-                await prisma.loanDisbursement.create({
-                    data: {
-                        loanId,
-                        disbursementNo: 1,
-                        amount: loan.principal,
-                        purpose: 'เบิกจ่ายเงินกู้',
-                        requestedDate: new Date(),
-                        status: 'PENDING',
-                        createdBy: approverId,
-                    },
+                await this.disbursementRepository.create({
+                    loanId,
+                    disbursementNo: 1,
+                    amount: loan.principal,
+                    purpose: 'เบิกจ่ายเงินกู้',
+                    requestedDate: new Date(),
+                    createdBy: approverId,
                 });
 
                 // Task 6.1.9: Send notifications to loan officer and customer
@@ -418,12 +383,9 @@ export class LoanApprovalService {
                 console.log(`Loan ${loanId} finally approved by ${approverId}`);
             } else {
                 // Route to next level
-                await prisma.loan.update({
-                    where: { id: loanId },
-                    data: {
-                        currentApprovalLevel: nextLevel as PrismaApprovalLevel,
-                        approvalHistory: JSON.stringify(approvalHistory),
-                    },
+                await this.loanRepository.update(loanId, {
+                    currentApprovalLevel: nextLevel as PrismaApprovalLevel,
+                    approvalHistory: JSON.stringify(approvalHistory),
                 });
 
                 // Send notification to next approver
@@ -447,19 +409,13 @@ export class LoanApprovalService {
      */
     async rejectLoan(loanId: string, approverId: string, reason: string): Promise<boolean> {
         try {
-            const loan = await prisma.loan.findUnique({
-                where: { id: loanId },
-                include: { customer: true },
-            });
+            const loan = await this.loanRepository.findById(loanId) as any;
 
             if (!loan) {
                 throw new Error('Loan not found');
             }
 
-            const approver = await prisma.user.findUnique({
-                where: { id: approverId },
-                select: { firstName: true, lastName: true, role: true },
-            });
+            const approver = await this.userRepository.findForApproval(approverId);
 
             if (!approver) {
                 throw new Error('Approver not found');
@@ -479,15 +435,12 @@ export class LoanApprovalService {
             approvalHistory.push(historyEntry);
 
             // Update loan status
-            await prisma.loan.update({
-                where: { id: loanId },
-                data: {
-                    status: 'REJECTED',
-                    approvalHistory: JSON.stringify(approvalHistory),
-                    rejectedBy: approverId,
-                    rejectedAt: new Date(),
-                    rejectedReason: reason,
-                },
+            await this.loanRepository.update(loanId, {
+                status: 'REJECTED',
+                approvalHistory: JSON.stringify(approvalHistory),
+                rejectedBy: approverId,
+                rejectedAt: new Date(),
+                rejectedReason: reason,
             });
 
             // Task 6.1.9: Send notifications
@@ -510,18 +463,13 @@ export class LoanApprovalService {
         requestedDocuments: string[]
     ): Promise<boolean> {
         try {
-            const loan = await prisma.loan.findUnique({
-                where: { id: loanId },
-            });
+            const loan = await this.loanRepository.findById(loanId) as any;
 
             if (!loan) {
                 throw new Error('Loan not found');
             }
 
-            const approver = await prisma.user.findUnique({
-                where: { id: approverId },
-                select: { firstName: true, lastName: true, role: true },
-            });
+            const approver = await this.userRepository.findForApproval(approverId);
 
             if (!approver) {
                 throw new Error('Approver not found');
@@ -541,11 +489,8 @@ export class LoanApprovalService {
             approvalHistory.push(historyEntry);
 
             // Keep status as PENDING_APPROVAL but add note about documents
-            await prisma.loan.update({
-                where: { id: loanId },
-                data: {
-                    approvalHistory: JSON.stringify(approvalHistory),
-                },
+            await this.loanRepository.update(loanId, {
+                approvalHistory: JSON.stringify(approvalHistory),
             });
 
             console.log(`Documents requested for loan ${loanId}`);
@@ -566,14 +511,17 @@ export class LoanApprovalService {
     ): Promise<void> {
         try {
             // Notify loan officer
-            const officer = await prisma.user.findFirst({
-                where: {
-                    id: loan.officerId,
-                },
-                select: { lineUserId: true, lineActive: true },
-            });
+            const officer = await this.userRepository.findFirstByBranchAndRole(
+                loan.branchId,
+                'OFFICER'
+            );
 
-            if (officer?.lineUserId && officer.lineActive) {
+            // Try to get officer by officerId directly if available
+            const officerUser = loan.officerId
+                ? await this.userRepository.findLineInfoById(loan.officerId)
+                : officer;
+
+            if (officerUser?.lineUserId && officerUser.lineActive) {
                 const message = decision === 'APPROVED'
                     ? `✅ สินเชื่อเลขที่ ${loan.id.substring(0, 8)} ได้รับการอนุมัติแล้ว\n\nลูกค้า: ${loan.customer.businessName}\nยอดเงิน: ฿${loan.principal.toNumber().toLocaleString()}`
                     : `❌ สินเชื่อเลขที่ ${loan.id.substring(0, 8)} ถูกปฏิเสธ\n\nเหตุผล: ${reason || 'ไม่ระบุ'}`;
@@ -581,7 +529,7 @@ export class LoanApprovalService {
                 await axios.post(
                     `${LINE_MESSAGING_API}/message/push`,
                     {
-                        to: officer.lineUserId,
+                        to: officerUser.lineUserId,
                         messages: [{ type: 'text', text: message }],
                     },
                     {
@@ -594,10 +542,7 @@ export class LoanApprovalService {
             }
 
             // Notify customer (if they have LINE linked)
-            const customer = await prisma.customer.findUnique({
-                where: { id: loan.customerId },
-                select: { lineUserId: true },
-            });
+            const customer = await this.customerRepository.findById(loan.customerId) as any;
 
             if (customer?.lineUserId) {
                 const message = decision === 'APPROVED'
@@ -633,13 +578,7 @@ export class LoanApprovalService {
             HQ: 'ADMIN', // Use ADMIN role for HQ level
         };
 
-        return await prisma.user.findFirst({
-            where: {
-                branchId,
-                role: roleMap[level],
-                lineActive: true,
-            },
-        });
+        return this.userRepository.findFirstByBranchAndRole(branchId, roleMap[level]);
     }
 
     /**
@@ -654,13 +593,7 @@ export class LoanApprovalService {
         slaHours: number;
     }> {
         try {
-            const loan = await prisma.loan.findUnique({
-                where: { id: loanId },
-                select: {
-                    createdAt: true,
-                    currentApprovalLevel: true,
-                },
-            });
+            const loan = await this.loanRepository.findById(loanId) as any;
 
             if (!loan) {
                 throw new Error('Loan not found');
@@ -697,17 +630,7 @@ export class LoanApprovalService {
      */
     async sendEscalationNotification(loanId: string): Promise<boolean> {
         try {
-            const loan = await prisma.loan.findUnique({
-                where: { id: loanId },
-                include: {
-                    customer: {
-                        select: {
-                            businessName: true,
-                            branchId: true,
-                        },
-                    },
-                },
-            });
+            const loan = await this.loanRepository.findById(loanId) as any;
 
             if (!loan) {
                 return false;
@@ -720,17 +643,13 @@ export class LoanApprovalService {
             }
 
             // Send to branch manager
-            const manager = await prisma.user.findFirst({
-                where: {
-                    branchId: loan.customer.branchId,
-                    role: 'MANAGER',
-                    lineActive: true,
-                },
-                select: { lineUserId: true },
-            });
+            const manager = await this.userRepository.findFirstByBranchAndRole(
+                loan.customer?.branchId || loan.branchId,
+                'MANAGER'
+            );
 
             if (manager?.lineUserId) {
-                const message = `⚠️ แจ้งเตือน: สินเชื่อเกิน SLA\n\nเลขที่: ${loan.id.substring(0, 8)}\nลูกค้า: ${loan.customer.businessName}\nยอดเงิน: ฿${loan.principal.toNumber().toLocaleString()}\n\nเกินกำหนด: ${Math.abs(sla.hoursRemaining)} ชั่วโมง\nกรุณาเร่งดำเนินการ`;
+                const message = `⚠️ แจ้งเตือน: สินเชื่อเกิน SLA\n\nเลขที่: ${loan.id.substring(0, 8)}\nลูกค้า: ${loan.customer?.businessName}\nยอดเงิน: ฿${loan.principal.toNumber().toLocaleString()}\n\nเกินกำหนด: ${Math.abs(sla.hoursRemaining)} ชั่วโมง\nกรุณาเร่งดำเนินการ`;
 
                 await axios.post(
                     `${LINE_MESSAGING_API}/message/push`,

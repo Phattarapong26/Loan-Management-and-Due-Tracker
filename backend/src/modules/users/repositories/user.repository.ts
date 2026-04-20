@@ -332,5 +332,32 @@ export class UserRepository {
             select: { id: true, lineUserId: true, role: true },
         }) as any;
     }
+
+    /**
+     * Find first user by branch and role (for approval routing)
+     */
+    async findFirstByBranchAndRole(
+        branchId: string,
+        role: string
+    ): Promise<{ id: string; lineUserId: string | null; lineActive: boolean | null } | null> {
+        return prisma.user.findFirst({
+            where: {
+                branchId,
+                role: role as any,
+                lineActive: true,
+            },
+            select: { id: true, lineUserId: true, lineActive: true },
+        });
+    }
+
+    /**
+     * Find user with selected fields for approval notifications
+     */
+    async findForApproval(id: string): Promise<{ firstName: string; lastName: string; role: string; lineUserId: string | null; lineActive: boolean | null } | null> {
+        return prisma.user.findUnique({
+            where: { id },
+            select: { firstName: true, lastName: true, role: true, lineUserId: true, lineActive: true },
+        });
+    }
 }
 

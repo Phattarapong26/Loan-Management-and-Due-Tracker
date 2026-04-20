@@ -129,4 +129,22 @@ export class LoanProductRepository {
       include: { yearInterestTiers: true },
     });
   }
+
+  /**
+   * Find loan product with all interest rate tiers (for rate calculation)
+   */
+  async findByIdWithAllTiers(id: string): Promise<LoanProduct | null> {
+    return this.prisma.loanProduct.findUnique({
+      where: { id },
+      include: {
+        yearInterestTiers: {
+          orderBy: { startYear: 'asc' },
+        },
+        interestRateTiers: {
+          where: { status: 'ACTIVE' },
+          orderBy: { minAmount: 'asc' },
+        },
+      },
+    }) as any;
+  }
 }
