@@ -19,6 +19,7 @@ import { DatabaseQueryService } from '@core-services/services/database-query.ser
 import { LoanOfficerTaskService } from '@shared/services/loan-officer-task.service';
 import { DashboardService } from '@reports/services/dashboard.service';
 import { NPLAlertService } from '@collections/services/npl-alert.service';
+import { NotificationRepository } from '../repositories/notification.repository';
 import axios from 'axios';
 import { env } from '@config/env.config';
 
@@ -36,6 +37,7 @@ export class NotificationSchedulerService {
     private taskService: LoanOfficerTaskService;
     private kpiService: DashboardService;
     private nplService: NPLAlertService;
+    private notificationRepository: NotificationRepository;
     private jobs: Map<string, NotificationJob>;
     private readonly MAX_RETRIES = 3;
     private readonly RETRY_DELAY_MS = 2000;
@@ -46,6 +48,7 @@ export class NotificationSchedulerService {
         this.taskService = new LoanOfficerTaskService();
         this.kpiService = new DashboardService();
         this.nplService = new NPLAlertService();
+        this.notificationRepository = new NotificationRepository();
         this.jobs = new Map();
     }
 
@@ -112,6 +115,15 @@ export class NotificationSchedulerService {
             async () => {
                 console.log('Checking for new NPLs...');
                 await this.checkNPLs();
+            }
+        );
+
+        // Calendar event reminders - every 30 minutes
+        this.scheduleJob(
+            'calendar-reminders',
+            '*/30 * * * *',
+            async () => {
+                await this.sendCalendarReminders();
             }
         );
 
@@ -606,6 +618,86 @@ export class NotificationSchedulerService {
      */
     private sleep(ms: number): Promise<void> {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    /**
+     * Send calendar event reminders (runs every 30 min)
+     * - ทันทีที่สร้าง: ส่ง notification ให้ assignedTo (ทำใน calendar service แล้ว)
+     * - ก่อนถึงกำหนด 1 ชั่วโมง: ส่ง reminder อีกครั้ง
+     * - ตรงกำหนด: ส่ง reminder สุดท้าย
+     */
+    private async sendCalendarReminders(): Promise<void> {
+        try {
+            const now = new Date();
+            const in60min = new Date(now.getTime() + 60 * 60 * 1000);
+            const in35min = new Date(now.getTime() + 35 * 60 * 1000);
+
+            // Find task assignments for calendar events due in ~1 hour
+            const upcomingTasks = await prisma.task_assignments.findMany({
+                where: {
+                    task_type: 'OTHER',
+                    status: 'PENDING',
+                    due_date: { gte: in35min, lte: in60min },
+                },
+            });
+
+            // Find task assignments due right now (within last 5 min)
+            const dueTasks = await prisma.task_assignments.findMany({
+                where: {
+                    task_type: 'OTHER',
+                    status: 'PENDING',
+                    due_date: {
+                        gte: new Date(now.getTime() - 5 * 60 * 1000),
+                        lte: now,
+                    },
+                },
+            });
+
+            for (const task of upcomingTasks) {
+                // Get event title from calendar_events
+                const event = await prisma.calendarEvent.findUnique({
+                    where: { id: task.task_id },
+                    select: { title: true },
+                });
+                const title = event?.title ?? 'งานที่ได้รับมอบหมาย';
+
+                await this.notificationRepository.createWithDedup({
+                    userId: task.assigned_to,
+                    type: 'REMINDER' as any,
+                    title: `⏰ แจ้งเตือน: ${title}`,
+                    message: `งานของคุณจะถึงกำหนดใน 1 ชั่วโมง`,
+                    link: `/calendar`,
+                    priority: 'HIGH' as any,
+                    dedupKey: `calendar-1h-${task.task_id}`,
+                    dedupWindow: 2,
+                    metadata: { taskId: task.task_id },
+                });
+                console.log(`[Calendar Reminder] 1h reminder → user ${task.assigned_to}`);
+            }
+
+            for (const task of dueTasks) {
+                const event = await prisma.calendarEvent.findUnique({
+                    where: { id: task.task_id },
+                    select: { title: true },
+                });
+                const title = event?.title ?? 'งานที่ได้รับมอบหมาย';
+
+                await this.notificationRepository.createWithDedup({
+                    userId: task.assigned_to,
+                    type: 'REMINDER' as any,
+                    title: `🔔 ถึงกำหนดแล้ว: ${title}`,
+                    message: `งานที่ได้รับมอบหมายถึงกำหนดแล้ว`,
+                    link: `/calendar`,
+                    priority: 'URGENT' as any,
+                    dedupKey: `calendar-due-${task.task_id}`,
+                    dedupWindow: 2,
+                    metadata: { taskId: task.task_id },
+                });
+                console.log(`[Calendar Reminder] Due now reminder → user ${task.assigned_to}`);
+            }
+        } catch (error) {
+            console.error('[Calendar Reminder] Error:', error);
+        }
     }
 
     /**

@@ -4,8 +4,8 @@ import { BranchRepository } from '@branches/repositories/branch.repository';
 import { LoanRepository } from '@loans/repositories/loan.repository';
 import { CustomerRepository } from '@customers/repositories/customer.repository';
 import { UserRepository } from '@users/repositories/user.repository';
+import { NotificationRepository } from '@notifications/repositories/notification.repository';
 import { CreateCalendarEventInput, UpdateCalendarEventInput } from '../models/calendar-event.model';
-import { QueueUtil } from '@utils/common/queue.util';
 import { LineService } from '@line/services/core/line.service';
 import { format } from 'date-fns';
 import { th } from 'date-fns/locale';
@@ -20,6 +20,7 @@ export class CalendarEventService {
     private loanRepository: LoanRepository;
     private customerRepository: CustomerRepository;
     private userRepository: UserRepository;
+    private notificationRepository: NotificationRepository;
     private lineService: LineService;
 
     constructor() {
@@ -28,6 +29,7 @@ export class CalendarEventService {
         this.loanRepository = new LoanRepository();
         this.customerRepository = new CustomerRepository();
         this.userRepository = new UserRepository();
+        this.notificationRepository = new NotificationRepository();
         this.lineService = new LineService();
     }
 
@@ -201,22 +203,20 @@ export class CalendarEventService {
                 return;
             }
 
-            // Create in-app notification
-            await QueueUtil.addJob('notification', {
-                name: 'task-assigned',
-                data: {
-                    userId: assignedToId,
-                    type: 'TASK_ASSIGNED',
-                    title: `งานใหม่: ${event.title}`,
-                    message: `${assigner ? `${assigner.firstName} ${assigner.lastName}` : 'ผู้จัดการ'} มอบหมายงานให้คุณ`,
-                    link: `/calendar/${event.id}`,
+            // Create in-app notification directly (bypass queue - no Redis dependency)
+            await this.notificationRepository.createWithDedup({
+                userId: assignedToId,
+                type: 'TASK_ASSIGNED' as any,
+                title: `งานใหม่: ${event.title}`,
+                message: `${assigner ? `${assigner.firstName} ${assigner.lastName}` : 'ผู้จัดการ'} มอบหมายงานให้คุณ`,
+                link: `/calendar`,
+                priority: priority as any,
+                metadata: {
+                    eventId: event.id,
+                    assignedBy: assignedById,
                     priority: priority,
-                    metadata: {
-                        eventId: event.id,
-                        assignedBy: assignedById,
-                        priority: priority,
-                    },
                 },
+                dedupWindow: 1,
             });
 
             // Send LINE notification if user has LINE connected
