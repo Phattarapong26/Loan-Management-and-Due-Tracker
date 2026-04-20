@@ -2129,7 +2129,7 @@ export class LineWebhookService {
                                 
                                 logger.info({ loanId, customerId }, 'PDF generation triggered successfully from LINE');
                             } catch (error) {
-                                logger.error({ loanId, customerId, error }, 'Failed to trigger PDF generation from LINE');
+                                logger.error({ loanId, customerId, error: error instanceof Error ? { message: error.message, stack: error.stack } : String(error) }, 'Failed to trigger PDF generation from LINE');
                             }
                         })();
 

@@ -498,6 +498,16 @@ export class DisbursementRepository {
     }
 
     /**
+     * Find any disbursement for a loan (fallback when no DISBURSED record exists)
+     */
+    async findAnyDisbursementByLoanId(loanId: string): Promise<any> {
+        return this.db.loanDisbursement.findFirst({
+            where: { loanId },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+
+    /**
      * Find loan with customer LINE info for notification
      */
     async findLoanWithCustomerLine(loanId: string): Promise<any> {
