@@ -142,12 +142,12 @@ export class CollectionFilterService {
             
             if (authFilter.createdBy?.in) {
                 // Officer level - only their own customers
-                whereConditions.push(`l.officer_id = ANY($${queryParams.length + 1})`);
                 queryParams.push(authFilter.createdBy.in);
+                whereConditions.push('l.officer_id = ANY($' + queryParams.length + ')');
             } else if (authFilter.branchId?.in) {
                 // Manager level - their branch only
-                whereConditions.push(`l.branch_id = ANY($${queryParams.length + 1})`);
                 queryParams.push(authFilter.branchId.in);
+                whereConditions.push('l.branch_id = ANY($' + queryParams.length + ')');
             }
             // Admin level - no additional filter needed
 

@@ -43,13 +43,17 @@ export class CollectionRepository {
     async getNCBDataByCustomers(customerIds: string[]): Promise<Map<string, { nplStatus: boolean; creditUtilization?: number }>> {
         const records = await prisma.customerCreditBureau.findMany({
             where: { customerId: { in: customerIds } },
-            orderBy: { reportDate: 'desc' },
-            select: { customerId: true, nplStatus: true, creditUtilization: true },
+            orderBy: { checkDate: 'desc' },
+            select: { customerId: true, nplStatus: true, totalOutstanding: true, totalLimit: true },
         });
         const map = new Map<string, { nplStatus: boolean; creditUtilization?: number }>();
         for (const r of records) {
             if (!map.has(r.customerId)) {
-                map.set(r.customerId, { nplStatus: r.nplStatus ?? false, creditUtilization: r.creditUtilization ? Number(r.creditUtilization) : undefined });
+                const creditUtilization =
+                    r.totalLimit && Number(r.totalLimit) > 0
+                        ? (Number(r.totalOutstanding) / Number(r.totalLimit)) * 100
+                        : undefined;
+                map.set(r.customerId, { nplStatus: r.nplStatus ?? false, creditUtilization });
             }
         }
         return map;
