@@ -749,5 +749,74 @@ export class PaymentScheduleRepository {
         });
     }
 
+    /**
+     * Find payment schedule by ID with loan and loan product (for penalty calculation)
+     */
+    async findByIdWithLoanProduct(id: string): Promise<any | null> {
+        return this.db.paymentSchedule.findUnique({
+            where: { id },
+            include: {
+                loan: {
+                    include: {
+                        loanProduct: true,
+                    },
+                },
+            },
+        });
+    }
+
+    /**
+     * Update penalty fields on a payment schedule
+     */
+    async updatePenalty(id: string, data: {
+        daysOverdue: number;
+        penaltyAmount: number;
+        compoundInterestAmount: number;
+        status: string;
+    }): Promise<void> {
+        await this.db.paymentSchedule.update({
+            where: { id },
+            data,
+        });
+    }
+
+    /**
+     * Find unpaid/overdue schedules for a loan that are past due (for penalty calculation)
+     */
+    async findOverdueUnpaidByLoanId(loanId: string): Promise<any[]> {
+        return this.db.paymentSchedule.findMany({
+            where: {
+                loanId,
+                status: { in: ['UNPAID', 'OVERDUE'] },
+                paymentDate: { lt: new Date() },
+            },
+            orderBy: { paymentNumber: 'asc' },
+        });
+    }
+
+    /**
+     * Find all unpaid/overdue schedules that are past due (for batch penalty update)
+     */
+    async findAllOverdueUnpaid(): Promise<any[]> {
+        return this.db.paymentSchedule.findMany({
+            where: {
+                status: { in: ['UNPAID', 'OVERDUE'] },
+                paymentDate: { lt: new Date() },
+            },
+        });
+    }
+
+    /**
+     * Find overdue/partial schedules for a loan (for penalty summary)
+     */
+    async findOverdueOrPartialByLoanId(loanId: string): Promise<any[]> {
+        return this.db.paymentSchedule.findMany({
+            where: {
+                loanId,
+                status: { in: ['OVERDUE', 'PARTIAL'] },
+            },
+        });
+    }
+
 }
 

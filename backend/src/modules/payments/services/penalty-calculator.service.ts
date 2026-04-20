@@ -13,9 +13,10 @@
  * - มีระบบคำนวณดอกเบี้ยทบต้นสำหรับยอดค้างชำระ
  */
 
-import { prisma } from '@config/database.config';
 import { logger } from '@utils/common/logger.util';
 import { differenceInDays } from 'date-fns';
+import { PenaltyRuleRepository } from '@collections/repositories/penalty-rule.repository';
+import { PaymentScheduleRepository } from '@payments/repositories/payment-schedule.repository';
 
 export interface PenaltyCalculationResult {
     daysOverdue: number;
@@ -32,6 +33,14 @@ export interface PenaltyCalculationResult {
 }
 
 export class PenaltyCalculatorService {
+    private penaltyRuleRepository: PenaltyRuleRepository;
+    private paymentScheduleRepository: PaymentScheduleRepository;
+
+    constructor() {
+        this.penaltyRuleRepository = new PenaltyRuleRepository();
+        this.paymentScheduleRepository = new PaymentScheduleRepository();
+    }
+
     /**
      * Calculate penalty for a payment schedule
      */
@@ -40,16 +49,7 @@ export class PenaltyCalculatorService {
         currentDate: Date = new Date()
     ): Promise<PenaltyCalculationResult> {
         try {
-            const schedule = await prisma.paymentSchedule.findUnique({
-                where: { id: paymentScheduleId },
-                include: {
-                    loan: {
-                        include: {
-                            loanProduct: true,
-                        },
-                    },
-                },
-            });
+            const schedule = await this.paymentScheduleRepository.findByIdWithLoanProduct(paymentScheduleId);
 
             if (!schedule) {
                 throw new Error('Payment schedule not found');
@@ -128,14 +128,11 @@ export class PenaltyCalculatorService {
             const totalPenalty = penaltyAmount + compoundInterestAmount;
 
             // Update payment schedule with penalty
-            await prisma.paymentSchedule.update({
-                where: { id: paymentScheduleId },
-                data: {
-                    daysOverdue,
-                    penaltyAmount,
-                    compoundInterestAmount,
-                    status: 'OVERDUE',
-                },
+            await this.paymentScheduleRepository.updatePenalty(paymentScheduleId, {
+                daysOverdue,
+                penaltyAmount,
+                compoundInterestAmount,
+                status: 'OVERDUE',
             });
 
             logger.info(
@@ -178,34 +175,14 @@ export class PenaltyCalculatorService {
     ): Promise<any> {
         // First, try to find product-specific rule
         if (loanProductId) {
-            const productRule = await prisma.penaltyRule.findFirst({
-                where: {
-                    loanProductId,
-                    status: 'ACTIVE',
-                    daysOverdueFrom: { lte: daysOverdue },
-                    OR: [{ daysOverdueTo: { gte: daysOverdue } }, { daysOverdueTo: null }],
-                },
-                orderBy: { daysOverdueFrom: 'desc' },
-            });
-
+            const productRule = await this.penaltyRuleRepository.findForLoanProduct(loanProductId, daysOverdue);
             if (productRule) {
                 return productRule;
             }
         }
 
         // Fall back to default rule
-        const defaultRule = await prisma.penaltyRule.findFirst({
-            where: {
-                loanProductId: null,
-                isDefault: true,
-                status: 'ACTIVE',
-                daysOverdueFrom: { lte: daysOverdue },
-                OR: [{ daysOverdueTo: { gte: daysOverdue } }, { daysOverdueTo: null }],
-            },
-            orderBy: { daysOverdueFrom: 'desc' },
-        });
-
-        return defaultRule;
+        return this.penaltyRuleRepository.findDefault(daysOverdue);
     }
 
     /**
@@ -220,14 +197,7 @@ export class PenaltyCalculatorService {
             penalty: PenaltyCalculationResult;
         }>;
     }> {
-        const schedules = await prisma.paymentSchedule.findMany({
-            where: {
-                loanId,
-                status: { in: ['UNPAID', 'OVERDUE'] },
-                paymentDate: { lt: new Date() },
-            },
-            orderBy: { paymentNumber: 'asc' },
-        });
+        const schedules = await this.paymentScheduleRepository.findOverdueUnpaidByLoanId(loanId);
 
         const results = [];
         let totalPenalty = 0;
@@ -258,12 +228,7 @@ export class PenaltyCalculatorService {
         totalPenalty: number;
     }> {
         try {
-            const overdueSchedules = await prisma.paymentSchedule.findMany({
-                where: {
-                    status: { in: ['UNPAID', 'OVERDUE'] },
-                    paymentDate: { lt: new Date() },
-                },
-            });
+            const overdueSchedules = await this.paymentScheduleRepository.findAllOverdueUnpaid();
 
             let updated = 0;
             let totalPenalty = 0;
@@ -303,12 +268,7 @@ export class PenaltyCalculatorService {
         overdueSchedules: number;
         oldestOverdueDays: number;
     }> {
-        const schedules = await prisma.paymentSchedule.findMany({
-            where: {
-                loanId,
-                status: { in: ['OVERDUE', 'PARTIAL'] },
-            },
-        });
+        const schedules = await this.paymentScheduleRepository.findOverdueOrPartialByLoanId(loanId);
 
         const totalPenaltyAmount = schedules.reduce(
             (sum, s) => sum + Number(s.penaltyAmount || 0),
