@@ -290,19 +290,19 @@ export class CollectionFilterService {
                 criticalOverdue,
             };
         } catch (error) {
+            const err = error as Error;
             logger.error({ 
                 error: {
-                    message: error?.message || 'Unknown error',
-                    stack: error?.stack || 'No stack trace',
-                    name: error?.name || 'Unknown error type',
-                    cause: error?.cause || 'No cause'
-                }, 
+                    message: err?.message || 'Unknown error',
+                    stack: err?.stack || 'No stack trace',
+                    name: err?.name || 'Unknown error type',
+                },
                 user 
             }, 'Error getting collection dashboard');
             console.error('Collection Dashboard Error Details:', {
-                errorMessage: error?.message,
-                errorStack: error?.stack,
-                errorName: error?.name,
+                errorMessage: err?.message,
+                errorStack: err?.stack,
+                errorName: err?.name,
                 user: user?.userId
             });
             throw error;
