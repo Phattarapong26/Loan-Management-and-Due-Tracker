@@ -1,8 +1,8 @@
 import { FastifyRequest } from 'fastify';
 import { ExpenseRepository } from '../repositories/expense.repository';
 import { BranchRepository } from '@branches/repositories/branch.repository';
+import { UserRepository } from '@users/repositories/user.repository';
 import { CreateExpenseInput, UpdateExpenseInput, ApproveExpenseInput, RejectExpenseInput } from '../models/expense.model';
-import { QueueUtil } from '@utils/common/queue.util';
 import { NotificationService } from '@notifications/services/notification.service';
 
 /**
@@ -12,11 +12,13 @@ import { NotificationService } from '@notifications/services/notification.servic
 export class ExpenseService {
     private expenseRepository: ExpenseRepository;
     private branchRepository: BranchRepository;
+    private userRepository: UserRepository;
     private notificationService: NotificationService;
 
     constructor() {
         this.expenseRepository = new ExpenseRepository();
         this.branchRepository = new BranchRepository();
+        this.userRepository = new UserRepository();
         this.notificationService = new NotificationService();
     }
 
@@ -42,20 +44,25 @@ export class ExpenseService {
             createdBy,
         });
 
-        // Queue notification to managers/admins
-        await QueueUtil.addJob('notification', {
-            name: 'expense-created',
-            data: {
-                type: 'EXPENSE_PENDING',
-                title: 'New Expense Pending Approval',
-                message: `New expense of ${input.amount} THB created by ${createdBy}`,
-                link: `/expenses/${expense.id}`,
-                metadata: {
-                    expenseId: expense.id,
-                    branchId,
-                },
-            },
-        });
+        // Notify managers/admins via NotificationService
+        try {
+            const managers = await this.userRepository.findByBranchAndRoles(branchId, ['branch_manager', 'admin']);
+            for (const manager of managers) {
+                await this.notificationService.notify({
+                    userId: manager.id,
+                    type: 'SYSTEM_ALERT' as any,
+                    title: 'ค่าใช้จ่ายรอการอนุมัติ',
+                    message: `มีค่าใช้จ่าย ${Number(input.amount).toLocaleString('th-TH')} บาท รอการอนุมัติ`,
+                    link: `/expenses/${expense.id}`,
+                    priority: 'MEDIUM' as any,
+                    dedupKey: `expense-created-${expense.id}-${manager.id}`,
+                    dedupWindow: 24,
+                    metadata: { expenseId: expense.id, branchId },
+                });
+            }
+        } catch (error) {
+            console.error('Failed to notify managers of new expense:', error);
+        }
 
         return expense;
     }
@@ -183,19 +190,7 @@ export class ExpenseService {
         }
 
         // Queue notification to creator (legacy)
-        await QueueUtil.addJob('notification', {
-            name: 'expense-approved',
-            data: {
-                userId: expense.createdBy,
-                type: 'EXPENSE_APPROVED',
-                title: 'Expense Approved',
-                message: `Your expense of ${expense.amount} THB has been approved`,
-                link: `/expenses/${expense.id}`,
-                metadata: {
-                    expenseId: expense.id,
-                },
-            },
-        });
+        // REMOVED - notificationService.createNotification above handles this directly
 
         return expense;
     }
@@ -248,19 +243,7 @@ export class ExpenseService {
         }
 
         // Queue notification to creator (legacy)
-        await QueueUtil.addJob('notification', {
-            name: 'expense-rejected',
-            data: {
-                userId: expense.createdBy,
-                type: 'EXPENSE_REJECTED',
-                title: 'Expense Rejected',
-                message: `Your expense has been rejected: ${input.reason}`,
-                link: `/expenses/${expense.id}`,
-                metadata: {
-                    expenseId: expense.id,
-                },
-            },
-        });
+        // REMOVED - notificationService.createNotification above handles this directly
 
         return expense;
     }
@@ -286,20 +269,22 @@ export class ExpenseService {
         // Reimburse expense
         const expense = await this.expenseRepository.reimburse(expenseId, reimbursedBy);
 
-        // Queue notification to creator
-        await QueueUtil.addJob('notification', {
-            name: 'expense-reimbursed',
-            data: {
+        // Notify creator directly
+        try {
+            await this.notificationService.notify({
                 userId: expense.createdBy,
-                type: 'EXPENSE_REIMBURSED',
-                title: 'Expense Reimbursed',
-                message: `Your expense of ${expense.amount} THB has been reimbursed`,
+                type: 'EXPENSE_APPROVED' as any,
+                title: 'ค่าใช้จ่ายได้รับการเบิกจ่ายแล้ว',
+                message: `ค่าใช้จ่าย ${Number(expense.amount).toLocaleString('th-TH')} บาท ได้รับการเบิกจ่ายแล้ว`,
                 link: `/expenses/${expense.id}`,
-                metadata: {
-                    expenseId: expense.id,
-                },
-            },
-        });
+                priority: 'MEDIUM' as any,
+                dedupKey: `expense-reimbursed-${expense.id}`,
+                dedupWindow: 24,
+                metadata: { expenseId: expense.id },
+            });
+        } catch (error) {
+            console.error('Failed to create expense reimbursed notification:', error);
+        }
 
         return expense;
     }

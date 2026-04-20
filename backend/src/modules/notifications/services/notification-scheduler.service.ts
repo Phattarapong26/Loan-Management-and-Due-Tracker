@@ -14,12 +14,15 @@
  */
 
 import * as cron from 'node-cron';
-import { prisma } from '@config/database.config';
 import { DatabaseQueryService } from '@core-services/services/database-query.service';
 import { LoanOfficerTaskService } from '@shared/services/loan-officer-task.service';
 import { DashboardService } from '@reports/services/dashboard.service';
 import { NPLAlertService } from '@collections/services/npl-alert.service';
-import { NotificationRepository } from '../repositories/notification.repository';
+import { NotificationService } from './notification.service';
+import { UserRepository } from '@users/repositories/user.repository';
+import { BranchRepository } from '@branches/repositories/branch.repository';
+import { CalendarEventRepository } from '@calendar/repositories/calendar-event.repository';
+import { TaskAssignmentRepository } from '../repositories/task-assignment.repository';
 import axios from 'axios';
 import { env } from '@config/env.config';
 
@@ -37,7 +40,11 @@ export class NotificationSchedulerService {
     private taskService: LoanOfficerTaskService;
     private kpiService: DashboardService;
     private nplService: NPLAlertService;
-    private notificationRepository: NotificationRepository;
+    private notificationService: NotificationService;
+    private userRepository: UserRepository;
+    private branchRepository: BranchRepository;
+    private calendarEventRepository: CalendarEventRepository;
+    private taskAssignmentRepository: TaskAssignmentRepository;
     private jobs: Map<string, NotificationJob>;
     private readonly MAX_RETRIES = 3;
     private readonly RETRY_DELAY_MS = 2000;
@@ -48,7 +55,11 @@ export class NotificationSchedulerService {
         this.taskService = new LoanOfficerTaskService();
         this.kpiService = new DashboardService();
         this.nplService = new NPLAlertService();
-        this.notificationRepository = new NotificationRepository();
+        this.notificationService = new NotificationService();
+        this.userRepository = new UserRepository();
+        this.branchRepository = new BranchRepository();
+        this.calendarEventRepository = new CalendarEventRepository();
+        this.taskAssignmentRepository = new TaskAssignmentRepository();
         this.jobs = new Map();
     }
 
@@ -159,40 +170,10 @@ export class NotificationSchedulerService {
 
     /**
      * Task 8.1.4: Query payment schedules
+     * Delegated to PaymentReminderJob - this method is kept for scheduler compatibility
      */
     private async queryPaymentSchedules(): Promise<void> {
-        try {
-            const today = new Date();
-            const sevenDaysLater = new Date();
-            sevenDaysLater.setDate(today.getDate() + 7);
-
-            // Get upcoming payments (7, 3, 1 day reminders)
-            const upcomingPayments = await prisma.paymentSchedule.findMany({
-                where: {
-                    status: 'UNPAID',
-                    paymentDate: {
-                        gte: today,
-                        lte: sevenDaysLater,
-                    },
-                },
-                include: {
-                    loan: {
-                        include: {
-                            customer: {
-                                select: {
-                                    id: true,
-                                    businessName: true,
-                                },
-                            },
-                        },
-                    },
-                },
-            });
-
-            console.log(`Found ${upcomingPayments.length} upcoming payments`);
-        } catch (error) {
-            console.error('Error querying payment schedules:', error);
-        }
+        console.log('[Scheduler] Payment schedule query delegated to PaymentReminderJob');
     }
 
     /**
@@ -200,48 +181,24 @@ export class NotificationSchedulerService {
      */
     private async sendCustomerNotifications(): Promise<void> {
         try {
-            // Get all customers with active LINE accounts
-            const customers = await prisma.user.findMany({
-                where: {
-                    role: 'CUSTOMER',
-                    lineUserId: { not: null },
-                    lineActive: true,
-                    lineNotificationsEnabled: true, // Task 8.1.11: Check opt-out
-                },
-                select: {
-                    id: true,
-                    lineUserId: true,
-                },
-            });
-
+            const customers = await this.userRepository.findActiveLineUsers('CUSTOMER');
             let sentCount = 0;
             let blockedCount = 0;
 
             for (const customer of customers) {
                 if (!customer.lineUserId) continue;
-
-                // Task 8.1.10: Group notifications
                 const notifications = await this.getCustomerNotifications(customer.id);
-
                 if (notifications.length > 0) {
-                    // Task 8.1.9: Send with retry
-                    const sent = await this.sendNotificationWithRetry(
-                        customer.lineUserId,
-                        notifications
-                    );
-
+                    const sent = await this.sendNotificationWithRetry(customer.lineUserId, notifications);
                     if (sent) {
                         sentCount++;
-                        // Task 8.1.12: Log delivery status
                         await this.logNotificationDelivery(customer.id, 'CUSTOMER', 'SUCCESS');
                     } else {
-                        // Task 8.1.13: Handle blocked users
                         await this.handleBlockedUser(customer.lineUserId);
                         blockedCount++;
                     }
                 }
             }
-
             console.log(`Customer notifications: ${sentCount} sent, ${blockedCount} blocked`);
         } catch (error) {
             console.error('Error sending customer notifications:', error);
@@ -253,39 +210,20 @@ export class NotificationSchedulerService {
      */
     private async sendOfficerNotifications(): Promise<void> {
         try {
-            const officers = await prisma.user.findMany({
-                where: {
-                    role: 'OFFICER',
-                    lineUserId: { not: null },
-                    lineActive: true,
-                    lineNotificationsEnabled: true,
-                },
-                select: {
-                    id: true,
-                    lineUserId: true,
-                },
-            });
-
+            const officers = await this.userRepository.findActiveLineUsers('OFFICER');
             let sentCount = 0;
 
             for (const officer of officers) {
                 if (!officer.lineUserId) continue;
-
                 const notifications = await this.getOfficerNotifications(officer.id);
-
                 if (notifications.length > 0) {
-                    const sent = await this.sendNotificationWithRetry(
-                        officer.lineUserId,
-                        notifications
-                    );
-
+                    const sent = await this.sendNotificationWithRetry(officer.lineUserId, notifications);
                     if (sent) {
                         sentCount++;
                         await this.logNotificationDelivery(officer.id, 'OFFICER', 'SUCCESS');
                     }
                 }
             }
-
             console.log(`Officer notifications: ${sentCount} sent`);
         } catch (error) {
             console.error('Error sending officer notifications:', error);
@@ -297,40 +235,22 @@ export class NotificationSchedulerService {
      */
     private async sendManagerNotifications(): Promise<void> {
         try {
-            const managers = await prisma.user.findMany({
-                where: {
-                    role: 'MANAGER',
-                    lineUserId: { not: null },
-                    lineActive: true,
-                    lineNotificationsEnabled: true,
-                },
-                select: {
-                    id: true,
-                    lineUserId: true,
-                    branchId: true,
-                },
-            });
-
+            const managers = await this.userRepository.findActiveLineUsers('MANAGER');
             let sentCount = 0;
 
             for (const manager of managers) {
-                if (!manager.lineUserId || !manager.branchId) continue;
-
-                const notifications = await this.getManagerNotifications(manager.id, manager.branchId);
-
+                if (!manager.lineUserId) continue;
+                const fullUser = await this.userRepository.findById(manager.id);
+                if (!fullUser?.branchId) continue;
+                const notifications = await this.getManagerNotifications(manager.id, fullUser.branchId);
                 if (notifications.length > 0) {
-                    const sent = await this.sendNotificationWithRetry(
-                        manager.lineUserId,
-                        notifications
-                    );
-
+                    const sent = await this.sendNotificationWithRetry(manager.lineUserId, notifications);
                     if (sent) {
                         sentCount++;
                         await this.logNotificationDelivery(manager.id, 'MANAGER', 'SUCCESS');
                     }
                 }
             }
-
             console.log(`Manager notifications: ${sentCount} sent`);
         } catch (error) {
             console.error('Error sending manager notifications:', error);
@@ -342,17 +262,10 @@ export class NotificationSchedulerService {
      */
     private async sendAdminNotifications(): Promise<void> {
         try {
-            // Get all admins (with or without LINE - for in-app notification)
-            const admins = await prisma.user.findMany({
-                where: { role: 'ADMIN', status: 'ACTIVE' },
-                select: { id: true, lineUserId: true, lineActive: true, lineNotificationsEnabled: true },
-            });
-
+            const admins = await this.userRepository.findActiveByRole('ADMIN');
             if (admins.length === 0) return;
 
-            // Fetch stats once for all admins
             const stats = await this.dbQueryService.getAdminStats();
-
             const isHealthy = stats.systemHealth === 'healthy';
             const title = isHealthy ? '📊 สรุประบบประจำวัน' : '⚠️ แจ้งเตือนระบบ';
             const message =
@@ -364,8 +277,7 @@ export class NotificationSchedulerService {
             let sentCount = 0;
 
             for (const admin of admins) {
-                // 1. Create in-app notification (always, regardless of LINE)
-                await this.notificationRepository.createWithDedup({
+                await this.notificationService.notify({
                     userId: admin.id,
                     type: 'SYSTEM_ALERT' as any,
                     title,
@@ -373,16 +285,10 @@ export class NotificationSchedulerService {
                     link: '/dashboard/admin',
                     priority: isHealthy ? 'LOW' : 'HIGH' as any,
                     dedupKey: `admin-daily-${admin.id}-${new Date().toISOString().slice(0, 10)}`,
-                    dedupWindow: 20, // 20 hours - prevent duplicate same day
-                    metadata: {
-                        systemHealth: stats.systemHealth,
-                        activeUsers: stats.activeUsers,
-                        nplRatio: stats.nplRatio,
-                        errorRate: stats.errorRate,
-                    },
+                    dedupWindow: 20,
+                    metadata: { systemHealth: stats.systemHealth, activeUsers: stats.activeUsers, nplRatio: stats.nplRatio, errorRate: stats.errorRate },
                 });
 
-                // 2. Send LINE notification if connected
                 if (admin.lineUserId && admin.lineActive && admin.lineNotificationsEnabled) {
                     const lineMessages = await this.getAdminNotifications(admin.id);
                     if (lineMessages.length > 0) {
@@ -394,7 +300,6 @@ export class NotificationSchedulerService {
                     }
                 }
             }
-
             console.log(`Admin notifications: ${admins.length} in-app created, ${sentCount} LINE sent`);
         } catch (error) {
             console.error('Error sending admin notifications:', error);
@@ -406,17 +311,12 @@ export class NotificationSchedulerService {
      */
     private async checkNPLs(): Promise<void> {
         try {
-            const branches = await prisma.branch.findMany({
-                select: { id: true },
-            });
-
+            const branchIds = await this.branchRepository.findAllActiveIds();
             let totalAlerts = 0;
-
-            for (const branch of branches) {
-                const alerts = await this.nplService.checkAndAlertNewNPLs(branch.id);
+            for (const branchId of branchIds) {
+                const alerts = await this.nplService.checkAndAlertNewNPLs(branchId);
                 totalAlerts += alerts;
             }
-
             console.log(`NPL check complete: ${totalAlerts} alerts sent`);
         } catch (error) {
             console.error('Error checking NPLs:', error);
@@ -428,46 +328,23 @@ export class NotificationSchedulerService {
      */
     private async getCustomerNotifications(customerId: string): Promise<any[]> {
         const notifications: any[] = [];
-
         try {
-            // Get customer's loans
-            const loans = await prisma.loan.findMany({
-                where: {
-                    customerId,
-                    status: 'ACTIVE',
-                },
-                include: {
-                    paymentSchedule: {
-                        where: {
-                            status: 'UNPAID',
-                        },
-                        orderBy: {
-                            paymentDate: 'asc',
-                        },
-                        take: 5,
-                    },
-                },
-            });
-
+            const tasks = await this.taskService.getTasksForOfficer(customerId);
             const today = new Date();
-            
-            for (const loan of loans) {
-                for (const payment of loan.paymentSchedule) {
-                    const dueDate = new Date(payment.paymentDate);
-                    const daysUntil = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-                    if ([7, 3, 1].includes(daysUntil)) {
-                        notifications.push({
-                            type: 'text',
-                            text: `📅 แจ้งเตือนชำระเงิน\n\nครบกำหนดใน ${daysUntil} วัน\nยอดชำระ: ฿${payment.totalPayment.toLocaleString()}\nวันที่: ${dueDate.toLocaleDateString('th-TH')}`,
-                        });
-                    }
+            for (const task of tasks as any[]) {
+                if (!task.paymentDate) continue;
+                const dueDate = new Date(task.paymentDate);
+                const daysUntil = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                if ([7, 3, 1].includes(daysUntil)) {
+                    notifications.push({
+                        type: 'text',
+                        text: `📅 แจ้งเตือนชำระเงิน\n\nครบกำหนดใน ${daysUntil} วัน\nวันที่: ${dueDate.toLocaleDateString('th-TH')}`,
+                    });
                 }
             }
         } catch (error) {
             console.error('Error getting customer notifications:', error);
         }
-
         return notifications;
     }
 
@@ -476,14 +353,10 @@ export class NotificationSchedulerService {
      */
     private async getOfficerNotifications(officerId: string): Promise<any[]> {
         const notifications: any[] = [];
-
         try {
-            // Get today's tasks
             const tasks = await this.taskService.getTasksForOfficer(officerId);
-
             if (tasks.length > 0) {
-                const highPriority = tasks.filter(t => t.priority === 'high').length;
-                
+                const highPriority = tasks.filter((t: any) => t.priority === 'high').length;
                 notifications.push({
                     type: 'text',
                     text: `📋 งานวันนี้\n\nทั้งหมด: ${tasks.length} รายการ\nด่วน: ${highPriority} รายการ\n\nพิมพ์ "งานวันนี้" เพื่อดูรายละเอียด`,
@@ -492,7 +365,6 @@ export class NotificationSchedulerService {
         } catch (error) {
             console.error('Error getting officer notifications:', error);
         }
-
         return notifications;
     }
 
@@ -501,132 +373,76 @@ export class NotificationSchedulerService {
      */
     private async getManagerNotifications(_managerId: string, branchId: string): Promise<any[]> {
         const notifications: any[] = [];
-
         try {
-            // Get KPIs
             const kpis = await this.kpiService.getBranchKPIs(branchId);
-
-            // Send summary
             let summary = `📊 สรุป KPI วันนี้\n\n`;
             summary += `สินเชื่อทั้งหมด: ${kpis.totalLoans} รายการ\n`;
             summary += `Collection Rate: ${kpis.collectionRate.toFixed(2)}%\n`;
             summary += `NPL Ratio: ${kpis.nplRatio.toFixed(2)}%\n`;
-
-            // Add alerts
             if (kpis.alerts.length > 0) {
                 summary += `\n⚠️ แจ้งเตือน:\n`;
-                kpis.alerts.forEach((alert: { message: string }) => {
-                    summary += `- ${alert.message}\n`;
-                });
+                kpis.alerts.forEach((alert: { message: string }) => { summary += `- ${alert.message}\n`; });
             }
-
-            notifications.push({
-                type: 'text',
-                text: summary,
-            });
+            notifications.push({ type: 'text', text: summary });
         } catch (error) {
             console.error('Error getting manager notifications:', error);
         }
-
         return notifications;
     }
 
     /**
-     * Get admin notifications (grouped)
+     * Get admin notifications (LINE message format)
      */
     private async getAdminNotifications(_adminId: string): Promise<any[]> {
         const notifications: any[] = [];
-
         try {
             const stats = await this.dbQueryService.getAdminStats();
-
             let summary = `📊 สรุประบบวันนี้\n\n`;
             summary += `สถานะ: ${stats.systemHealth === 'healthy' ? '✅ ปกติ' : '⚠️ ผิดปกติ'}\n`;
             summary += `ผู้ใช้งาน: ${stats.activeUsers} ราย\n`;
             summary += `NPL Ratio: ${stats.nplRatio.toFixed(2)}%\n`;
             summary += `Error Rate: ${stats.errorRate.toFixed(2)}%\n`;
-
-            notifications.push({
-                type: 'text',
-                text: summary,
-            });
+            notifications.push({ type: 'text', text: summary });
         } catch (error) {
             console.error('Error getting admin notifications:', error);
         }
-
         return notifications;
     }
 
     /**
      * Task 8.1.9: Send notification with retry (exponential backoff)
      */
-    private async sendNotificationWithRetry(
-        lineUserId: string,
-        messages: any[]
-    ): Promise<boolean> {
+    private async sendNotificationWithRetry(lineUserId: string, messages: any[]): Promise<boolean> {
         for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
             try {
                 await axios.post(
                     `${LINE_MESSAGING_API}/message/push`,
-                    {
-                        to: lineUserId,
-                        messages,
-                    },
-                    {
-                        headers: {
-                            'Authorization': `Bearer ${this.accessToken}`,
-                            'Content-Type': 'application/json',
-                        },
-                    }
+                    { to: lineUserId, messages },
+                    { headers: { 'Authorization': `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' } }
                 );
-
                 return true;
             } catch (error: any) {
                 console.error(`Attempt ${attempt}/${this.MAX_RETRIES} failed:`, error.response?.data || error.message);
-
-                // Check if user blocked the bot
-                if (error.response?.status === 403) {
-                    return false;
-                }
-
-                if (attempt < this.MAX_RETRIES) {
-                    const delay = this.RETRY_DELAY_MS * Math.pow(2, attempt - 1);
-                    await this.sleep(delay);
-                }
+                if (error.response?.status === 403) return false;
+                if (attempt < this.MAX_RETRIES) await this.sleep(this.RETRY_DELAY_MS * Math.pow(2, attempt - 1));
             }
         }
-
         return false;
     }
 
     /**
      * Task 8.1.12: Log notification delivery status
      */
-    private async logNotificationDelivery(
-        userId: string,
-        userType: string,
-        status: 'SUCCESS' | 'FAILED'
-    ): Promise<void> {
-        try {
-            // Could store in a NotificationLog table
-            console.log(`Notification ${status}: ${userType} ${userId}`);
-        } catch (error) {
-            console.error('Error logging notification delivery:', error);
-        }
+    private async logNotificationDelivery(userId: string, userType: string, status: 'SUCCESS' | 'FAILED'): Promise<void> {
+        console.log(`Notification ${status}: ${userType} ${userId}`);
     }
 
     /**
-     * Task 8.1.13: Handle blocked users (mark as inactive)
+     * Task 8.1.13: Handle blocked users via UserRepository
      */
     private async handleBlockedUser(lineUserId: string): Promise<void> {
         try {
-            await prisma.user.updateMany({
-                where: { lineUserId },
-                data: {
-                    lineActive: false,
-                },
-            });
-
+            await this.userRepository.markLineInactive(lineUserId);
             console.log(`User marked as inactive (blocked): ${lineUserId}`);
         } catch (error) {
             console.error('Error handling blocked user:', error);
@@ -634,17 +450,7 @@ export class NotificationSchedulerService {
     }
 
     /**
-     * Sleep utility
-     */
-    private sleep(ms: number): Promise<void> {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
-    /**
      * Send calendar event reminders (runs every 30 min)
-     * - ทันทีที่สร้าง: ส่ง notification ให้ assignedTo (ทำใน calendar service แล้ว)
-     * - ก่อนถึงกำหนด 1 ชั่วโมง: ส่ง reminder อีกครั้ง
-     * - ตรงกำหนด: ส่ง reminder สุดท้าย
      */
     private async sendCalendarReminders(): Promise<void> {
         try {
@@ -652,36 +458,15 @@ export class NotificationSchedulerService {
             const in60min = new Date(now.getTime() + 60 * 60 * 1000);
             const in35min = new Date(now.getTime() + 35 * 60 * 1000);
 
-            // Find task assignments for calendar events due in ~1 hour
-            const upcomingTasks = await prisma.task_assignments.findMany({
-                where: {
-                    task_type: 'OTHER',
-                    status: 'PENDING',
-                    due_date: { gte: in35min, lte: in60min },
-                },
-            });
-
-            // Find task assignments due right now (within last 5 min)
-            const dueTasks = await prisma.task_assignments.findMany({
-                where: {
-                    task_type: 'OTHER',
-                    status: 'PENDING',
-                    due_date: {
-                        gte: new Date(now.getTime() - 5 * 60 * 1000),
-                        lte: now,
-                    },
-                },
-            });
+            const upcomingTasks = await this.taskAssignmentRepository.findPendingDueInWindow(in35min, in60min);
+            const dueTasks = await this.taskAssignmentRepository.findPendingDueInWindow(
+                new Date(now.getTime() - 5 * 60 * 1000), now
+            );
 
             for (const task of upcomingTasks) {
-                // Get event title from calendar_events
-                const event = await prisma.calendarEvent.findUnique({
-                    where: { id: task.task_id },
-                    select: { title: true },
-                });
-                const title = event?.title ?? 'งานที่ได้รับมอบหมาย';
-
-                await this.notificationRepository.createWithDedup({
+                const event = await this.calendarEventRepository.findById(task.task_id);
+                const title = (event as any)?.title ?? 'งานที่ได้รับมอบหมาย';
+                await this.notificationService.notify({
                     userId: task.assigned_to,
                     type: 'REMINDER' as any,
                     title: `⏰ แจ้งเตือน: ${title}`,
@@ -696,13 +481,9 @@ export class NotificationSchedulerService {
             }
 
             for (const task of dueTasks) {
-                const event = await prisma.calendarEvent.findUnique({
-                    where: { id: task.task_id },
-                    select: { title: true },
-                });
-                const title = event?.title ?? 'งานที่ได้รับมอบหมาย';
-
-                await this.notificationRepository.createWithDedup({
+                const event = await this.calendarEventRepository.findById(task.task_id);
+                const title = (event as any)?.title ?? 'งานที่ได้รับมอบหมาย';
+                await this.notificationService.notify({
                     userId: task.assigned_to,
                     type: 'REMINDER' as any,
                     title: `🔔 ถึงกำหนดแล้ว: ${title}`,
@@ -718,6 +499,13 @@ export class NotificationSchedulerService {
         } catch (error) {
             console.error('[Calendar Reminder] Error:', error);
         }
+    }
+
+    /**
+     * Sleep utility
+     */
+    private sleep(ms: number): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     /**

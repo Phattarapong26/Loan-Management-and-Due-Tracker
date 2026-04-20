@@ -15,6 +15,8 @@ import { startSecurityCleanupJob } from './jobs/schedulers/security-cleanup.job'
 import { syncRichMenus, clearStaleCache } from '@jobs/schedulers/rich-menu-sync.job';
 import { RichMenuManager } from '@line/services/rich-menu/line-rich-menu-manager.service';
 import { NotificationSchedulerService } from '@notifications/services/notification-scheduler.service';
+import { paymentReminderJob } from '@jobs/schedulers/payment-reminder.job';
+import { startAllPaymentTimelineJobs } from '@jobs/schedulers/payment-timeline.job';
 import { paymentSyncJob } from '@jobs/schedulers/payment-sync.job';
 import { pdfCleanupJob } from '@jobs/schedulers/pdf-cleanup.job';
 import { secureDocumentCleanupJob } from '@jobs/schedulers/secure-document-cleanup.job';
@@ -124,6 +126,25 @@ async function start() {
             logger.info(`✅ Payment sync job initialized (15-min interval)`);
         } catch (error) {
             logger.error({ error }, '⚠️ Failed to initialize payment sync job (non-fatal)');
+        }
+
+        // Payment reminder job (daily: upcoming 3d, overdue, NPL)
+        try {
+            const reminderCron = await import('node-cron');
+            reminderCron.default.schedule('0 7 * * *', async () => {
+                await paymentReminderJob.runAll();
+            }, { timezone: 'Asia/Bangkok' });
+            logger.info(`✅ Payment reminder job initialized (daily 07:00)`);
+        } catch (error) {
+            logger.error({ error }, '⚠️ Failed to initialize payment reminder job (non-fatal)');
+        }
+
+        // Payment timeline jobs (every 30 min + daily creation + weekly cleanup)
+        try {
+            startAllPaymentTimelineJobs();
+            logger.info(`✅ Payment timeline jobs initialized`);
+        } catch (error) {
+            logger.error({ error }, '⚠️ Failed to initialize payment timeline jobs (non-fatal)');
         }
 
         // Graceful shutdown

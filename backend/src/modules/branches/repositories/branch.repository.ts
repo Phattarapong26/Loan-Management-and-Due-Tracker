@@ -258,11 +258,21 @@ export class BranchRepository {
     }
 
     /**
+     * Find all active branch IDs
+     */
+    async findAllActiveIds(): Promise<string[]> {
+        const branches = await this.db.branch.findMany({
+            where: { status: 'ACTIVE' },
+            select: { id: true },
+        });
+        return branches.map(b => b.id);
+    }
+
+    /**
      * Get branch employees (officers and managers)
      */
     async getBranchEmployees(branchId: string) {
-        return this.db.user.findMany({
-            where: {
+        return this.db.user.findMany({            where: {
                 branchId,
                 role: {
                     in: ['OFFICER', 'MANAGER'],

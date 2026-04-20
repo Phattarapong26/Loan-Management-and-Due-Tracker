@@ -4,7 +4,7 @@ import { BranchRepository } from '@branches/repositories/branch.repository';
 import { LoanRepository } from '@loans/repositories/loan.repository';
 import { CustomerRepository } from '@customers/repositories/customer.repository';
 import { UserRepository } from '@users/repositories/user.repository';
-import { NotificationRepository } from '@notifications/repositories/notification.repository';
+import { NotificationService } from '@notifications/services/notification.service';
 import { CreateCalendarEventInput, UpdateCalendarEventInput } from '../models/calendar-event.model';
 import { LineService } from '@line/services/core/line.service';
 import { format } from 'date-fns';
@@ -20,7 +20,7 @@ export class CalendarEventService {
     private loanRepository: LoanRepository;
     private customerRepository: CustomerRepository;
     private userRepository: UserRepository;
-    private notificationRepository: NotificationRepository;
+    private notificationService: NotificationService;
     private lineService: LineService;
 
     constructor() {
@@ -29,7 +29,7 @@ export class CalendarEventService {
         this.loanRepository = new LoanRepository();
         this.customerRepository = new CustomerRepository();
         this.userRepository = new UserRepository();
-        this.notificationRepository = new NotificationRepository();
+        this.notificationService = new NotificationService();
         this.lineService = new LineService();
     }
 
@@ -138,23 +138,24 @@ export class CalendarEventService {
             // Don't fail the event creation if notification fails
         }
 
-        // Queue notifications for attendees if provided
+        // Create notifications for attendees via NotificationService
         if (input.attendees && input.attendees.length > 0) {
-            // Create notification for each attendee
             for (const userId of input.attendees) {
-                await QueueUtil.addJob('notification', {
-                    name: 'event-created',
-                    data: {
+                try {
+                    await this.notificationService.notify({
                         userId,
-                        type: 'REMINDER',
-                        title: 'New Calendar Event',
-                        message: `You have been invited to: ${input.title}`,
-                        link: `/calendar/${event.id}`,
-                        metadata: {
-                            eventId: event.id,
-                        },
-                    },
-                });
+                        type: 'CALENDAR_EVENT' as any,
+                        title: `📅 กิจกรรมใหม่: ${event.title}`,
+                        message: `คุณได้รับเชิญเข้าร่วม: ${input.title}`,
+                        link: `/calendar`,
+                        priority: 'MEDIUM' as any,
+                        dedupKey: `event-attendee-${event.id}-${userId}`,
+                        dedupWindow: 24,
+                        metadata: { eventId: event.id },
+                    });
+                } catch (err) {
+                    console.error(`[Calendar Event] Failed to notify attendee ${userId}:`, err);
+                }
             }
         }
 
@@ -203,8 +204,8 @@ export class CalendarEventService {
                 return;
             }
 
-            // Create in-app notification directly (bypass queue - no Redis dependency)
-            await this.notificationRepository.createWithDedup({
+            // Create in-app notification via NotificationService
+            await this.notificationService.notify({
                 userId: assignedToId,
                 type: 'TASK_ASSIGNED' as any,
                 title: `งานใหม่: ${event.title}`,

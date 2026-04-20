@@ -22,7 +22,14 @@ export class NotificationService {
     /**
      * Create notification with audience validation and deduplication
      */
-    async createNotification(_request: FastifyRequest, input: CreateNotificationInput) {
+    /**
+     * Create notification (background/internal use - no request context needed)
+     */
+    async notify(input: CreateNotificationInput): Promise<any> {
+        return this.createNotification(null as any, input);
+    }
+
+    async createNotification(_request: FastifyRequest | null, input: CreateNotificationInput) {
         // 1. Validate user exists
         const user = await this.userRepository.findById(input.userId);
         if (!user) {

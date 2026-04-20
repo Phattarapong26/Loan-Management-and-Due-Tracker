@@ -267,3 +267,40 @@ export class UserRepository {
         });
     }
 }
+
+    /**
+     * Find active LINE users by role (for notification scheduler)
+     */
+    async findActiveLineUsers(role: string): Promise<Array<{ id: string; lineUserId: string | null }>> {
+        return prisma.user.findMany({
+            where: {
+                role: role as any,
+                status: 'ACTIVE',
+                lineUserId: { not: null },
+                lineActive: true,
+                lineNotificationsEnabled: true,
+            },
+            select: { id: true, lineUserId: true },
+        });
+    }
+
+    /**
+     * Find active users by role (with or without LINE, for in-app notifications)
+     */
+    async findActiveByRole(role: string): Promise<Array<{ id: string; lineUserId: string | null; lineActive: boolean; lineNotificationsEnabled: boolean }>> {
+        return prisma.user.findMany({
+            where: { role: role as any, status: 'ACTIVE' },
+            select: { id: true, lineUserId: true, lineActive: true, lineNotificationsEnabled: true },
+        });
+    }
+
+    /**
+     * Mark LINE user as inactive (blocked bot)
+     */
+    async markLineInactive(lineUserId: string): Promise<void> {
+        await prisma.user.updateMany({
+            where: { lineUserId },
+            data: { lineActive: false },
+        });
+    }
+}
