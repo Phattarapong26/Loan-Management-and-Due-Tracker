@@ -410,15 +410,19 @@ export class AuthService {
      * Change password (authenticated user, requires current password)
      */
     async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+        // Use findByEmail-style query that includes passwordHash
         const user = await this.userRepository.findById(userId);
         if (!user) throw new Error('User not found');
 
-        const isValid = await EncryptionUtil.verifyPassword(currentPassword, user.passwordHash);
+        const passwordHash = (user as any).passwordHash;
+        if (!passwordHash) throw new Error('User account error');
+
+        const isValid = await EncryptionUtil.verifyPassword(currentPassword, passwordHash);
         if (!isValid) throw new Error('รหัสผ่านปัจจุบันไม่ถูกต้อง');
 
-        const passwordHash = await EncryptionUtil.hashPassword(newPassword);
+        const newPasswordHash = await EncryptionUtil.hashPassword(newPassword);
         await this.userRepository.update(userId, {
-            passwordHash,
+            passwordHash: newPasswordHash,
             mustChangePassword: false,
             passwordChangedAt: new Date(),
         });

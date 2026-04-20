@@ -31,8 +31,14 @@ export const TaskPriority = {
 export const createCalendarEventSchema = z.object({
     title: z.string().min(1, 'Title is required').max(200),
     description: z.string().max(1000).optional(),
-    startDate: z.string().datetime({ offset: true, message: 'Invalid date format' }),
-    endDate: z.string().datetime({ offset: true, message: 'Invalid date format' }).optional(),
+    startDate: z.string().min(1, 'Start date is required').refine(
+        (val) => !isNaN(Date.parse(val)),
+        { message: 'Invalid date format' }
+    ),
+    endDate: z.string().optional().refine(
+        (val) => !val || !isNaN(Date.parse(val)),
+        { message: 'Invalid date format' }
+    ),
     allDay: z.boolean().default(false),
     eventType: z.nativeEnum(EventType),
     category: z.nativeEnum(EventCategory).optional(),
@@ -56,8 +62,14 @@ export type CreateCalendarEventInput = z.infer<typeof createCalendarEventSchema>
 export const updateCalendarEventSchema = z.object({
     title: z.string().min(1).max(200).optional(),
     description: z.string().max(1000).optional(),
-    startDate: z.string().datetime({ offset: true }).optional(),
-    endDate: z.string().datetime({ offset: true }).optional(),
+    startDate: z.string().optional().refine(
+        (val) => !val || !isNaN(Date.parse(val)),
+        { message: 'Invalid date format' }
+    ),
+    endDate: z.string().optional().refine(
+        (val) => !val || !isNaN(Date.parse(val)),
+        { message: 'Invalid date format' }
+    ),
     allDay: z.boolean().optional(),
     eventType: z.nativeEnum(EventType).optional(),
     category: z.nativeEnum(EventCategory).optional(),
@@ -84,8 +96,14 @@ export const listCalendarEventsQuerySchema = z.object({
     branchId: z.string().uuid().optional(),
     eventType: z.nativeEnum(EventType).optional(),
     category: z.nativeEnum(EventCategory).optional(),
-    dateFrom: z.string().datetime({ offset: true }).optional(),
-    dateTo: z.string().datetime({ offset: true }).optional(),
+    dateFrom: z.string().optional().refine(
+        (val) => !val || !isNaN(Date.parse(val)),
+        { message: 'Invalid date format' }
+    ),
+    dateTo: z.string().optional().refine(
+        (val) => !val || !isNaN(Date.parse(val)),
+        { message: 'Invalid date format' }
+    ),
     loanId: z.string().uuid().optional(),
     customerId: z.string().uuid().optional(),
 });
