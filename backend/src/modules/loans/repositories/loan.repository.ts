@@ -569,7 +569,6 @@ export class LoanRepository {
             overdueCount: overdueLoans,
         };
     }
-}
 
     /**
      * Find all NPL/overdue loans (no branch filter) for payment reminder job

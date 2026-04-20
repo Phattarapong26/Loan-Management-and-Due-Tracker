@@ -511,7 +511,6 @@ export class PaymentScheduleRepository {
             overdueCount: (overdueAgg._count.id || 0) + (pastDueAgg._count.id || 0),
         };
     }
-}
 
     /**
      * Find unpaid schedules due within a specific date window (for payment reminders)
@@ -552,3 +551,5 @@ export class PaymentScheduleRepository {
             },
         });
     }
+
+}
