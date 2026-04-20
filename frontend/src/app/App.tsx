@@ -39,6 +39,7 @@ import ResetPassword from "@/features/auth/pages/ResetPassword";
 import ChangePassword from "@/features/auth/pages/ChangePassword";
 import SecurityDashboard from "@/features/monitoring/pages/SecurityDashboard";
 import AuditLogs from "@/features/monitoring/pages/AuditLogs";
+import DocumentBackfill from "@/features/monitoring/pages/DocumentBackfill";
 import { SecureDocumentAccess } from "@/features/documents/pages/SecureDocumentAccess";
 import OverpaymentCalculator from "@/pages/OverpaymentCalculator";
 
@@ -145,6 +146,7 @@ const App = () => {
             <Route path="/settings" element={<ProtectedRoute allowedRoles={['admin']}><Settings /></ProtectedRoute>} />
             <Route path="/monitoring/security" element={<ProtectedRoute allowedRoles={['admin']}><SecurityDashboard /></ProtectedRoute>} />
             <Route path="/monitoring/audit-logs" element={<ProtectedRoute allowedRoles={['admin']}><AuditLogs /></ProtectedRoute>} />
+            <Route path="/monitoring/document-backfill" element={<ProtectedRoute allowedRoles={['admin']}><DocumentBackfill /></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
             <Route path="/line-registration" element={<ProtectedRoute><LineRegistration /></ProtectedRoute>} />

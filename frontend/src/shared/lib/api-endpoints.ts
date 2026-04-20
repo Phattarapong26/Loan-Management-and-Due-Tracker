@@ -1018,6 +1018,44 @@ export const monitoringApi = {
         apiClient.delete<{ message: string; deletedCount: number }>('/api/monitoring/audit-logs'),
 };
 
+// ==================== Document Backfill ====================
+export interface BackfillDocStats {
+    total: number;
+    completed: number;
+    missing: number;
+}
+
+export interface DocumentBackfillStats {
+    receipts: BackfillDocStats;
+    contracts: BackfillDocStats;
+    invoices: BackfillDocStats;
+}
+
+export interface BackfillLastRunStatus {
+    timelinesCreated: number;
+    timelinesFailed: number;
+    receiptsCreated: number;
+    receiptsFailed: number;
+    contractsCreated: number;
+    contractsFailed: number;
+    durationMs: number;
+    ranAt: string;
+}
+
+export const documentBackfillApi = {
+    getStats: () =>
+        apiClient.get<DocumentBackfillStats>('/api/admin/document-backfill/stats'),
+
+    getLastRunStatus: () =>
+        apiClient.get<BackfillLastRunStatus | null>('/api/admin/document-backfill/status'),
+
+    runAll: () =>
+        apiClient.post<{ message: string }>('/api/admin/document-backfill/run', {}),
+
+    runTask: (task: 'receipts' | 'contracts') =>
+        apiClient.post<{ message: string }>(`/api/admin/document-backfill/run/${task}`, {}),
+};
+
 // ==================== Settings ====================
 export const settingsApi = {
     // General Settings

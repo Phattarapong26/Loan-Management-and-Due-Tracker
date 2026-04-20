@@ -181,6 +181,12 @@ export const navigationGroups: MenuGroup[] = [
         icon: 'History',
         roles: ['admin'],
       },
+      {
+        title: 'Document Backfill',
+        url: '/monitoring/document-backfill',
+        icon: 'FileText',
+        roles: ['admin'],
+      },
     ],
   },
 ];
