@@ -66,8 +66,10 @@ import {
     refreshTokenSchema,
     forgotPasswordSchema,
     resetPasswordWithTokenSchema,
+    changePasswordSchema,
     ForgotPasswordInput,
     ResetPasswordWithTokenInput,
+    ChangePasswordInput,
     LoginInput,
     RefreshTokenInput,
     RegisterInput,
@@ -317,6 +319,12 @@ export async function registerRoutes(app: FastifyInstance) {
         '/api/auth/reset-password',
         { preHandler: [validateBody(resetPasswordWithTokenSchema)] },
         authController.resetPasswordWithToken
+    );
+
+    app.post<{ Body: ChangePasswordInput }>(
+        '/api/auth/change-password',
+        { preHandler: [authenticate, validateBody(changePasswordSchema)] },
+        authController.changePassword
     );
 
     // Transaction routes

@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { AuthService } from '../services/auth.service';
 import { ResponseUtil } from '@utils/formatting/response.util';
 import { JWTUtil } from '@utils/security/jwt.util';
-import { LoginInput, RegisterInput, RefreshTokenInput, ForgotPasswordInput, ResetPasswordWithTokenInput } from '../models/auth.model';
+import { LoginInput, RegisterInput, RefreshTokenInput, ForgotPasswordInput, ResetPasswordWithTokenInput, ChangePasswordInput } from '../models/auth.model';
 import { UserRepository } from '@users/repositories/user.repository';
 
 /**
@@ -178,6 +178,22 @@ export class AuthController {
                 request.body.password
             );
             return ResponseUtil.success(reply, { message: 'Password reset successfully' });
+        } catch (error: any) {
+            return ResponseUtil.error(reply, error.message, 400);
+        }
+    };
+
+    /**
+     * Change password (authenticated, requires current password)
+     */
+    changePassword = async (
+        request: FastifyRequest<{ Body: ChangePasswordInput }>,
+        reply: FastifyReply
+    ) => {
+        try {
+            const userId = (request.user as any).userId;
+            await this.authService.changePassword(userId, request.body.currentPassword, request.body.newPassword);
+            return ResponseUtil.success(reply, { message: 'Password changed successfully' });
         } catch (error: any) {
             return ResponseUtil.error(reply, error.message, 400);
         }

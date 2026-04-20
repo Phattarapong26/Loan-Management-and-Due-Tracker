@@ -320,6 +320,9 @@ export const authApi = {
 
     resetPasswordWithToken: (data: { token: string; password: string }) =>
         apiClient.post<{ message: string }>('/api/auth/reset-password', data),
+
+    changePassword: (data: { currentPassword: string; newPassword: string }) =>
+        apiClient.post<{ message: string }>('/api/auth/change-password', data),
 };
 
 // ==================== Customers ====================
@@ -884,10 +887,44 @@ export const calendarApi = {
     getById: (id: string) =>
         apiClient.get<CalendarEvent>(`/api/calendar-events/${id}`),
 
-    create: (data: { title: string; description?: string; startDate: string; endDate?: string; allDay?: boolean; eventType: string; category?: string; loanId?: string; customerId?: string; location?: string; attendees?: string[]; recurring?: boolean; recurrenceRule?: string; reminderMinutes?: number[] }) =>
+    create: (data: { 
+        title: string; 
+        description?: string; 
+        startDate: string; 
+        endDate?: string; 
+        allDay?: boolean; 
+        eventType: string; 
+        category?: string; 
+        loanId?: string; 
+        customerId?: string; 
+        location?: string; 
+        attendees?: string[]; 
+        recurring?: boolean; 
+        recurrenceRule?: string; 
+        reminderMinutes?: number[];
+        assignedTo?: string;
+        priority?: string;
+    }) =>
         apiClient.post<CalendarEvent>('/api/calendar-events', data),
 
-    update: (id: string, data: { title?: string; description?: string; startDate?: string; endDate?: string; allDay?: boolean; eventType?: string; category?: string; loanId?: string; customerId?: string; location?: string; attendees?: string[]; recurring?: boolean; recurrenceRule?: string; reminderMinutes?: number[] }) =>
+    update: (id: string, data: { 
+        title?: string; 
+        description?: string; 
+        startDate?: string; 
+        endDate?: string; 
+        allDay?: boolean; 
+        eventType?: string; 
+        category?: string; 
+        loanId?: string; 
+        customerId?: string; 
+        location?: string; 
+        attendees?: string[]; 
+        recurring?: boolean; 
+        recurrenceRule?: string; 
+        reminderMinutes?: number[];
+        assignedTo?: string;
+        priority?: string;
+    }) =>
         apiClient.patch<CalendarEvent>(`/api/calendar-events/${id}`, data),
 
     delete: (id: string) =>

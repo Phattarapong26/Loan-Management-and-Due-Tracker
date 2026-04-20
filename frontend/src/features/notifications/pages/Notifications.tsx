@@ -16,6 +16,7 @@ import {
   Check,
   Trash2,
   Loader2,
+  CalendarClock,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { toast } from 'sonner';
@@ -24,7 +25,7 @@ import { th } from 'date-fns/locale';
 import { notificationsApi } from '@/shared/lib/api-endpoints';
 import { NotificationStatsCards } from '../components/NotificationStatsCards';
 
-type NotificationType = 'payment' | 'approval' | 'npl' | 'document' | 'system';
+type NotificationType = 'payment' | 'approval' | 'npl' | 'document' | 'system' | 'task' | 'reminder';
 
 interface Notification {
   id: string;
@@ -39,16 +40,26 @@ interface Notification {
 // Map backend notification type to frontend type
 const mapNotificationType = (type: string): NotificationType => {
   const typeMap: Record<string, NotificationType> = {
-    'PAYMENT': 'payment',
     'PAYMENT_DUE': 'payment',
+    'PAYMENT_OVERDUE': 'payment',
+    'PAYMENT': 'payment',
+    'LOAN_APPROVED': 'approval',
+    'LOAN_REJECTED': 'approval',
     'APPROVAL': 'approval',
     'LOAN_APPROVAL': 'approval',
+    'EXPENSE_APPROVED': 'approval',
+    'EXPENSE_REJECTED': 'approval',
     'NPL': 'npl',
     'NPL_WARNING': 'npl',
     'DOCUMENT': 'document',
     'DOCUMENT_UPLOAD': 'document',
+    'TASK_ASSIGNED': 'task',
+    'CALENDAR_EVENT': 'task',
+    'REMINDER': 'reminder',
+    'SYSTEM_ALERT': 'system',
     'SYSTEM': 'system',
     'SYSTEM_UPDATE': 'system',
+    'OTHER': 'system',
   };
   return typeMap[type] || 'system';
 };
@@ -58,6 +69,8 @@ const notificationTypeConfig: Record<NotificationType, { label: string; color: s
   approval: { label: 'อนุมัติ', color: 'bg-info/10 text-info', icon: CheckCircle },
   npl: { label: 'NPL', color: 'bg-destructive/10 text-destructive', icon: AlertTriangle },
   document: { label: 'เอกสาร', color: 'bg-warning/10 text-warning', icon: FileText },
+  task: { label: 'งานที่มอบหมาย', color: 'bg-purple-100 text-purple-600', icon: CalendarClock },
+  reminder: { label: 'แจ้งเตือน', color: 'bg-orange-100 text-orange-600', icon: Clock },
   system: { label: 'ระบบ', color: 'bg-muted text-muted-foreground', icon: Bell },
 };
 

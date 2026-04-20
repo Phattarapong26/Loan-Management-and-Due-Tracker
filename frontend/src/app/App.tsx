@@ -36,6 +36,7 @@ import NotFound from "@/app/pages/NotFound";
 import LineRegistration from "@/features/auth/pages/LineRegistration";
 import ForgotPassword from "@/features/auth/pages/ForgotPassword";
 import ResetPassword from "@/features/auth/pages/ResetPassword";
+import ChangePassword from "@/features/auth/pages/ChangePassword";
 import SecurityDashboard from "@/features/monitoring/pages/SecurityDashboard";
 import AuditLogs from "@/features/monitoring/pages/AuditLogs";
 import { SecureDocumentAccess } from "@/features/documents/pages/SecureDocumentAccess";
@@ -140,6 +141,7 @@ const App = () => {
             <Route path="/users" element={<ProtectedRoute allowedRoles={['admin']}><UsersPage /></ProtectedRoute>} />
             <Route path="/staff" element={<ProtectedRoute allowedRoles={['branch_manager', 'admin']}><OfficerPerformance /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute allowedRoles={['admin']}><Settings /></ProtectedRoute>} />
             <Route path="/monitoring/security" element={<ProtectedRoute allowedRoles={['admin']}><SecurityDashboard /></ProtectedRoute>} />
             <Route path="/monitoring/audit-logs" element={<ProtectedRoute allowedRoles={['admin']}><AuditLogs /></ProtectedRoute>} />

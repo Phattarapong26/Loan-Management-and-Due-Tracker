@@ -8,6 +8,7 @@ import {
   LogOut,
   User as UserIcon,
   Settings as SettingsIcon,
+  KeyRound,
 } from "lucide-react";
 import { useNotifications } from "@/features/notifications/hooks/useNotifications";
 import { formatDistanceToNow } from "date-fns";
@@ -81,6 +82,10 @@ export function TopNavbar({ user, onMenuToggle }: TopNavbarProps) {
 
   const handleSettings = () => {
     navigate("/settings");
+  };
+
+  const handleChangePassword = () => {
+    navigate("/change-password");
   };
 
   return (
@@ -306,6 +311,10 @@ export function TopNavbar({ user, onMenuToggle }: TopNavbarProps) {
             <DropdownMenuItem onClick={handleSettings} className="cursor-pointer">
               <SettingsIcon className="mr-2 h-4 w-4" />
               <span>ตั้งค่า</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleChangePassword} className="cursor-pointer">
+              <KeyRound className="mr-2 h-4 w-4" />
+              <span>เปลี่ยนรหัสผ่าน</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">

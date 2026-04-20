@@ -285,8 +285,8 @@ export default function CalendarPage() {
     }
 
     const startDate = eventForm.time 
-      ? `${eventForm.date}T${eventForm.time}:00.000Z`
-      : `${eventForm.date}T00:00:00.000Z`;
+      ? `${eventForm.date}T${eventForm.time}:00+07:00`
+      : `${eventForm.date}T00:00:00+07:00`;
 
     // Map frontend type to backend EventType enum
     const eventTypeMap: Record<string, string> = {

@@ -405,4 +405,22 @@ export class AuthService {
             });
         }
     }
+
+    /**
+     * Change password (authenticated user, requires current password)
+     */
+    async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+        const user = await this.userRepository.findById(userId);
+        if (!user) throw new Error('User not found');
+
+        const isValid = await EncryptionUtil.verifyPassword(currentPassword, user.passwordHash);
+        if (!isValid) throw new Error('รหัสผ่านปัจจุบันไม่ถูกต้อง');
+
+        const passwordHash = await EncryptionUtil.hashPassword(newPassword);
+        await this.userRepository.update(userId, {
+            passwordHash,
+            mustChangePassword: false,
+            passwordChangedAt: new Date(),
+        });
+    }
 }

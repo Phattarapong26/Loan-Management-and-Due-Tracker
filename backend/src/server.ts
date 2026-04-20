@@ -21,6 +21,7 @@ import { secureDocumentCleanupJob } from '@jobs/schedulers/secure-document-clean
 import '@loans/workers/loan.worker'; // Initialize loan worker
 import '@payments/workers/payment.worker'; // Initialize payment worker
 import '@notifications/channels/email/email.worker'; // Initialize email worker
+import '@notifications/workers/notification.worker'; // Initialize notification worker
 
 // Set timezone for the entire application
 process.env.TZ = 'Asia/Bangkok';
