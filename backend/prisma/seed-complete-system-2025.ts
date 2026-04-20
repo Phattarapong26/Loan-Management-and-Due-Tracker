@@ -40,18 +40,19 @@ import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
-// Inline encryption (same algorithm as EncryptionUtil) to avoid src dependency
-const _encKey = Buffer.from(
-  process.env.ENCRYPTION_KEY ?? '498872ed4febe35d11e53c4d523415087ad1a6b2f0e67bdf73dade1266d31409',
-  'hex'
-);
+// Inline encryption — must match EncryptionUtil (AES-256-GCM, format: iv:authTag:encrypted)
+const _rawKey = process.env.ENCRYPTION_KEY ?? '498872ed4febe35d11e53c4d523415087ad1a6b2f0e67bdf73dade1266d31409';
+const _encKey = /^[0-9a-fA-F]{64}$/.test(_rawKey)
+  ? Buffer.from(_rawKey, 'hex')
+  : Buffer.from(_rawKey.padEnd(32, '0').slice(0, 32), 'utf-8');
 const SeedEncrypt = {
   encrypt(text: string): string {
     const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv('aes-256-cbc', _encKey, iv);
+    const cipher = crypto.createCipheriv('aes-256-gcm', _encKey, iv) as crypto.CipherGCM;
     let enc = cipher.update(text, 'utf8', 'hex');
     enc += cipher.final('hex');
-    return iv.toString('hex') + ':' + enc;
+    const authTag = cipher.getAuthTag();
+    return `${iv.toString('hex')}:${authTag.toString('hex')}:${enc}`;
   },
 };
 

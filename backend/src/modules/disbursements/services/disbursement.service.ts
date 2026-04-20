@@ -1036,8 +1036,15 @@ export class DisbursementService {
             let pdfPassword: string;
 
             if (encryptedThaiId) {
-                const decryptedId = EncryptionUtil.decrypt(encryptedThaiId);
-                pdfPassword = decryptedId.slice(-4);
+                try {
+                    const decryptedId = EncryptionUtil.decrypt(encryptedThaiId);
+                    pdfPassword = decryptedId.slice(-4);
+                } catch {
+                    // thaiId is plain text (seed data / not encrypted)
+                    const digitsOnly = String(encryptedThaiId).replace(/\D/g, '');
+                    pdfPassword = digitsOnly.length >= 4 ? digitsOnly.slice(-4) : '0000';
+                    console.warn('[Disbursement Service] thaiId decrypt failed, using plain text fallback');
+                }
             } else if (taxId) {
                 const digitsOnly = String(taxId).replace(/\D/g, '');
                 if (digitsOnly.length >= 4) {
