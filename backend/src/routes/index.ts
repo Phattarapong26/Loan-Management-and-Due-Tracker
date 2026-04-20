@@ -1601,7 +1601,7 @@ export async function registerRoutes(app: FastifyInstance) {
         collectionController.getStats
     );
 
-    app.get(
+    app.get<{ Querystring: { branchId?: string; interval?: 'week' | 'month'; points?: string; officerId?: string; productId?: string } }>(
         '/api/collections/bucket-roll-rates',
         {
             preHandler: [authenticate, requireBranch, authorize('ADMIN', 'MANAGER', 'OFFICER')],
@@ -1612,7 +1612,7 @@ export async function registerRoutes(app: FastifyInstance) {
     // Collection Actions routes (Enhanced collection management)
     const collectionActionsController = new CollectionActionsController();
 
-    app.post(
+    app.post<{ Body: any }>(
         '/api/collection-actions',
         {
             preHandler: [authenticate, requireBranch, authorize('ADMIN', 'MANAGER', 'OFFICER')],
@@ -1620,7 +1620,7 @@ export async function registerRoutes(app: FastifyInstance) {
         collectionActionsController.create
     );
 
-    app.get(
+    app.get<{ Querystring: any }>(
         '/api/collection-actions',
         {
             preHandler: [authenticate, requireBranch, authorize('ADMIN', 'MANAGER', 'OFFICER')],
@@ -1636,7 +1636,7 @@ export async function registerRoutes(app: FastifyInstance) {
         collectionActionsController.getById
     );
 
-    app.put<{ Params: { id: string } }>(
+    app.put<{ Params: { id: string }; Body: any }>(
         '/api/collection-actions/:id',
         {
             preHandler: [authenticate, requireBranch, authorize('ADMIN', 'MANAGER', 'OFFICER')],
@@ -1644,7 +1644,7 @@ export async function registerRoutes(app: FastifyInstance) {
         collectionActionsController.update
     );
 
-    app.post<{ Params: { id: string } }>(
+    app.post<{ Params: { id: string }; Body: any }>(
         '/api/collection-actions/:id/approve',
         {
             preHandler: [authenticate, requireBranch, authorize('ADMIN', 'MANAGER')],
@@ -1652,7 +1652,7 @@ export async function registerRoutes(app: FastifyInstance) {
         collectionActionsController.approve
     );
 
-    app.post<{ Params: { id: string } }>(
+    app.post<{ Params: { id: string }; Body: any }>(
         '/api/collection-actions/:id/reject',
         {
             preHandler: [authenticate, requireBranch, authorize('ADMIN', 'MANAGER')],
@@ -1660,7 +1660,7 @@ export async function registerRoutes(app: FastifyInstance) {
         collectionActionsController.reject
     );
 
-    app.get<{ Params: { customerId: string } }>(
+    app.get<{ Params: { customerId: string }; Querystring: any }>(
         '/api/collection-actions/customer/:customerId/history',
         {
             preHandler: [authenticate, requireBranch, authorize('ADMIN', 'MANAGER', 'OFFICER')],
@@ -1676,7 +1676,7 @@ export async function registerRoutes(app: FastifyInstance) {
         collectionActionsController.getPendingApprovals
     );
 
-    app.get(
+    app.get<{ Querystring: any }>(
         '/api/collection-actions/stats',
         {
             preHandler: [authenticate, requireBranch, authorize('ADMIN', 'MANAGER', 'OFFICER')],
@@ -1928,42 +1928,42 @@ export async function registerRoutes(app: FastifyInstance) {
     // ==================== LINE AUDIT ROUTES ====================
     
     // List all LINE audit logs (Admin only)
-    app.get(
+    app.get<{ Querystring: any }>(
         '/api/line/audit/logs',
         { preHandler: [authenticate, authorize('ADMIN')] },
         lineAuditController.listAuditLogs
     );
 
     // Get user LINE status and audit logs
-    app.get(
+    app.get<{ Params: { userId: string } }>(
         '/api/line/audit/users/:userId',
         { preHandler: [authenticate, authorize('ADMIN', 'MANAGER')] },
         lineAuditController.getUserLineStatus
     );
 
     // Get customer LINE status and audit logs
-    app.get(
+    app.get<{ Params: { customerId: string } }>(
         '/api/line/audit/customers/:customerId',
         { preHandler: [authenticate, authorize('ADMIN', 'MANAGER', 'OFFICER')] },
         lineAuditController.getCustomerLineStatus
     );
 
     // Get audit logs by LINE User ID
-    app.get(
+    app.get<{ Params: { lineUserId: string } }>(
         '/api/line/audit/line-users/:lineUserId',
         { preHandler: [authenticate, authorize('ADMIN')] },
         lineAuditController.getLineUserAuditLogs
     );
 
     // Disconnect user LINE account (Admin only)
-    app.post(
+    app.post<{ Params: { userId: string }; Body: any }>(
         '/api/line/audit/users/:userId/disconnect',
         { preHandler: [authenticate, authorize('ADMIN')] },
         lineAuditController.disconnectUserLineAccount
     );
 
     // Disconnect customer LINE account (Admin/Manager only)
-    app.post(
+    app.post<{ Params: { customerId: string }; Body: any }>(
         '/api/line/audit/customers/:customerId/disconnect',
         { preHandler: [authenticate, authorize('ADMIN', 'MANAGER')] },
         lineAuditController.disconnectCustomerLineAccount
