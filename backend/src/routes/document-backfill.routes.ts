@@ -56,7 +56,7 @@ export async function documentBackfillRoutes(app: FastifyInstance): Promise<void
                     return !url || url === '';
                 }).length;
 
-                // Invoices: payment schedules with no invoice record
+                // Invoices: payment schedules with no next-payment invoice record
                 const totalSchedules = await prisma.paymentSchedule.count({
                     where: {
                         loan: { status: { in: ['ACTIVE', 'DISBURSED'] } },
@@ -66,7 +66,7 @@ export async function documentBackfillRoutes(app: FastifyInstance): Promise<void
                 const schedulesWithInvoice = await prisma.paymentSchedule.count({
                     where: {
                         loan: { status: { in: ['ACTIVE', 'DISBURSED'] } },
-                        invoices: { some: {} },
+                        nextPaymentInvoices: { some: {} },
                     },
                 });
 

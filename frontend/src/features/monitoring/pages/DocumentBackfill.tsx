@@ -164,7 +164,9 @@ const DocumentBackfill: React.FC = () => {
                                     <div>
                                         <p className="text-muted-foreground">เวลาที่รัน</p>
                                         <p className="font-medium">
-                                            {format(new Date(lastRun.ranAt), 'dd MMM yyyy HH:mm', { locale: th })}
+                                            {lastRun.ranAt && !isNaN(new Date(lastRun.ranAt).getTime())
+                                                ? format(new Date(lastRun.ranAt), 'dd MMM yyyy HH:mm', { locale: th })
+                                                : '-'}
                                         </p>
                                     </div>
                                     <div>
