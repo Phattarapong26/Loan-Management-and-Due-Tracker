@@ -44,9 +44,9 @@ export async function documentBackfillRoutes(app: FastifyInstance): Promise<void
 
                 const totalReceipts = await prisma.paymentReceipt.count();
 
-                // Contracts: active/disbursed loans with no PDF
+                // Contracts: active/disbursed/defaulted/npl loans with no PDF
                 const allLoans = await prisma.loan.findMany({
-                    where: { status: { in: ['ACTIVE', 'DISBURSED'] } },
+                    where: { status: { in: ['ACTIVE', 'DISBURSED', 'DEFAULTED', 'NPL'] } },
                     select: { id: true, productConfig: true },
                 });
 
@@ -60,13 +60,13 @@ export async function documentBackfillRoutes(app: FastifyInstance): Promise<void
                 // Invoices: payment schedules with no next-payment invoice record
                 const totalSchedules = await prisma.paymentSchedule.count({
                     where: {
-                        loan: { status: { in: ['ACTIVE', 'DISBURSED'] } },
+                        loan: { status: { in: ['ACTIVE', 'DISBURSED', 'DEFAULTED', 'NPL'] } },
                     },
                 });
 
                 const schedulesWithInvoice = await prisma.paymentSchedule.count({
                     where: {
-                        loan: { status: { in: ['ACTIVE', 'DISBURSED'] } },
+                        loan: { status: { in: ['ACTIVE', 'DISBURSED', 'DEFAULTED', 'NPL'] } },
                         nextPaymentInvoices: { some: {} },
                     },
                 });

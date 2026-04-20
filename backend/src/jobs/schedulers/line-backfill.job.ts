@@ -144,7 +144,7 @@ export async function backfillPaymentTimelines(): Promise<BackfillTaskResult> {
 
     const schedules = await prisma.paymentSchedule.findMany({
         where: {
-            loan: { status: { in: ['ACTIVE', 'DISBURSED'] } },
+            loan: { status: { in: ['ACTIVE', 'DISBURSED', 'DEFAULTED', 'NPL'] } },
             NOT: { paymentTimelineEvents: { some: {} } },
         },
         select: {
@@ -284,10 +284,10 @@ export async function backfillPaymentReceipts(): Promise<BackfillTaskResult> {
 export async function backfillContractPdfs(): Promise<BackfillTaskResult> {
     logger.info('LINE backfill Task C: Contract PDFs');
 
-    // Find DISBURSED/ACTIVE loans where productConfig has no disbursementPdfUrl
+    // Find loans where productConfig has no disbursementPdfUrl
     const loans = await prisma.loan.findMany({
         where: {
-            status: { in: ['ACTIVE', 'DISBURSED'] },
+            status: { in: ['ACTIVE', 'DISBURSED', 'DEFAULTED', 'NPL'] },
         },
         select: {
             id: true,
@@ -366,7 +366,7 @@ export async function backfillInvoices(): Promise<BackfillTaskResult> {
 
     const schedules = await prisma.paymentSchedule.findMany({
         where: {
-            loan: { status: { in: ['ACTIVE', 'DISBURSED'] } },
+            loan: { status: { in: ['ACTIVE', 'DISBURSED', 'DEFAULTED', 'NPL'] } },
             NOT: { nextPaymentInvoices: { some: {} } },
         },
         select: { id: true, loanId: true, paymentNumber: true },
