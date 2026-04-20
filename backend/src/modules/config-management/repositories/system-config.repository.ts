@@ -66,7 +66,6 @@ export class SystemConfigRepository {
             },
         });
     }
-}
 
     async list(params: { page: number; limit: number; search?: string }): Promise<{ configs: SystemConfig[]; total: number }> {
         const where: any = params.search
@@ -86,3 +85,4 @@ export class SystemConfigRepository {
     async delete(key: string): Promise<void> {
         await this.db.systemConfig.delete({ where: { key } });
     }
+}

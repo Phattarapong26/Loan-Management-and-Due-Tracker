@@ -66,7 +66,6 @@ export class ProductConfigRepository {
             },
         });
     }
-}
 
     async findById(id: string): Promise<ProductConfig | null> {
         return this.db.productConfig.findUnique({ where: { id } });
@@ -140,3 +139,4 @@ export class ProductConfigRepository {
         ]);
         return { configs, total };
     }
+}
