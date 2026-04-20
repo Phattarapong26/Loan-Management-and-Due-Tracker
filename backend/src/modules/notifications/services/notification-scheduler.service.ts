@@ -58,60 +58,69 @@ export class NotificationSchedulerService {
     initialize(): void {
         console.log('🕐 Initializing notification scheduler...');
 
-        // Task 8.1.4: Payment schedule query at 6:00 AM Bangkok time
+        // Test job - runs every minute to verify scheduler is working
+        this.scheduleJob(
+            'test-notification',
+            '* * * * *', // Every minute
+            async () => {
+                console.log('✅ [TEST] Notification scheduler is working');
+            }
+        );
+
+        // Task 8.1.4: Payment schedule query at 6:00 AM Bangkok time (23:00 UTC)
         this.scheduleJob(
             'payment-schedule-query',
-            '0 6 * * *', // 6:00 AM daily
+            '0 23 * * *', // 11:00 PM UTC = 6:00 AM Bangkok
             async () => {
                 console.log('Running payment schedule query...');
                 await this.queryPaymentSchedules();
             }
         );
 
-        // Task 8.1.5: Customer notifications at 7:00 AM Bangkok time
+        // Task 8.1.5: Customer notifications at 7:00 AM Bangkok time (00:00 UTC)
         this.scheduleJob(
             'customer-notifications',
-            '0 7 * * *', // 7:00 AM daily
+            '0 0 * * *', // 12:00 AM UTC = 7:00 AM Bangkok
             async () => {
                 console.log('Sending customer notifications...');
                 await this.sendCustomerNotifications();
             }
         );
 
-        // Task 8.1.6: Loan officer notifications at 8:00 AM Bangkok time
+        // Task 8.1.6: Loan officer notifications at 8:00 AM Bangkok time (01:00 UTC)
         this.scheduleJob(
             'officer-notifications',
-            '0 8 * * *', // 8:00 AM daily
+            '0 1 * * *', // 1:00 AM UTC = 8:00 AM Bangkok
             async () => {
                 console.log('Sending loan officer notifications...');
                 await this.sendOfficerNotifications();
             }
         );
 
-        // Task 8.1.7: Branch manager notifications at 9:00 AM Bangkok time
+        // Task 8.1.7: Branch manager notifications at 9:00 AM Bangkok time (02:00 UTC)
         this.scheduleJob(
             'manager-notifications',
-            '0 9 * * *', // 9:00 AM daily
+            '0 2 * * *', // 2:00 AM UTC = 9:00 AM Bangkok
             async () => {
                 console.log('Sending branch manager notifications...');
                 await this.sendManagerNotifications();
             }
         );
 
-        // Task 8.1.8: Admin notifications at 10:00 AM Bangkok time
+        // Task 8.1.8: Admin notifications at 10:00 AM Bangkok time (03:00 UTC)
         this.scheduleJob(
             'admin-notifications',
-            '0 10 * * *', // 10:00 AM daily
+            '0 3 * * *', // 3:00 AM UTC = 10:00 AM Bangkok
             async () => {
                 console.log('Sending admin notifications...');
                 await this.sendAdminNotifications();
             }
         );
 
-        // NPL check at 11:00 AM daily
+        // NPL check at 11:00 AM Bangkok time (04:00 UTC)
         this.scheduleJob(
             'npl-check',
-            '0 11 * * *', // 11:00 AM daily
+            '0 4 * * *', // 4:00 AM UTC = 11:00 AM Bangkok
             async () => {
                 console.log('Checking for new NPLs...');
                 await this.checkNPLs();
@@ -142,9 +151,6 @@ export class NotificationSchedulerService {
                 } catch (error) {
                     console.error(`Error in scheduled job ${name}:`, error);
                 }
-            },
-            {
-                timezone: 'Asia/Bangkok',
             }
         );
 
