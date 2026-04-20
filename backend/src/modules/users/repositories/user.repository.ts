@@ -266,7 +266,6 @@ export class UserRepository {
             },
         });
     }
-}
 
     /**
      * Find active LINE users by role (for notification scheduler)
