@@ -724,18 +724,6 @@ export class LineContactLoggingEnhancedService {
             promisedDate: data.promisedDate,
             taskId: data.taskId,
         });
-    }misedDate,
-                taskId: data.taskId
-            },
-            include: {
-                customer: {
-                    select: { businessName: true }
-                },
-                loan: {
-                    select: { principal: true, outstandingBalance: true }
-                }
-            }
-        });
     }
 
     /**

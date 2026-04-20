@@ -1,4 +1,4 @@
-import { SystemConfigRepository } from '@config-management/repositories/system-config.repository';
+import { SystemConfigRepository } from '@config-mgmt/repositories/system-config.repository';
 
 /**
  * Service for generating business reference numbers
