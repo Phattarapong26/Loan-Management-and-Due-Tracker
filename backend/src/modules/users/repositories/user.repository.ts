@@ -294,6 +294,16 @@ export class UserRepository {
     }
 
     /**
+     * Find user LINE info by ID (for NPL notifications)
+     */
+    async findLineInfoById(id: string): Promise<{ lineUserId: string | null; lineActive: boolean | null } | null> {
+        return prisma.user.findUnique({
+            where: { id },
+            select: { lineUserId: true, lineActive: true },
+        });
+    }
+
+    /**
      * Mark LINE user as inactive (blocked bot)
      */
     async markLineInactive(lineUserId: string): Promise<void> {
@@ -301,5 +311,15 @@ export class UserRepository {
             where: { lineUserId },
             data: { lineActive: false },
         });
+    }
+
+    /**
+     * Find all active LINE users (for rich menu sync)
+     */
+    async findAllActiveLineUsers(): Promise<Array<{ id: string; lineUserId: string; role: string }>> {
+        return prisma.user.findMany({
+            where: { lineUserId: { not: null }, lineActive: true },
+            select: { id: true, lineUserId: true, role: true },
+        }) as any;
     }
 }

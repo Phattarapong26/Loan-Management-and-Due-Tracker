@@ -11,13 +11,17 @@
  * Requirements: Requirement 11 - NPL Alerts
  */
 
-import { prisma } from '@config/database.config';
+import { LoanRepository } from '@loans/repositories/loan.repository';
+import { UserRepository } from '@users/repositories/user.repository';
+import { ContactLogRepository } from '@collections/repositories/contact-log.repository';
+import { NotificationService } from '@notifications/services/notification.service';
 import axios from 'axios';
 import { env } from '@config/env.config';
 import { EncryptionUtil } from '@core/utils/security/encryption.util';
-import { LoanStatus, PaymentScheduleStatus, ContactMethod, ContactStatus } from '@prisma/client';
+import { ContactMethod, ContactStatus } from '@prisma/client';
 
 const LINE_MESSAGING_API = 'https://api.line.me/v2/bot';
+
 
 export interface NPLLoan {
     loanId: string;
@@ -33,9 +37,17 @@ export interface NPLLoan {
 
 export class NPLAlertService {
     private accessToken: string;
+    private loanRepository: LoanRepository;
+    private userRepository: UserRepository;
+    private contactLogRepository: ContactLogRepository;
+    private notificationService: NotificationService;
 
     constructor() {
         this.accessToken = env.LINE_CHANNEL_ACCESS_TOKEN || '';
+        this.loanRepository = new LoanRepository();
+        this.userRepository = new UserRepository();
+        this.contactLogRepository = new ContactLogRepository();
+        this.notificationService = new NotificationService();
     }
 
     /**
@@ -46,48 +58,7 @@ export class NPLAlertService {
             const ninetyDaysAgo = new Date();
             ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-            const loans = await prisma.loan.findMany({
-                where: {
-                    customer: { branchId },
-                    status: LoanStatus.NPL,
-                    paymentSchedule: {
-                        some: {
-                            paymentDate: { lt: ninetyDaysAgo },
-                            status: PaymentScheduleStatus.UNPAID,
-                        },
-                    },
-                },
-                include: {
-                    customer: {
-                        select: {
-                            id: true,
-                            businessName: true,
-                            phone: true,
-                        },
-                    },
-                    payments: {
-                        orderBy: {
-                            paymentDate: 'desc',
-                        },
-                        take: 1,
-                    },
-                    contactLogs: {
-                        orderBy: {
-                            contactDate: 'desc',
-                        },
-                        take: 1,
-                    },
-                    paymentSchedule: {
-                        where: {
-                            status: PaymentScheduleStatus.UNPAID,
-                        },
-                        orderBy: {
-                            paymentDate: 'asc',
-                        },
-                        take: 1,
-                    },
-                },
-            });
+            const loans = await this.loanRepository.findNPLLoansByBranch(branchId, ninetyDaysAgo);
 
             return loans.map(loan => {
                 const oldestOverdue = loan.paymentSchedule[0];
@@ -124,51 +95,7 @@ export class NPLAlertService {
             const ninetyDaysAgo = new Date();
             ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-            const loans = await prisma.loan.findMany({
-                where: {
-                    customer: { branchId },
-                    status: LoanStatus.NPL,
-                    paymentSchedule: {
-                        some: {
-                            paymentDate: {
-                                gte: ninetyDaysAgo,
-                                lt: sixtyDaysAgo,
-                            },
-                            status: PaymentScheduleStatus.UNPAID,
-                        },
-                    },
-                },
-                include: {
-                    customer: {
-                        select: {
-                            id: true,
-                            businessName: true,
-                            phone: true,
-                        },
-                    },
-                    payments: {
-                        orderBy: {
-                            paymentDate: 'desc',
-                        },
-                        take: 1,
-                    },
-                    contactLogs: {
-                        orderBy: {
-                            contactDate: 'desc',
-                        },
-                        take: 1,
-                    },
-                    paymentSchedule: {
-                        where: {
-                            status: PaymentScheduleStatus.UNPAID,
-                        },
-                        orderBy: {
-                            paymentDate: 'asc',
-                        },
-                        take: 1,
-                    },
-                },
-            });
+            const loans = await this.loanRepository.findHighRiskLoansByBranch(branchId, ninetyDaysAgo, sixtyDaysAgo);
 
             return loans.map(loan => {
                 const oldestOverdue = loan.paymentSchedule[0];
@@ -196,63 +123,48 @@ export class NPLAlertService {
 
     /**
      * Task 6.3.4: Send immediate push notification when loan becomes NPL
+     * Now creates in-app notification + LINE notification
      */
     async sendNPLAlert(loanId: string, managerId: string): Promise<boolean> {
         try {
-            const loan = await prisma.loan.findUnique({
-                where: { id: loanId },
-                include: {
-                    customer: {
-                        select: {
-                            businessName: true,
-                            phone: true,
-                        },
-                    },
-                    paymentSchedule: {
-                        where: {
-                            status: PaymentScheduleStatus.UNPAID,
-                        },
-                        orderBy: {
-                            paymentDate: 'asc',
-                        },
-                        take: 1,
-                    },
+            const loan = await this.loanRepository.findById(loanId);
+            if (!loan) return false;
+
+            const manager = await this.userRepository.findById(managerId);
+            if (!manager) return false;
+
+            const daysOverdue = loan.overdueDays || 0;
+            const customerName = (loan as any).customer?.businessName ?? 'ลูกค้า';
+            const outstandingBalance = Number(loan.outstandingBalance || 0);
+
+            // 1. Create in-app notification (always, regardless of LINE)
+            await this.notificationService.notify({
+                userId: managerId,
+                type: 'SYSTEM_ALERT' as any,
+                title: '🚨 แจ้งเตือน NPL',
+                message: `ลูกค้า ${customerName} เกินกำหนดชำระ ${daysOverdue} วัน ยอดคงค้าง ${outstandingBalance.toLocaleString('th-TH')} บาท`,
+                link: `/loans/${loanId}`,
+                priority: 'URGENT' as any,
+                dedupKey: `npl-alert-${loanId}-${managerId}`,
+                dedupWindow: 168, // 7 days
+                metadata: {
+                    loanId,
+                    customerName,
+                    daysOverdue,
+                    outstandingBalance,
+                    notificationType: 'NPL_ALERT',
                 },
             });
 
-            if (!loan) {
-                return false;
+            // 2. Send LINE if manager has LINE connected
+            if (manager.lineUserId && (manager as any).lineActive) {
+                const message = this.createNPLAlertMessage(loan, daysOverdue);
+                await axios.post(
+                    `${LINE_MESSAGING_API}/message/push`,
+                    { to: manager.lineUserId, messages: [message] },
+                    { headers: { 'Authorization': `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' } }
+                );
             }
-
-            const manager = await prisma.user.findUnique({
-                where: { id: managerId },
-                select: { lineUserId: true, lineActive: true },
-            });
-
-            if (!manager?.lineUserId || !manager.lineActive) {
-                return false;
-            }
-
-            const daysOverdue = loan.paymentSchedule[0]
-                ? Math.floor((new Date().getTime() - new Date(loan.paymentSchedule[0].paymentDate).getTime()) / (1000 * 60 * 60 * 24))
-                : 0;
-
-            // Task 6.3.5: Create Flex Message for NPL alert
-            const message = this.createNPLAlertMessage(loan, daysOverdue);
-
-            await axios.post(
-                `${LINE_MESSAGING_API}/message/push`,
-                {
-                    to: manager.lineUserId,
-                    messages: [message],
-                },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${this.accessToken}`,
-                        'Content-Type': 'application/json',
-                    },
-                }
-            );
 
             console.log(`NPL alert sent for loan ${loanId} to manager ${managerId}`);
             return true;
@@ -379,13 +291,7 @@ export class NPLAlertService {
      */
     async assignFollowUpTask(loanId: string, officerId: string, _managerId: string): Promise<boolean> {
         try {
-            const loan = await prisma.loan.findUnique({
-                where: { id: loanId },
-                select: {
-                    customerId: true,
-                    id: true,
-                },
-            });
+            const loan = await this.loanRepository.findLoanForNPLTask(loanId);
 
             if (!loan) {
                 return false;
@@ -395,24 +301,19 @@ export class NPLAlertService {
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
 
-            await prisma.contactLog.create({
-                data: {
-                    customerId: loan.customerId,
-                    loanId,
-                    contactMethod: ContactMethod.PHONE,
-                    contactStatus: ContactStatus.CONTACTED,
-                    notes: `มอบหมายจากผู้จัดการ: ติดตาม NPL เลขที่ ${loan.id}`,
-                    nextFollowUpDate: tomorrow,
-                    contactDate: new Date(),
-                    officerId: officerId,
-                },
+            await this.contactLogRepository.create({
+                customerId: loan.customerId,
+                loanId,
+                contactMethod: ContactMethod.PHONE,
+                contactStatus: ContactStatus.CONTACTED,
+                notes: `มอบหมายจากผู้จัดการ: ติดตาม NPL เลขที่ ${loan.id}`,
+                nextFollowUpDate: tomorrow.toISOString(),
+                contactDate: new Date().toISOString(),
+                officerId: officerId,
             });
 
             // Notify officer
-            const officer = await prisma.user.findUnique({
-                where: { id: officerId },
-                select: { lineUserId: true, lineActive: true },
-            });
+            const officer = await this.userRepository.findLineInfoById(officerId);
 
             if (officer?.lineUserId && officer.lineActive) {
                 const message = `📋 งานใหม่: ติดตาม NPL\n\nเลขที่สินเชื่อ: ${loan.id}\nกำหนดติดตาม: พรุ่งนี้\n\nกรุณาติดต่อลูกค้าโดยเร็วที่สุด`;
@@ -449,25 +350,13 @@ export class NPLAlertService {
         newStatus: 'RESOLVED' | 'RESTRUCTURED' | 'WRITTEN_OFF'
     ): Promise<boolean> {
         try {
-            const loan = await prisma.loan.findUnique({
-                where: { id: loanId },
-                include: {
-                    customer: {
-                        select: {
-                            businessName: true,
-                        },
-                    },
-                },
-            });
+            const loan = await this.loanRepository.findLoanWithCustomerForNPL(loanId);
 
             if (!loan) {
                 return false;
             }
 
-            const manager = await prisma.user.findUnique({
-                where: { id: managerId },
-                select: { lineUserId: true, lineActive: true },
-            });
+            const manager = await this.userRepository.findLineInfoById(managerId);
 
             if (!manager?.lineUserId || !manager.lineActive) {
                 return false;
@@ -511,14 +400,9 @@ export class NPLAlertService {
         try {
             const nplLoans = await this.getNPLLoans(branchId);
 
-            // Get manager for this branch
-            const manager = await prisma.user.findFirst({
-                where: {
-                    branchId,
-                    role: 'MANAGER',
-                    lineActive: true,
-                },
-            });
+            // Get manager for this branch via UserRepository
+            const managers = await this.userRepository.findByBranchAndRoles(branchId, ['branch_manager']);
+            const manager = managers[0] ?? null;
 
             if (!manager) {
                 console.log(`No active manager found for branch ${branchId}`);
@@ -528,33 +412,21 @@ export class NPLAlertService {
             let alertsSent = 0;
 
             for (const loan of nplLoans) {
-                // Check if we've already sent an alert for this loan
-                const existingAlert = await prisma.contactLog.findFirst({
-                    where: {
-                        loanId: loan.loanId,
-                        notes: {
-                            contains: 'NPL Alert sent',
-                        },
-                        createdAt: {
-                            gte: new Date(new Date().setDate(new Date().getDate() - 7)), // Within last 7 days
-                        },
-                    },
-                });
+                // Check dedup via ContactLogRepository
+                const existingAlert = await this.contactLogRepository.findRecentNPLAlert(loan.loanId, 7);
 
                 if (!existingAlert) {
                     const sent = await this.sendNPLAlert(loan.loanId, manager.id);
                     if (sent) {
-                        // Log that we sent the alert
-                        await prisma.contactLog.create({
-                            data: {
-                                customerId: loan.customerId,
-                                loanId: loan.loanId,
-                                contactMethod: ContactMethod.LINE,
-                                contactStatus: ContactStatus.CONTACTED,
-                                notes: 'NPL Alert sent to manager',
-                                contactDate: new Date(),
-                                officerId: manager.id,
-                            },
+                        // Log via ContactLogRepository
+                        await this.contactLogRepository.create({
+                            customerId: loan.customerId,
+                            loanId: loan.loanId,
+                            contactMethod: ContactMethod.LINE,
+                            contactStatus: ContactStatus.CONTACTED,
+                            notes: 'NPL Alert sent to manager',
+                            contactDate: new Date().toISOString(),
+                            officerId: manager.id,
                         });
                         alertsSent++;
                     }

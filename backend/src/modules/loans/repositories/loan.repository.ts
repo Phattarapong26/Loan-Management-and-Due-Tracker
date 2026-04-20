@@ -377,6 +377,100 @@ export class LoanRepository {
     }
 
     /**
+     * Find NPL loans for a branch (>90 days overdue)
+     */
+    async findNPLLoansByBranch(branchId: string, ninetyDaysAgo: Date): Promise<any[]> {
+        return this.db.loan.findMany({
+            where: {
+                customer: { branchId },
+                status: 'NPL',
+                paymentSchedule: {
+                    some: {
+                        paymentDate: { lt: ninetyDaysAgo },
+                        status: 'UNPAID',
+                    },
+                },
+            },
+            include: {
+                customer: {
+                    select: { id: true, businessName: true, phone: true },
+                },
+                payments: {
+                    orderBy: { paymentDate: 'desc' },
+                    take: 1,
+                },
+                contactLogs: {
+                    orderBy: { contactDate: 'desc' },
+                    take: 1,
+                },
+                paymentSchedule: {
+                    where: { status: 'UNPAID' },
+                    orderBy: { paymentDate: 'asc' },
+                    take: 1,
+                },
+            },
+        });
+    }
+
+    /**
+     * Find high-risk loans for a branch (60-89 days overdue)
+     */
+    async findHighRiskLoansByBranch(branchId: string, ninetyDaysAgo: Date, sixtyDaysAgo: Date): Promise<any[]> {
+        return this.db.loan.findMany({
+            where: {
+                customer: { branchId },
+                status: 'NPL',
+                paymentSchedule: {
+                    some: {
+                        paymentDate: { gte: ninetyDaysAgo, lt: sixtyDaysAgo },
+                        status: 'UNPAID',
+                    },
+                },
+            },
+            include: {
+                customer: {
+                    select: { id: true, businessName: true, phone: true },
+                },
+                payments: {
+                    orderBy: { paymentDate: 'desc' },
+                    take: 1,
+                },
+                contactLogs: {
+                    orderBy: { contactDate: 'desc' },
+                    take: 1,
+                },
+                paymentSchedule: {
+                    where: { status: 'UNPAID' },
+                    orderBy: { paymentDate: 'asc' },
+                    take: 1,
+                },
+            },
+        });
+    }
+
+    /**
+     * Find loan with customer and contact logs for NPL task assignment
+     */
+    async findLoanForNPLTask(loanId: string): Promise<{ id: string; customerId: string } | null> {
+        return this.db.loan.findUnique({
+            where: { id: loanId },
+            select: { customerId: true, id: true },
+        });
+    }
+
+    /**
+     * Find loan with customer for NPL status update
+     */
+    async findLoanWithCustomerForNPL(loanId: string): Promise<any> {
+        return this.db.loan.findUnique({
+            where: { id: loanId },
+            include: {
+                customer: { select: { businessName: true } },
+            },
+        });
+    }
+
+    /**
      * Get loan statistics
      */
     async getStatistics(params: {
@@ -474,5 +568,67 @@ export class LoanRepository {
             nplCount: nplLoans,
             overdueCount: overdueLoans,
         };
+    }
+}
+
+    /**
+     * Find all NPL/overdue loans (no branch filter) for payment reminder job
+     */
+    async findNPLLoans(): Promise<Array<{ id: string; branchId: string; overdueDays: number | null; outstandingBalance: any; customer: { id: string; businessName: string } }>> {
+        return this.db.loan.findMany({
+            where: {
+                status: { in: ['ACTIVE', 'DISBURSED', 'NPL'] },
+                OR: [{ status: 'NPL' }, { overdueDays: { gte: 90 } }],
+            },
+            select: {
+                id: true,
+                branchId: true,
+                overdueDays: true,
+                outstandingBalance: true,
+                customer: { select: { id: true, businessName: true } },
+            },
+        }) as any;
+    }
+
+    /**
+     * Find active loan IDs (for payment sync job)
+     */
+    async findActiveIds(): Promise<string[]> {
+        const loans = await this.db.loan.findMany({
+            where: { status: 'ACTIVE' },
+            select: { id: true },
+        });
+        return loans.map(l => l.id);
+    }
+
+    /**
+     * Find loan with customer and LINE info (for loan status notifications)
+     */
+    async findWithCustomerAndLine(loanId: string): Promise<any> {
+        return this.db.loan.findUnique({
+            where: { id: loanId },
+            include: {
+                customer: {
+                    include: { user: true },
+                },
+                loanProduct: true,
+            },
+        });
+    }
+
+    /**
+     * Find payment with loan and customer LINE info
+     */
+    async findPaymentWithLoan(paymentId: string): Promise<any> {
+        return this.db.payment.findUnique({
+            where: { id: paymentId },
+            include: {
+                loan: {
+                    include: {
+                        customer: { include: { user: true } },
+                    },
+                },
+            },
+        });
     }
 }

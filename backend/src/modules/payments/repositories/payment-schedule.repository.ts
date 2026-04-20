@@ -401,6 +401,53 @@ export class PaymentScheduleRepository {
     }
 
     /**
+     * Find loan data needed for dynamic schedule calculation
+     */
+    async findLoanForSchedule(loanId: string): Promise<{
+        principal: any;
+        outstandingBalance: any;
+        interestRate: any;
+        termMonths: number;
+        firstPaymentDate: Date | null;
+        paymentDay: number | null;
+        monthlyPayment: any;
+    } | null> {
+        return this.db.loan.findUnique({
+            where: { id: loanId },
+            select: {
+                principal: true,
+                outstandingBalance: true,
+                interestRate: true,
+                termMonths: true,
+                firstPaymentDate: true,
+                paymentDay: true,
+                monthlyPayment: true,
+            },
+        });
+    }
+
+    /**
+     * Find all payments for a loan (for schedule calculation)
+     */
+    async findPaymentsByLoanId(loanId: string): Promise<Array<{
+        id: string;
+        amount: any;
+        paymentDate: Date;
+        paymentScheduleId: string | null;
+    }>> {
+        return this.db.payment.findMany({
+            where: { loanId },
+            orderBy: { paymentDate: 'asc' },
+            select: {
+                id: true,
+                amount: true,
+                paymentDate: true,
+                paymentScheduleId: true,
+            },
+        });
+    }
+
+    /**
      * Get statistics
      */
     async getStats(params: {
@@ -465,3 +512,43 @@ export class PaymentScheduleRepository {
         };
     }
 }
+
+    /**
+     * Find unpaid schedules due within a specific date window (for payment reminders)
+     */
+    async findUpcomingInWindow(from: Date, to: Date): Promise<Array<any>> {
+        return this.db.paymentSchedule.findMany({
+            where: {
+                status: 'UNPAID',
+                paymentDate: { gte: from, lt: to },
+                loan: { status: { in: ['ACTIVE', 'DISBURSED'] } },
+            },
+            include: {
+                loan: {
+                    include: {
+                        customer: { select: { id: true, businessName: true } },
+                    },
+                },
+            },
+        });
+    }
+
+    /**
+     * Find overdue unpaid schedules (for overdue alerts)
+     */
+    async findOverdueUnpaid(beforeDate: Date): Promise<Array<any>> {
+        return this.db.paymentSchedule.findMany({
+            where: {
+                status: 'UNPAID',
+                paymentDate: { lt: beforeDate },
+                loan: { status: { in: ['ACTIVE', 'DISBURSED'] } },
+            },
+            include: {
+                loan: {
+                    include: {
+                        customer: { select: { id: true, businessName: true } },
+                    },
+                },
+            },
+        });
+    }

@@ -8,245 +8,97 @@
  * - Payment received
  */
 
-import { prisma } from '@config/database.config';
+import { LoanRepository } from '@loans/repositories/loan.repository';
 import { logger } from '@utils/common/logger.util';
 import { lineNotificationQueue } from '@line/services/messaging/line-notification-queue.service';
 import { COLORS } from '@line/messages/theme';
 
 export class LoanStatusNotificationService {
-    /**
-     * Notify customer when loan is approved
-     */
+    private loanRepository: LoanRepository;
+
+    constructor() {
+        this.loanRepository = new LoanRepository();
+    }
+
     async notifyLoanApproved(loanId: string): Promise<void> {
         try {
-            const loan = await prisma.loan.findUnique({
-                where: { id: loanId },
-                include: {
-                    customer: {
-                        include: {
-                            user: true, // Include user to get LINE user ID
-                        },
-                    },
-                    loanProduct: true,
-                },
-            });
+            const loan = await this.loanRepository.findWithCustomerAndLine(loanId);
 
-            if (!loan) {
-                logger.warn({ loanId }, 'Loan not found for notification');
-                return;
-            }
+            if (!loan) { logger.warn({ loanId }, 'Loan not found for notification'); return; }
 
-            // Get LINE user ID from customer's linked user account
             const lineUserId = loan.customer.lineUserId || loan.customer.user?.lineUserId;
-
             if (!lineUserId) {
-                logger.info({ 
-                    loanId, 
-                    customerId: loan.customerId,
-                    customerName: loan.customer.businessName,
-                }, 'Customer has no LINE account linked. Please generate QR code for customer to link LINE.');
+                logger.info({ loanId, customerId: loan.customerId }, 'Customer has no LINE account linked');
                 return;
             }
 
             const message = this.createLoanApprovedMessage(loan);
-
-            await lineNotificationQueue.enqueue(
-                lineUserId,
-                message,
-                'high' // High priority for approval notifications
-            );
-
+            await lineNotificationQueue.enqueue(lineUserId, message, 'high');
             logger.info({ loanId, customerId: loan.customerId }, 'Loan approval notification queued');
         } catch (error) {
             logger.error({ loanId, error }, 'Failed to queue loan approval notification');
         }
     }
 
-    /**
-     * Notify customer when loan is rejected
-     */
     async notifyLoanRejected(loanId: string, reason?: string): Promise<void> {
         try {
-            const loan = await prisma.loan.findUnique({
-                where: { id: loanId },
-                include: {
-                    customer: {
-                        include: {
-                            user: true,
-                        },
-                    },
-                    loanProduct: true,
-                },
-            });
-
-            if (!loan) {
-                logger.warn({ loanId }, 'Loan not found for notification');
-                return;
-            }
+            const loan = await this.loanRepository.findWithCustomerAndLine(loanId);
+            if (!loan) { logger.warn({ loanId }, 'Loan not found for notification'); return; }
 
             const lineUserId = loan.customer.lineUserId || loan.customer.user?.lineUserId;
-
-            if (!lineUserId) {
-                logger.info({ loanId, customerId: loan.customerId }, 'Customer has no LINE account linked');
-                return;
-            }
+            if (!lineUserId) { logger.info({ loanId }, 'Customer has no LINE account linked'); return; }
 
             const message = this.createLoanRejectedMessage(loan, reason);
-
-            await lineNotificationQueue.enqueue(
-                lineUserId,
-                message,
-                'high'
-            );
-
-            logger.info({ loanId, customerId: loan.customerId }, 'Loan rejection notification queued');
+            await lineNotificationQueue.enqueue(lineUserId, message, 'high');
+            logger.info({ loanId }, 'Loan rejection notification queued');
         } catch (error) {
             logger.error({ loanId, error }, 'Failed to queue loan rejection notification');
         }
     }
 
-    /**
-     * Notify customer when loan is disbursed
-     */
     async notifyLoanDisbursed(loanId: string, amount: number, referenceNo?: string): Promise<void> {
         try {
-            const loan = await prisma.loan.findUnique({
-                where: { id: loanId },
-                include: {
-                    customer: {
-                        include: {
-                            user: true,
-                        },
-                    },
-                    loanProduct: true,
-                },
-            });
-
-            if (!loan) {
-                logger.warn({ loanId }, 'Loan not found for notification');
-                return;
-            }
+            const loan = await this.loanRepository.findWithCustomerAndLine(loanId);
+            if (!loan) { logger.warn({ loanId }, 'Loan not found for notification'); return; }
 
             const lineUserId = loan.customer.lineUserId || loan.customer.user?.lineUserId;
-
-            if (!lineUserId) {
-                logger.info({ loanId, customerId: loan.customerId }, 'Customer has no LINE account linked');
-                return;
-            }
+            if (!lineUserId) { logger.info({ loanId }, 'Customer has no LINE account linked'); return; }
 
             const message = this.createLoanDisbursedMessage(loan, amount, referenceNo);
-
-            await lineNotificationQueue.enqueue(
-                lineUserId,
-                message,
-                'high'
-            );
-
-            logger.info({ loanId, customerId: loan.customerId, amount, referenceNo }, 'Loan disbursement notification queued');
+            await lineNotificationQueue.enqueue(lineUserId, message, 'high');
+            logger.info({ loanId, amount, referenceNo }, 'Loan disbursement notification queued');
         } catch (error) {
             logger.error({ loanId, error }, 'Failed to queue loan disbursement notification');
         }
     }
 
-    /**
-     * Notify customer when loan is disbursed with PDF
-     */
-    async notifyLoanDisbursedWithPDF(
-        loanId: string,
-        amount: number,
-        referenceNo: string,
-        pdfUrl: string,
-        password: string
-    ): Promise<void> {
+    async notifyLoanDisbursedWithPDF(loanId: string, amount: number, referenceNo: string, pdfUrl: string, password: string): Promise<void> {
         try {
-            const loan = await prisma.loan.findUnique({
-                where: { id: loanId },
-                include: {
-                    customer: {
-                        include: {
-                            user: true,
-                        },
-                    },
-                    loanProduct: true,
-                },
-            });
-
-            if (!loan) {
-                logger.warn({ loanId }, 'Loan not found for notification');
-                return;
-            }
+            const loan = await this.loanRepository.findWithCustomerAndLine(loanId);
+            if (!loan) { logger.warn({ loanId }, 'Loan not found for notification'); return; }
 
             const lineUserId = loan.customer.lineUserId || loan.customer.user?.lineUserId;
+            if (!lineUserId) { logger.info({ loanId }, 'Customer has no LINE account linked'); return; }
 
-            if (!lineUserId) {
-                logger.info({ loanId, customerId: loan.customerId }, 'Customer has no LINE account linked');
-                return;
-            }
-
-            const message = this.createLoanDisbursedMessageWithPDF(
-                loan,
-                amount,
-                referenceNo,
-                pdfUrl,
-                password
-            );
-
-            await lineNotificationQueue.enqueue(
-                lineUserId,
-                message,
-                'high'
-            );
-
-            logger.info(
-                { loanId, customerId: loan.customerId, amount, referenceNo, pdfUrl },
-                'Loan disbursement notification with PDF queued'
-            );
+            const message = await this.createLoanDisbursedMessageWithPDF(loan, amount, referenceNo, pdfUrl, password);
+            await lineNotificationQueue.enqueue(lineUserId, message, 'high');
+            logger.info({ loanId, amount, referenceNo, pdfUrl }, 'Loan disbursement notification with PDF queued');
         } catch (error) {
             logger.error({ loanId, error }, 'Failed to queue loan disbursement notification with PDF');
         }
     }
 
-    /**
-     * Notify customer when payment is received
-     */
     async notifyPaymentReceived(paymentId: string): Promise<void> {
         try {
-            const payment = await prisma.payment.findUnique({
-                where: { id: paymentId },
-                include: {
-                    loan: {
-                        include: {
-                            customer: {
-                                include: {
-                                    user: true,
-                                },
-                            },
-                        },
-                    },
-                },
-            });
-
-            if (!payment) {
-                logger.warn({ paymentId }, 'Payment not found for notification');
-                return;
-            }
+            const payment = await this.loanRepository.findPaymentWithLoan(paymentId);
+            if (!payment) { logger.warn({ paymentId }, 'Payment not found for notification'); return; }
 
             const lineUserId = payment.loan.customer.lineUserId || payment.loan.customer.user?.lineUserId;
-
-            if (!lineUserId) {
-                logger.info({ paymentId, loanId: payment.loanId }, 'Customer has no LINE account linked');
-                return;
-            }
+            if (!lineUserId) { logger.info({ paymentId }, 'Customer has no LINE account linked'); return; }
 
             const message = this.createPaymentReceivedMessage(payment);
-
-            await lineNotificationQueue.enqueue(
-                lineUserId,
-                message,
-                'normal'
-            );
-
-            logger.info({ paymentId, loanId: payment.loanId }, 'Payment received notification queued');
+            await lineNotificationQueue.enqueue(lineUserId, message, 'normal');
+            logger.info({ paymentId }, 'Payment received notification queued');
         } catch (error) {
             logger.error({ paymentId, error }, 'Failed to queue payment received notification');
         }

@@ -1,5 +1,7 @@
-import { prisma } from '@config/database.config';
 import { NotificationService } from '@notifications/services/notification.service';
+import { LoanRepository } from '@loans/repositories/loan.repository';
+import { UserRepository } from '@users/repositories/user.repository';
+import { CustomerRepository } from '@customers/repositories/customer.repository';
 import { CreateNotificationInput } from '../models/notification.model';
 
 /**
@@ -8,9 +10,15 @@ import { CreateNotificationInput } from '../models/notification.model';
  */
 export class NotificationHelperService {
     private notificationService: NotificationService;
+    private loanRepository: LoanRepository;
+    private userRepository: UserRepository;
+    private customerRepository: CustomerRepository;
 
     constructor() {
         this.notificationService = new NotificationService();
+        this.loanRepository = new LoanRepository();
+        this.userRepository = new UserRepository();
+        this.customerRepository = new CustomerRepository();
     }
 
     /**
@@ -27,28 +35,14 @@ export class NotificationHelperService {
         priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
     }) {
         // Get loan with officer info
-        const loan = await prisma.loan.findUnique({
-            where: { id: params.loanId },
-            select: {
-                id: true,
-                officerId: true,
-                branchId: true,
-                officer: {
-                    select: {
-                        id: true,
-                        role: true,
-                        status: true,
-                    },
-                },
-            },
-        });
+        const loan = await this.loanRepository.findById(params.loanId);
 
         if (!loan || !loan.officerId) {
             throw new Error('Loan or officer not found');
         }
 
         // Only send to active officers
-        if (loan.officer.status !== 'ACTIVE') {
+        if ((loan as any).officer?.status !== 'ACTIVE') {
             console.log(`[Notification] Skipped - Officer ${loan.officerId} is not active`);
             return null;
         }
@@ -87,29 +81,16 @@ export class NotificationHelperService {
         excludeUserId?: string; // Exclude sender
     }) {
         // Get all active officers in branch
-        const officers = await prisma.user.findMany({
-            where: {
-                branchId: params.branchId,
-                role: {
-                    in: ['OFFICER'],
-                },
-                status: 'ACTIVE',
-                ...(params.excludeUserId && {
-                    id: { not: params.excludeUserId },
-                }),
-            },
-            select: {
-                id: true,
-            },
-        });
-
-        if (officers.length === 0) {
+        const officers = await this.userRepository.findByBranchAndRoles(params.branchId, ['loan_officer']);
+        const filtered = params.excludeUserId
+            ? officers.filter(o => o.id !== params.excludeUserId)
+            : officers;
+        if (filtered.length === 0) {
             console.log(`[Notification] No active officers found in branch ${params.branchId}`);
             return { count: 0 };
         }
 
-        // Create notifications for all officers
-        const notifications: CreateNotificationInput[] = officers.map((officer) => ({
+        const notifications: CreateNotificationInput[] = filtered.map((officer) => ({
             userId: officer.id,
             type: params.type as any,
             title: params.title,
@@ -138,17 +119,9 @@ export class NotificationHelperService {
         metadata?: any;
         priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
     }) {
-        // Get branch manager
-        const manager = await prisma.user.findFirst({
-            where: {
-                branchId: params.branchId,
-                role: 'MANAGER',
-                status: 'ACTIVE',
-            },
-            select: {
-                id: true,
-            },
-        });
+        // Get branch manager via UserRepository
+        const managers = await this.userRepository.findByBranchAndRoles(params.branchId, ['branch_manager']);
+        const manager = managers[0] ?? null;
 
         if (!manager) {
             console.log(`[Notification] No active manager found in branch ${params.branchId}`);
@@ -184,16 +157,8 @@ export class NotificationHelperService {
         metadata?: any;
         priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
     }) {
-        // Get all active admins
-        const admins = await prisma.user.findMany({
-            where: {
-                role: 'ADMIN',
-                status: 'ACTIVE',
-            },
-            select: {
-                id: true,
-            },
-        });
+        // Get all active admins via UserRepository
+        const admins = await this.userRepository.findActiveByRole('ADMIN');
 
         if (admins.length === 0) {
             console.log('[Notification] No active admins found');
@@ -226,29 +191,15 @@ export class NotificationHelperService {
         metadata?: any;
         priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
     }) {
-        // Get customer with officer info
-        const customer = await prisma.customer.findUnique({
-            where: { id: params.customerId },
-            select: {
-                id: true,
-                createdBy: true,
-                branchId: true,
-            },
-        });
+        // Get customer with officer info via CustomerRepository
+        const customer = await this.customerRepository.findById(params.customerId);
 
         if (!customer || !customer.createdBy) {
             throw new Error('Customer or officer not found');
         }
 
-        // Get officer details
-        const officer = await prisma.user.findUnique({
-            where: { id: customer.createdBy },
-            select: {
-                id: true,
-                role: true,
-                status: true,
-            },
-        });
+        // Get officer details via UserRepository
+        const officer = await this.userRepository.findById(customer.createdBy);
 
         // Only send to active officers
         if (!officer || officer.status !== 'ACTIVE') {

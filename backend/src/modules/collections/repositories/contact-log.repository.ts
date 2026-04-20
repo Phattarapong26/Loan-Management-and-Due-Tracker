@@ -278,4 +278,19 @@ export class ContactLogRepository {
             activeLoans: customer.loans.length,
         }));
     }
+
+    /**
+     * Find recent NPL alert log for a loan (dedup check)
+     */
+    async findRecentNPLAlert(loanId: string, withinDays: number): Promise<ContactLog | null> {
+        const since = new Date();
+        since.setDate(since.getDate() - withinDays);
+        return this.db.contactLog.findFirst({
+            where: {
+                loanId,
+                notes: { contains: 'NPL Alert sent' },
+                createdAt: { gte: since },
+            },
+        });
+    }
 }
