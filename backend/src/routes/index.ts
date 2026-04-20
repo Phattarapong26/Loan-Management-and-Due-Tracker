@@ -2574,5 +2574,27 @@ export async function registerRoutes(app: FastifyInstance) {
         });
     }
 
+    // Admin: Manual trigger for LINE data backfill
+    app.post(
+        '/api/admin/backfill-line-data',
+        {
+            preHandler: [authenticate, authorize('ADMIN')],
+        },
+        async (_request, reply) => {
+            try {
+                logger.info('Manual LINE data backfill triggered via API');
+                const { runLineDataBackfill } = await import('@jobs/schedulers/line-data-backfill.job');
+                const stats = await runLineDataBackfill();
+                return ResponseUtil.success(reply, {
+                    message: 'LINE data backfill completed',
+                    stats,
+                });
+            } catch (error: any) {
+                logger.error({ error }, 'Manual LINE data backfill failed');
+                return ResponseUtil.error(reply, error.message || 'Backfill failed', 500);
+            }
+        }
+    );
+
     return app;
 }

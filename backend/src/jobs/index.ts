@@ -9,3 +9,4 @@ export * from './schedulers/pdf-cleanup.job';
 export * from './schedulers/rich-menu-sync.job';
 export * from './schedulers/session-cleanup.job';
 export * from './schedulers/security-cleanup.job';
+export * from './schedulers/line-data-backfill.job';
