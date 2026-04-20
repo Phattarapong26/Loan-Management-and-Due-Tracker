@@ -342,40 +342,60 @@ export class NotificationSchedulerService {
      */
     private async sendAdminNotifications(): Promise<void> {
         try {
+            // Get all admins (with or without LINE - for in-app notification)
             const admins = await prisma.user.findMany({
-                where: {
-                    role: 'ADMIN',
-                    lineUserId: { not: null },
-                    lineActive: true,
-                    lineNotificationsEnabled: true,
-                },
-                select: {
-                    id: true,
-                    lineUserId: true,
-                },
+                where: { role: 'ADMIN', status: 'ACTIVE' },
+                select: { id: true, lineUserId: true, lineActive: true, lineNotificationsEnabled: true },
             });
+
+            if (admins.length === 0) return;
+
+            // Fetch stats once for all admins
+            const stats = await this.dbQueryService.getAdminStats();
+
+            const isHealthy = stats.systemHealth === 'healthy';
+            const title = isHealthy ? '📊 สรุประบบประจำวัน' : '⚠️ แจ้งเตือนระบบ';
+            const message =
+                `สถานะ: ${isHealthy ? '✅ ปกติ' : '⚠️ ผิดปกติ'} | ` +
+                `ผู้ใช้งาน: ${stats.activeUsers} ราย | ` +
+                `NPL: ${stats.nplRatio.toFixed(2)}% | ` +
+                `Error Rate: ${stats.errorRate.toFixed(2)}%`;
 
             let sentCount = 0;
 
             for (const admin of admins) {
-                if (!admin.lineUserId) continue;
+                // 1. Create in-app notification (always, regardless of LINE)
+                await this.notificationRepository.createWithDedup({
+                    userId: admin.id,
+                    type: 'SYSTEM_ALERT' as any,
+                    title,
+                    message,
+                    link: '/dashboard/admin',
+                    priority: isHealthy ? 'LOW' : 'HIGH' as any,
+                    dedupKey: `admin-daily-${admin.id}-${new Date().toISOString().slice(0, 10)}`,
+                    dedupWindow: 20, // 20 hours - prevent duplicate same day
+                    metadata: {
+                        systemHealth: stats.systemHealth,
+                        activeUsers: stats.activeUsers,
+                        nplRatio: stats.nplRatio,
+                        errorRate: stats.errorRate,
+                    },
+                });
 
-                const notifications = await this.getAdminNotifications(admin.id);
-
-                if (notifications.length > 0) {
-                    const sent = await this.sendNotificationWithRetry(
-                        admin.lineUserId,
-                        notifications
-                    );
-
-                    if (sent) {
-                        sentCount++;
-                        await this.logNotificationDelivery(admin.id, 'ADMIN', 'SUCCESS');
+                // 2. Send LINE notification if connected
+                if (admin.lineUserId && admin.lineActive && admin.lineNotificationsEnabled) {
+                    const lineMessages = await this.getAdminNotifications(admin.id);
+                    if (lineMessages.length > 0) {
+                        const sent = await this.sendNotificationWithRetry(admin.lineUserId, lineMessages);
+                        if (sent) {
+                            sentCount++;
+                            await this.logNotificationDelivery(admin.id, 'ADMIN', 'SUCCESS');
+                        }
                     }
                 }
             }
 
-            console.log(`Admin notifications: ${sentCount} sent`);
+            console.log(`Admin notifications: ${admins.length} in-app created, ${sentCount} LINE sent`);
         } catch (error) {
             console.error('Error sending admin notifications:', error);
         }
