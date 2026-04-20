@@ -460,4 +460,56 @@ export class DisbursementRepository {
             where: { id },
         });
     }
+
+    /**
+     * Update loan productConfig (for PDF status tracking)
+     */
+    async updateLoanProductConfig(loanId: string, productConfig: any): Promise<void> {
+        await this.db.loan.update({
+            where: { id: loanId },
+            data: { productConfig },
+        });
+    }
+
+    /**
+     * Find loan with customer and branch for PDF generation
+     */
+    async findLoanWithRelations(loanId: string): Promise<any> {
+        return this.db.loan.findUnique({
+            where: { id: loanId },
+            include: {
+                customer: true,
+                branch: true,
+            },
+        });
+    }
+
+    /**
+     * Find latest disbursed disbursement for a loan
+     */
+    async findLatestDisbursedByLoanId(loanId: string): Promise<any> {
+        return this.db.loanDisbursement.findFirst({
+            where: {
+                loanId,
+                status: 'DISBURSED',
+            },
+            orderBy: { disbursedAt: 'desc' },
+        });
+    }
+
+    /**
+     * Find loan with customer LINE info for notification
+     */
+    async findLoanWithCustomerLine(loanId: string): Promise<any> {
+        return this.db.loan.findUnique({
+            where: { id: loanId },
+            include: {
+                customer: {
+                    include: {
+                        user: true,
+                    },
+                },
+            },
+        });
+    }
 }

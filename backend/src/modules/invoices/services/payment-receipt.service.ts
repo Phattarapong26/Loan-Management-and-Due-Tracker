@@ -1,7 +1,7 @@
-import { prisma } from '@config/database.config';
 import { logger } from '@utils/common/logger.util';
 import { ReferenceNumberService } from './reference-number.service';
 import { paymentReceiptPDFService } from './payment-receipt-pdf.service';
+import { PaymentReceiptRepository } from '../repositories/payment-receipt.repository';
 import crypto from 'crypto';
 import { EmailService } from '@notifications/channels/email/email.service';
 
@@ -69,10 +69,12 @@ export interface PaymentReceiptData {
 export class PaymentReceiptService {
     private referenceService: ReferenceNumberService;
     private emailService: EmailService;
+    private receiptRepo: PaymentReceiptRepository;
 
     constructor() {
         this.referenceService = new ReferenceNumberService();
         this.emailService = new EmailService();
+        this.receiptRepo = new PaymentReceiptRepository();
     }
 
     /**
@@ -91,21 +93,7 @@ export class PaymentReceiptService {
             logger.info({ paymentId, issuedBy }, 'Generating payment receipt');
 
             // ดึงข้อมูลการชำระเงิน
-            const payment = await prisma.payment.findUnique({
-                where: { id: paymentId },
-                include: {
-                    loan: {
-                        include: {
-                            customer: {
-                                include: {
-                                    branch: true,
-                                },
-                            },
-                        },
-                    },
-                    paymentSchedule: true,
-                },
-            });
+            const payment = await this.receiptRepo.findPaymentWithDetails(paymentId);
 
             if (!payment) {
                 throw new Error('Payment not found');
@@ -115,9 +103,7 @@ export class PaymentReceiptService {
             const customer = loan.customer;
 
             // ตรวจสอบว่ามีใบเสร็จแล้วหรือไม่
-            const existingReceipt = await prisma.paymentReceipt.findFirst({
-                where: { paymentId },
-            });
+            const existingReceipt = await this.receiptRepo.findReceiptByPaymentId(paymentId);
 
             if (existingReceipt) {
                 logger.info({ receiptId: existingReceipt.id }, 'Receipt already exists, returning existing');
@@ -231,9 +217,7 @@ export class PaymentReceiptService {
      */
     async getReceiptForCustomer(receiptId: string): Promise<PaymentReceiptData> {
         try {
-            const receipt = await prisma.paymentReceipt.findUnique({
-                where: { id: receiptId },
-            });
+            const receipt = await this.receiptRepo.findReceiptById(receiptId);
 
             if (!receipt) {
                 throw new Error('Receipt not found');
@@ -251,10 +235,7 @@ export class PaymentReceiptService {
      */
     async getLoanReceipts(loanId: string): Promise<PaymentReceiptData[]> {
         try {
-            const receipts = await prisma.paymentReceipt.findMany({
-                where: { loanId },
-                orderBy: { issuedAt: 'desc' },
-            });
+            const receipts = await this.receiptRepo.findReceiptsByLoanId(loanId);
 
             const results = [];
             for (const receipt of receipts) {
@@ -273,9 +254,7 @@ export class PaymentReceiptService {
      */
     async getReceiptByNumber(receiptNumber: string): Promise<PaymentReceiptData | null> {
         try {
-            const receipt = await prisma.paymentReceipt.findUnique({
-                where: { receiptNumber },
-            });
+            const receipt = await this.receiptRepo.findReceiptByNumber(receiptNumber);
 
             if (!receipt) {
                 return null;
@@ -293,9 +272,7 @@ export class PaymentReceiptService {
      * Used by staff UI to open/view receipts reliably.
      */
     async ensureReceiptPdfUrl(receiptId: string): Promise<string> {
-        const receipt = await prisma.paymentReceipt.findUnique({
-            where: { id: receiptId },
-        });
+        const receipt = await this.receiptRepo.findReceiptById(receiptId);
 
         if (!receipt) {
             throw new Error('Receipt not found');
@@ -311,13 +288,10 @@ export class PaymentReceiptService {
         const filename = `receipt-${receiptData.receiptNumber}-${Date.now()}.pdf`;
         const pdfUrl = await paymentReceiptPDFService.savePDF(pdfBuffer, filename);
 
-        await prisma.paymentReceipt.update({
-            where: { id: receiptId },
-            data: {
-                receiptData: {
-                    ...(receiptData as any),
-                    pdfUrl,
-                },
+        await this.receiptRepo.updateReceipt(receiptId, {
+            receiptData: {
+                ...(receiptData as any),
+                pdfUrl,
             },
         });
 
@@ -333,13 +307,7 @@ export class PaymentReceiptService {
         _sentBy: string
     ): Promise<{ success: boolean; message: string; pdfUrl?: string }> {
         try {
-            const receipt = await prisma.paymentReceipt.findUnique({
-                where: { id: receiptId },
-                include: {
-                    customer: true,
-                    payment: true,
-                },
-            });
+            const receipt = await this.receiptRepo.findReceiptByIdWithIncludes(receiptId);
 
             if (!receipt) {
                 throw new Error('Receipt not found');
@@ -365,13 +333,10 @@ export class PaymentReceiptService {
             }
 
             // อัพเดทสถานะการส่ง (เฉพาะเมื่อส่งสำเร็จ)
-            await prisma.paymentReceipt.update({
-                where: { id: receiptId },
-                data: {
-                    sentAt: new Date(),
-                    sentVia: method,
-                    receiptData: updatedReceiptData,
-                },
+            await this.receiptRepo.updateReceipt(receiptId, {
+                sentAt: new Date(),
+                sentVia: method,
+                receiptData: updatedReceiptData,
             });
 
             logger.info(
@@ -446,12 +411,7 @@ export class PaymentReceiptService {
             );
 
             // Get customer's LINE user ID
-            const customer = await prisma.customer.findUnique({
-                where: { id: receiptData.customerId },
-                include: {
-                    user: true,
-                },
-            });
+            const customer = await this.receiptRepo.findCustomerWithLine(receiptData.customerId);
 
             if (!customer) {
                 throw new Error('Customer not found');
@@ -776,9 +736,7 @@ export class PaymentReceiptService {
         error?: string;
     }> {
         try {
-            const receipt = await prisma.paymentReceipt.findUnique({
-                where: { receiptNumber },
-            });
+            const receipt = await this.receiptRepo.findReceiptByNumber(receiptNumber);
 
             if (!receipt) {
                 return {
@@ -845,22 +803,13 @@ export class PaymentReceiptService {
 
     private async calculateLoanStatistics(loanId: string) {
         // คำนวณสถิติสินเชื่อ
-        const loan = await prisma.loan.findUnique({
-            where: { id: loanId },
-            select: {
-                principal: true,
-                outstandingBalance: true,
-                termMonths: true,
-            },
-        });
+        const loan = await this.receiptRepo.findLoanForStatistics(loanId);
 
         if (!loan) {
             throw new Error('Loan not found for statistics calculation');
         }
 
-        const payments = await prisma.payment.findMany({
-            where: { loanId },
-        });
+        const payments = await this.receiptRepo.findPaymentsByLoanId(loanId);
 
         const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount), 0);
         const originalPrincipal = Number(loan.principal);
@@ -868,12 +817,7 @@ export class PaymentReceiptService {
         const paymentProgress = ((originalPrincipal - outstandingBalance) / originalPrincipal) * 100;
         
         // คำนวณงวดที่เหลือ (ประมาณการ)
-        const paidSchedules = await prisma.paymentSchedule.count({
-            where: {
-                loanId,
-                status: 'PAID',
-            },
-        });
+        const paidSchedules = await this.receiptRepo.countPaidSchedules(loanId);
 
         const remainingInstallments = loan.termMonths - paidSchedules;
         const isFullyPaid = outstandingBalance <= 0;
@@ -900,21 +844,19 @@ export class PaymentReceiptService {
     }
 
     private async savePaymentReceipt(receiptData: PaymentReceiptData) {
-        return await prisma.paymentReceipt.create({
-            data: {
-                receiptNumber: receiptData.receiptNumber,
-                paymentId: receiptData.paymentId,
-                loanId: receiptData.loanId,
-                customerId: receiptData.customerId,
-                invoiceId: receiptData.invoiceId,
-                amount: receiptData.paymentDetails.amount,
-                paymentDate: receiptData.paymentDetails.paymentDate,
-                paymentMethod: receiptData.paymentDetails.paymentMethod,
-                receiptData: receiptData as any,
-                status: 'ISSUED',
-                issuedBy: receiptData.receiptInfo.issuedBy,
-                issuedAt: receiptData.receiptInfo.issuedAt,
-            },
+        return await this.receiptRepo.createReceipt({
+            receiptNumber: receiptData.receiptNumber,
+            paymentId: receiptData.paymentId,
+            loanId: receiptData.loanId,
+            customerId: receiptData.customerId,
+            invoiceId: receiptData.invoiceId,
+            amount: receiptData.paymentDetails.amount,
+            paymentDate: receiptData.paymentDetails.paymentDate,
+            paymentMethod: receiptData.paymentDetails.paymentMethod,
+            receiptData: receiptData as any,
+            status: 'ISSUED',
+            issuedBy: receiptData.receiptInfo.issuedBy,
+            issuedAt: receiptData.receiptInfo.issuedAt,
         });
     }
 

@@ -1,15 +1,14 @@
-import { PrismaClient, Prisma } from '@prisma/client';
-import { prisma } from '@config/database.config';
+import { SystemConfigRepository } from '@config-management/repositories/system-config.repository';
 
 /**
  * Service for generating business reference numbers
  * Supports all document types with proper Thai formatting
  */
 export class ReferenceNumberService {
-    private db: PrismaClient;
+    private systemConfigRepo: SystemConfigRepository;
 
     constructor() {
-        this.db = prisma;
+        this.systemConfigRepo = new SystemConfigRepository();
     }
 
     /**
@@ -273,41 +272,10 @@ export class ReferenceNumberService {
     // --- Helpers ---
 
     /**
-     * Get next sequence number from database (Thread-safe via transaction)
+     * Get next sequence number from database (Thread-safe via repository transaction)
      */
     private async getNextSequence(sequenceKey: string): Promise<number> {
-        const configKey = `SEQ:${sequenceKey}`;
-
-        return await this.db.$transaction(async (tx: Prisma.TransactionClient) => {
-            const config = await tx.systemConfig.findUnique({
-                where: { key: configKey }
-            });
-
-            let current = 0;
-            if (config) {
-                current = parseInt(config.value, 10);
-                if (isNaN(current)) current = 0;
-            }
-
-            const next = current + 1;
-
-            await tx.systemConfig.upsert({
-                where: { key: configKey },
-                create: {
-                    key: configKey,
-                    value: next.toString(),
-                    category: 'SEQUENCE',
-                    description: `Auto-generated sequence number for ${sequenceKey}`,
-                    dataType: 'INTEGER',
-                    createdBy: 'SYSTEM'
-                },
-                update: {
-                    value: next.toString()
-                }
-            });
-
-            return next;
-        });
+        return this.systemConfigRepo.getNextSequence(sequenceKey);
     }
 
     private getThaiYearMonth(): string {

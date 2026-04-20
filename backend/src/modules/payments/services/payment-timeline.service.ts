@@ -1,10 +1,8 @@
-import { prisma } from '@config/database.config';
 import { logger } from '@utils/common/logger.util';
 import { NextPaymentInvoiceService } from '@invoices/services/next-payment-invoice.service';
 import { LineNotificationService } from '@line/services/messaging/line-notification.service';
+import { PaymentTimelineRepository } from '../repositories/payment-timeline.repository';
 
-// Use type assertion to work around TypeScript language server issues
-const db = prisma as any;
 
 export interface PaymentTimelineEvent {
     id: string;
@@ -31,6 +29,7 @@ export interface PaymentTimelineConfig {
 export class PaymentTimelineService {
     private nextPaymentInvoiceService: NextPaymentInvoiceService;
     private lineNotificationService: LineNotificationService;
+    private timelineRepository: PaymentTimelineRepository;
     
     private defaultConfig: PaymentTimelineConfig = {
         invoiceGenerationDays: 7,    // T-7
@@ -44,6 +43,7 @@ export class PaymentTimelineService {
     constructor() {
         this.nextPaymentInvoiceService = new NextPaymentInvoiceService();
         this.lineNotificationService = new LineNotificationService();
+        this.timelineRepository = new PaymentTimelineRepository();
     }
 
     /**
@@ -173,25 +173,7 @@ export class PaymentTimelineService {
             const now = new Date();
             
             // ดึง Events ที่ถึงเวลาแล้วและยังไม่ได้ประมวลผล
-            const pendingEvents = await db.paymentTimelineEvent.findMany({
-                where: {
-                    scheduledDate: { lte: now },
-                    status: 'PENDING',
-                },
-                include: {
-                    loan: {
-                        include: {
-                            customer: {
-                                include: {
-                                    branch: true,
-                                },
-                            },
-                        },
-                    },
-                    paymentSchedule: true,
-                },
-                orderBy: { scheduledDate: 'asc' },
-            });
+            const pendingEvents = await this.timelineRepository.findPendingEvents();
 
             const results = [];
             let processed = 0;
@@ -202,13 +184,7 @@ export class PaymentTimelineService {
                     await this.executeTimelineEvent(event);
                     
                     // อัพเดทสถานะเป็น COMPLETED
-                    await db.paymentTimelineEvent.update({
-                        where: { id: event.id },
-                        data: {
-                            status: 'COMPLETED',
-                            executedAt: new Date(),
-                        },
-                    });
+                    await this.timelineRepository.updateEventStatus(event.id, 'COMPLETED');
 
                     results.push({
                         eventId: event.id,
@@ -224,16 +200,9 @@ export class PaymentTimelineService {
 
                 } catch (error) {
                     // อัพเดทสถานะเป็น FAILED
-                    await db.paymentTimelineEvent.update({
-                        where: { id: event.id },
-                        data: {
-                            status: 'FAILED',
-                            executedAt: new Date(),
-                            metadata: {
-                                ...event.metadata,
-                                error: error instanceof Error ? error.message : 'Unknown error',
-                            },
-                        },
+                    await this.timelineRepository.updateEventStatus(event.id, 'FAILED', {
+                        ...event.metadata,
+                        error: error instanceof Error ? error.message : 'Unknown error',
                     });
 
                     results.push({
@@ -270,21 +239,7 @@ export class PaymentTimelineService {
      */
     async getPaymentTimeline(loanId: string): Promise<PaymentTimelineEvent[]> {
         try {
-            const events = await db.paymentTimelineEvent.findMany({
-                where: { loanId },
-                include: {
-                    paymentSchedule: {
-                        select: {
-                            paymentNumber: true,
-                            paymentDate: true,
-                            totalPayment: true,
-                            status: true,
-                        },
-                    },
-                },
-                orderBy: { scheduledDate: 'asc' },
-            });
-
+            const events = await this.timelineRepository.findByLoanId(loanId);
             return events;
         } catch (error) {
             logger.error({ error, loanId }, 'Error getting payment timeline');
@@ -297,19 +252,9 @@ export class PaymentTimelineService {
      */
     async cancelTimelineEvents(paymentScheduleId: string, reason: string = 'Payment completed'): Promise<void> {
         try {
-            await db.paymentTimelineEvent.updateMany({
-                where: {
-                    paymentScheduleId,
-                    status: 'PENDING',
-                },
-                data: {
-                    status: 'CANCELLED',
-                    executedAt: new Date(),
-                    metadata: {
-                        cancelReason: reason,
-                        cancelledAt: new Date(),
-                    },
-                },
+            await this.timelineRepository.cancelEventsByScheduleId(paymentScheduleId, {
+                cancelReason: reason,
+                cancelledAt: new Date(),
             });
 
             logger.info({
@@ -342,11 +287,9 @@ export class PaymentTimelineService {
         scheduledDate: Date;
         metadata?: any;
     }): Promise<PaymentTimelineEvent> {
-        return await db.paymentTimelineEvent.create({
-            data: {
-                ...eventData,
-                status: 'PENDING',
-            },
+        return await this.timelineRepository.createEvent({
+            ...eventData,
+            status: 'PENDING',
         });
     }
 
@@ -412,28 +355,17 @@ export class PaymentTimelineService {
 
     private async executeOverdueUpdate(event: any): Promise<void> {
         // อัพเดทสถานะ Payment Schedule เป็น OVERDUE
-        await db.paymentSchedule.update({
-            where: { id: event.paymentScheduleId },
-            data: {
-                status: 'OVERDUE',
-                daysOverdue: 1,
-            },
+        await this.timelineRepository.updatePaymentScheduleStatus(event.paymentScheduleId, {
+            status: 'OVERDUE',
+            daysOverdue: 1,
         });
 
         // อัพเดทสถานะ Loan ถ้าจำเป็น
-        const overdueCount = await db.paymentSchedule.count({
-            where: {
-                loanId: event.loanId,
-                status: 'OVERDUE',
-            },
-        });
+        const overdueCount = await this.timelineRepository.countOverdueSchedules(event.loanId);
 
         if (overdueCount === 1) {
             // เป็นงวดแรกที่เลยกำหนด
-            await db.loan.update({
-                where: { id: event.loanId },
-                data: { status: 'DEFAULTED' },
-            });
+            await this.timelineRepository.updateLoanStatus(event.loanId, 'DEFAULTED');
         }
     }
 
@@ -450,12 +382,9 @@ export class PaymentTimelineService {
         );
 
         // อัพเดท Payment Schedule ด้วยค่าปรับ
-        await db.paymentSchedule.update({
-            where: { id: event.paymentScheduleId },
-            data: {
-                penaltyAmount,
-                daysOverdue,
-            },
+        await this.timelineRepository.updatePaymentScheduleStatus(event.paymentScheduleId, {
+            penaltyAmount,
+            daysOverdue,
         });
 
         // ออก Invoice ใหม่ที่รวมค่าปรับ
@@ -479,10 +408,7 @@ export class PaymentTimelineService {
 
     private async executeNPLUpdate(event: any): Promise<void> {
         // อัพเดทสถานะ Loan เป็น NPL
-        await db.loan.update({
-            where: { id: event.loanId },
-            data: { status: 'NPL' },
-        });
+        await this.timelineRepository.updateLoanStatus(event.loanId, 'NPL');
 
         // ส่งการแจ้งเตือน NPL
         if (event.loan.customer.lineUserId) {
@@ -502,17 +428,15 @@ export class PaymentTimelineService {
 
     private async createCollectionTask(loanId: string): Promise<void> {
         // สร้าง Task สำหรับทีม Collection
-        await db.taskAssignment.create({
-            data: {
-                taskId: `NPL-${loanId}-${Date.now()}`,
-                taskType: 'COLLECTION',
-                assignedTo: 'COLLECTION_TEAM', // จะต้องมีการกำหนด Collection Team
-                assignedBy: 'SYSTEM',
-                priority: 'HIGH',
-                dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 วัน
-                status: 'PENDING',
-                notes: `NPL Loan requires immediate collection action. Loan ID: ${loanId}`,
-            },
+        await this.timelineRepository.createCollectionTask({
+            taskId: `NPL-${loanId}-${Date.now()}`,
+            taskType: 'COLLECTION',
+            assignedTo: 'COLLECTION_TEAM',
+            assignedBy: 'SYSTEM',
+            priority: 'HIGH',
+            dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            status: 'PENDING',
+            notes: `NPL Loan requires immediate collection action. Loan ID: ${loanId}`,
         });
     }
 }

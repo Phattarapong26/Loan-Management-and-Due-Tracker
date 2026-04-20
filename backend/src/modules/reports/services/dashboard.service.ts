@@ -1,6 +1,6 @@
 import { ContactLogRepository } from '@collections/repositories/contact-log.repository';
 import { CalendarEventRepository } from '@calendar/repositories/calendar-event.repository';
-import { prisma } from '@config/database.config';
+import { DashboardRepository } from '../repositories/dashboard.repository';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { logger } from '@utils/common/logger.util';
 import type { Prisma } from '@prisma/client';
@@ -120,10 +120,12 @@ interface AdminDashboard {
 export class DashboardService {
     private contactLogRepository: ContactLogRepository;
     private calendarEventRepository: CalendarEventRepository;
+    private dashboardRepository: DashboardRepository;
 
     constructor() {
         this.contactLogRepository = new ContactLogRepository();
         this.calendarEventRepository = new CalendarEventRepository();
+        this.dashboardRepository = new DashboardRepository();
     }
 
     /**
@@ -135,19 +137,14 @@ export class DashboardService {
         const todayEnd = endOfDay(now);
         const portfolioStatuses = ['ACTIVE', 'DISBURSED', 'NPL', 'DEFAULTED'] as const;
 
-        // Determine officer scope from JWT role first (more reliable than DB in mixed/seeded environments)
         const isOfficer = role ? role === 'OFFICER' : await this.isOfficerRole(userId);
 
-        // Officer should always see their own portfolio even if branchId is missing/mismatched.
-        // Manager/Admin are scoped by branch when available.
         const branchWhere = !isOfficer && branchId ? { branchId } : {};
-        // Portfolio ownership can be linked by `loan.officerId` OR `loan.customer.createdBy`
-        // (older data / some flows do not set loan.officerId consistently).
         const officerWhere: Prisma.LoanWhereInput = isOfficer
             ? { OR: [{ officerId: userId }, { customer: { createdBy: userId } }] }
             : {};
 
-        // Get today's tasks from Calendar Events (sorted by time)
+        // Get today's tasks from Calendar Events
         const calendarEvents = await this.calendarEventRepository.list({
             page: 1,
             limit: 100,
@@ -156,7 +153,6 @@ export class DashboardService {
             dateTo: todayEnd,
         });
 
-        // Sort events by time
         const todayTasks = (calendarEvents.events as unknown as CalendarEventWithRelations[])
             .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
             .slice(0, 10)
@@ -167,28 +163,16 @@ export class DashboardService {
                 time: format(new Date(event.startDate), 'HH:mm'),
             }));
 
-        // Get overdue loans - Officer sees only their loans
-        const overdueLoans = await prisma.loan.findMany({
+        // Get overdue loans
+        const overdueLoans = await this.dashboardRepository.findLoans({
             where: {
                 ...branchWhere,
                 ...officerWhere,
-                status: {
-                    in: [...portfolioStatuses],
-                },
-                overdueDays: {
-                    gte: 1,
-                },
+                status: { in: [...portfolioStatuses] },
+                overdueDays: { gte: 1 },
             },
-            include: {
-                customer: {
-                    select: {
-                        businessName: true,
-                    },
-                },
-            },
-            orderBy: {
-                overdueDays: 'desc',
-            },
+            include: { customer: { select: { businessName: true } } },
+            orderBy: { overdueDays: 'desc' },
             take: 10,
         });
 
@@ -199,78 +183,44 @@ export class DashboardService {
             daysWithoutContact: 2,
         });
 
-        // Get recent activities (payments, contact logs, and loan activities)
-        const recentPayments = await prisma.payment.findMany({
-            where: {
-                loan: {
-                    ...branchWhere,
-                    ...officerWhere,
-                },
-            },
+        // Get recent payments
+        const recentPayments = await this.dashboardRepository.findPayments({
+            where: { loan: { ...branchWhere, ...officerWhere } },
             include: {
                 loan: {
-                    include: {
-                        customer: {
-                            select: {
-                                businessName: true,
-                            },
-                        },
-                    },
+                    include: { customer: { select: { businessName: true } } },
                 },
             },
-            orderBy: {
-                createdAt: 'desc',
-            },
+            orderBy: { createdAt: 'desc' },
             take: 3,
         });
 
         // Get recent contact logs
-        const recentContacts = await prisma.contactLog.findMany({
+        const recentContacts = await this.dashboardRepository.findContactLogs({
             where: {
                 officerId: userId,
                 ...(branchId ? { customer: { branchId } } : {}),
             },
-            include: {
-                customer: {
-                    select: {
-                        businessName: true,
-                    },
-                },
-            },
-            orderBy: {
-                contactDate: 'desc',
-            },
+            include: { customer: { select: { businessName: true } } },
+            orderBy: { contactDate: 'desc' },
             take: 3,
         });
 
-        // Get recent loan activities (approved, disbursed)
-        const recentLoans = await prisma.loan.findMany({
+        // Get recent loan activities
+        const recentLoans = await this.dashboardRepository.findLoans({
             where: {
                 ...branchWhere,
                 ...officerWhere,
-                status: {
-                    in: ['APPROVED', 'DISBURSED'],
-                },
-                updatedAt: {
-                    gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
-                },
+                status: { in: ['APPROVED', 'DISBURSED'] },
+                updatedAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
             },
-            include: {
-                customer: {
-                    select: {
-                        businessName: true,
-                    },
-                },
-            },
-            orderBy: {
-                updatedAt: 'desc',
-            },
+            include: { customer: { select: { businessName: true } } },
+            orderBy: { updatedAt: 'desc' },
             take: 3,
         });
 
-        // Combine and sort all activities
         const allActivities: DashboardActivity[] = [
-            ...recentPayments.map((payment): DashboardActivity => ({
+            ...recentPayments.map((payment: any): DashboardActivity => ({
                 id: `payment-${payment.id}`,
                 type: 'payment',
                 message: `รับชำระเงินจาก ${payment.loan.customer.businessName}`,
@@ -278,7 +228,7 @@ export class DashboardService {
                 amount: `฿${Number(payment.amount).toLocaleString()}`,
                 timestamp: payment.createdAt,
             })),
-            ...recentContacts.map((contact): DashboardActivity => ({
+            ...recentContacts.map((contact: any): DashboardActivity => ({
                 id: `contact-${contact.id}`,
                 type: 'contact',
                 message: `ติดต่อ ${contact.customer.businessName}`,
@@ -286,7 +236,7 @@ export class DashboardService {
                 count: contact.contactMethod || 'โทรศัพท์',
                 timestamp: contact.contactDate,
             })),
-            ...recentLoans.map((loan): DashboardActivity => ({
+            ...recentLoans.map((loan: any): DashboardActivity => ({
                 id: `loan-${loan.id}`,
                 type: 'loan',
                 message: `${loan.status === 'APPROVED' ? 'อนุมัติสินเชื่อ' : 'เบิกจ่ายสินเชื่อ'} ${loan.customer.businessName}`,
@@ -296,133 +246,79 @@ export class DashboardService {
             })),
         ];
 
-        // Sort by timestamp and take top 10
         const recentActivities = allActivities
             .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
             .slice(0, 10)
-            .map(({ timestamp, ...activity }) => activity); // Remove timestamp from final output
+            .map(({ timestamp, ...activity }) => activity);
 
-        // Get collection statistics for current month
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
-        // Calculate disbursed amount this month (ยอดที่ปล่อยสินเชื่อไปในเดือนนี้)
-        const disbursedLoans = await prisma.loan.findMany({
+        const disbursedLoans = await this.dashboardRepository.findLoans({
             where: {
                 ...branchWhere,
                 ...officerWhere,
-                status: {
-                    in: ['DISBURSED', 'ACTIVE'],
-                },
-                disbursementDate: {
-                    gte: monthStart,
-                    lte: monthEnd,
-                },
+                status: { in: ['DISBURSED', 'ACTIVE'] },
+                disbursementDate: { gte: monthStart, lte: monthEnd },
             },
         });
 
-        const disbursedAmount = disbursedLoans.reduce((sum, loan) => sum + Number(loan.principal || 0), 0);
+        const disbursedAmount = disbursedLoans.reduce((sum: number, loan: any) => sum + Number(loan.principal || 0), 0);
 
-        // Get disbursement target from system config (default to 500000 if not set)
-        const targetConfig = await prisma.systemConfig.findUnique({
-            where: { key: 'monthly_disbursement_target' },
-        });
+        const targetConfig = await this.dashboardRepository.findSystemConfig('monthly_disbursement_target');
         const target = targetConfig ? parseFloat(targetConfig.value) : 500000;
-
         const disbursementProgress = target > 0 ? Math.round((disbursedAmount / target) * 100) : 0;
 
-        // Get portfolio summary - include only ACTIVE and DISBURSED loans
-        // Officer sees only their own loans, Manager/Admin sees all in branch
-        const portfolioLoans = await prisma.loan.findMany({
+        const portfolioLoans = await this.dashboardRepository.findLoans({
             where: {
                 ...branchWhere,
                 ...officerWhere,
-                status: {
-                    in: [...portfolioStatuses],
-                },
+                status: { in: [...portfolioStatuses] },
             },
         });
 
-        // Calculate pending payments (loans with upcoming payment schedules)
-        const pendingPayments = await prisma.paymentSchedule.count({
-            where: {
-                loan: {
-                    ...branchWhere,
-                    status: {
-                        in: [...portfolioStatuses],
-                    },
-                    ...officerWhere,
-                },
+        const [pendingPayments, expectedPayments, receivedPayments] = await Promise.all([
+            this.dashboardRepository.countPaymentSchedules({
+                loan: { ...branchWhere, status: { in: [...portfolioStatuses] }, ...officerWhere },
                 status: 'UNPAID',
-                paymentDate: {
-                    lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Next 7 days
-                },
-            },
-        });
-
-        // Calculate success rate (payments received vs expected this month)
-        const expectedPayments = await prisma.paymentSchedule.count({
-            where: {
-                loan: {
-                    ...branchWhere,
-                    status: {
-                        in: [...portfolioStatuses],
-                    },
-                    ...officerWhere,
-                },
-                paymentDate: {
-                    gte: monthStart,
-                    lte: monthEnd,
-                },
-            },
-        });
-
-        const receivedPayments = await prisma.payment.count({
-            where: {
-                loan: {
-                    ...branchWhere,
-                    status: {
-                        in: [...portfolioStatuses],
-                    },
-                    ...officerWhere,
-                },
-                paymentDate: {
-                    gte: monthStart,
-                    lte: monthEnd,
-                },
-            },
-        });
+                paymentDate: { lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+            }),
+            this.dashboardRepository.countPaymentSchedules({
+                loan: { ...branchWhere, status: { in: [...portfolioStatuses] }, ...officerWhere },
+                paymentDate: { gte: monthStart, lte: monthEnd },
+            }),
+            this.dashboardRepository.countPayments({
+                loan: { ...branchWhere, status: { in: [...portfolioStatuses] }, ...officerWhere },
+                paymentDate: { gte: monthStart, lte: monthEnd },
+            }),
+        ]);
 
         const successRate = expectedPayments > 0 ? Math.round((receivedPayments / expectedPayments) * 100) : 0;
 
         const totalPortfolio = portfolioLoans.length;
-        const normalLoans = portfolioLoans.filter(l => l.overdueDays === 0).length;
-        const warningLoans = portfolioLoans.filter(l => l.overdueDays > 0 && l.overdueDays < 30).length;
-        const nplLoans = portfolioLoans.filter(l => l.overdueDays >= 90 || l.status === 'NPL').length;
-        const totalOutstanding = portfolioLoans.reduce((sum, l) => {
+        const normalLoans = portfolioLoans.filter((l: any) => l.overdueDays === 0).length;
+        const warningLoans = portfolioLoans.filter((l: any) => l.overdueDays > 0 && l.overdueDays < 30).length;
+        const nplLoans = portfolioLoans.filter((l: any) => l.overdueDays >= 90 || l.status === 'NPL').length;
+        const totalOutstanding = portfolioLoans.reduce((sum: number, l: any) => {
             const remaining = Number(l.remainingAmount ?? 0);
             const outstanding = Number(l.outstandingBalance ?? 0);
             const currentPrincipal = Number(l.currentPrincipal ?? 0);
             const principal = Number(l.principal ?? 0);
-
-            // NOTE: Some data uses `remainingAmount`, some uses `outstandingBalance`.
-            // Also guard against legacy rows where `remainingAmount` exists but is still 0.
             const effectiveOutstanding =
                 remaining > 0 ? remaining : outstanding > 0 ? outstanding : currentPrincipal > 0 ? currentPrincipal : principal;
-
             return sum + effectiveOutstanding;
         }, 0);
 
         return {
             kpis: {
-                totalBalance: totalOutstanding, // ยอดหนี้ทั้งหมดในพอร์ต
-                totalDebtors: totalPortfolio, // จำนวนลูกหนี้
-                monthlyTarget: target, // เป้าหมายการปล่อยสินเชื่อ
-                overdueLoans: overdueLoans.length, // จำนวนลูกหนี้ค้างชำระ
+                totalBalance: totalOutstanding,
+                totalDebtors: totalPortfolio,
+                monthlyTarget: target,
+                overdueLoans: overdueLoans.length,
                 todayTasks: todayTasks.length,
             },
             todayTasks,
-            overdueLoans: overdueLoans.map((loan) => ({
+            overdueLoans: overdueLoans.map((loan: any) => ({
                 id: loan.id,
                 customer: loan.customer.businessName,
                 days: loan.overdueDays,
@@ -444,8 +340,8 @@ export class DashboardService {
             })),
             collectionProgress: disbursementProgress,
             collectionTarget: target,
-            collectionAchieved: disbursedAmount, // ยอดที่ปล่อยไปแล้วในเดือนนี้
-            pendingPayments, // จำนวนรอการอนุมัติ
+            collectionAchieved: disbursedAmount,
+            pendingPayments,
             successRate,
             portfolio: {
                 total: totalPortfolio,
@@ -459,7 +355,6 @@ export class DashboardService {
 
     /**
      * Debug helper: return loan counts for the authenticated user (no PII)
-     * Useful when dashboard shows all zeros but officer expects a portfolio.
      */
     async getLoanOfficerDashboardDebug(userId: string, branchId?: string, role?: string) {
         const portfolioStatuses = ['ACTIVE', 'DISBURSED', 'NPL', 'DEFAULTED'] as const;
@@ -471,39 +366,15 @@ export class DashboardService {
             : {};
 
         const [allByOfficer, portfolioByOfficer, allByCreator, portfolioByCreator, allByBranch, portfolioByBranch] = await Promise.all([
-            prisma.loan.groupBy({
-                by: ['status'],
-                where: { officerId: userId },
-                _count: { _all: true },
-            }),
-            prisma.loan.groupBy({
-                by: ['status'],
-                where: { officerId: userId, status: { in: [...portfolioStatuses] } },
-                _count: { _all: true },
-            }),
-            prisma.loan.groupBy({
-                by: ['status'],
-                where: { customer: { createdBy: userId } },
-                _count: { _all: true },
-            }),
-            prisma.loan.groupBy({
-                by: ['status'],
-                where: { customer: { createdBy: userId }, status: { in: [...portfolioStatuses] } },
-                _count: { _all: true },
-            }),
+            this.dashboardRepository.groupLoansByStatus({ officerId: userId }),
+            this.dashboardRepository.groupLoansByStatus({ officerId: userId, status: { in: [...portfolioStatuses] } }),
+            this.dashboardRepository.groupLoansByStatus({ customer: { createdBy: userId } }),
+            this.dashboardRepository.groupLoansByStatus({ customer: { createdBy: userId }, status: { in: [...portfolioStatuses] } }),
             branchId
-                ? prisma.loan.groupBy({
-                      by: ['status'],
-                      where: { branchId },
-                      _count: { _all: true },
-                  })
+                ? this.dashboardRepository.groupLoansByStatus({ branchId })
                 : Promise.resolve([] as any[]),
             branchId
-                ? prisma.loan.groupBy({
-                      by: ['status'],
-                      where: { branchId, status: { in: [...portfolioStatuses] } },
-                      _count: { _all: true },
-                  })
+                ? this.dashboardRepository.groupLoansByStatus({ branchId, status: { in: [...portfolioStatuses] } })
                 : Promise.resolve([] as any[]),
         ]);
 
@@ -513,13 +384,10 @@ export class DashboardService {
                 return acc;
             }, {} as Record<string, number>);
 
-        // Also validate what the dashboard service would scope to for this user.
-        const scopedPortfolioCount = await prisma.loan.count({
-            where: {
-                ...branchWhere,
-                ...officerWhere,
-                status: { in: [...portfolioStatuses] },
-            },
+        const scopedPortfolioCount = await this.dashboardRepository.countLoans({
+            ...branchWhere,
+            ...officerWhere,
+            status: { in: [...portfolioStatuses] },
         });
 
         return {
@@ -559,10 +427,7 @@ export class DashboardService {
      * Helper: Check if user is an OFFICER role
      */
     private async isOfficerRole(userId: string): Promise<boolean> {
-        const user = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { role: true },
-        });
+        const user = await this.dashboardRepository.findUserRole(userId);
         return user?.role === 'OFFICER';
     }
 
@@ -588,111 +453,53 @@ export class DashboardService {
      * Get Branch Manager Dashboard statistics
      */
     async getBranchManagerDashboard(branchId?: string): Promise<BranchManagerDashboard> {
-        // Build where clause for branch filtering
         const branchWhere = branchId ? { branchId } : {};
 
-        // Get total loans (including NPL for accurate ratio calculation)
-        const totalLoans = await prisma.loan.count({
-            where: {
+        const [totalLoans, outstandingResult, nplLoans, pendingApprovals] = await Promise.all([
+            this.dashboardRepository.countLoans({
                 ...branchWhere,
-                status: {
-                    in: ['APPROVED', 'DISBURSED', 'ACTIVE', 'NPL'],
-                },
-            },
-        });
-
-        // Get outstanding balance (excluding fully paid loans)
-        const outstandingResult = await prisma.loan.aggregate({
-            where: {
+                status: { in: ['APPROVED', 'DISBURSED', 'ACTIVE', 'NPL'] },
+            }),
+            this.dashboardRepository.aggregateLoanBalance({
                 ...branchWhere,
-                status: {
-                    in: ['APPROVED', 'DISBURSED', 'ACTIVE', 'NPL'],
-                },
-            },
-            _sum: {
-                outstandingBalance: true,
-            },
-        });
+                status: { in: ['APPROVED', 'DISBURSED', 'ACTIVE', 'NPL'] },
+            }),
+            this.dashboardRepository.countLoans({
+                ...branchWhere,
+                OR: [{ status: 'NPL' }, { status: 'ACTIVE', overdueDays: { gte: 90 } }],
+            }),
+            this.dashboardRepository.countLoans({ ...branchWhere, status: 'PENDING_APPROVAL' }),
+        ]);
 
         const outstandingBalance = outstandingResult._sum.outstandingBalance || 0;
-
-        // Get NPL loans (status NPL or overdue >= 90 days)
-        const nplLoans = await prisma.loan.count({
-            where: {
-                ...branchWhere,
-                OR: [
-                    { status: 'NPL' },
-                    {
-                        status: 'ACTIVE',
-                        overdueDays: {
-                            gte: 90,
-                        },
-                    },
-                ],
-            },
-        });
-
-        // Calculate NPL ratio (percentage of NPL loans vs total active loans)
         const nplRatio = totalLoans > 0 ? (nplLoans / totalLoans) * 100 : 0;
 
-        logger.info({
-            branchId,
-            totalLoans,
-            nplLoans,
-            nplRatio,
-        }, 'NPL Calculation');
+        logger.info({ branchId, totalLoans, nplLoans, nplRatio }, 'NPL Calculation');
 
-        // Get pending approvals
-        const pendingApprovals = await prisma.loan.count({
-            where: {
-                ...branchWhere,
-                status: 'PENDING_APPROVAL',
-            },
-        });
-
-        // Get disbursement rate for current month (อัตราการปล่อยสินเชื่อ)
         const now = new Date();
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
-        // Get approved loans this month
-        const approvedLoans = await prisma.loan.findMany({
-            where: {
-                ...branchWhere,
-                status: {
-                    in: ['APPROVED', 'DISBURSED', 'ACTIVE'],
+        const [approvedLoans, targetConfig, highRiskLoans] = await Promise.all([
+            this.dashboardRepository.findLoans({
+                where: {
+                    ...branchWhere,
+                    status: { in: ['APPROVED', 'DISBURSED', 'ACTIVE'] },
+                    approvedAt: { gte: monthStart, lte: monthEnd },
                 },
-                approvedAt: {
-                    gte: monthStart,
-                    lte: monthEnd,
-                },
-            },
-        });
-
-        const disbursedAmount = approvedLoans.reduce((sum, loan) => sum + Number(loan.principal || 0), 0);
-
-        // Get disbursement target from system config or use default
-        const targetConfig = await prisma.systemConfig.findUnique({
-            where: { key: 'monthly_disbursement_target' },
-        });
-        const monthlyTarget = targetConfig ? parseFloat(targetConfig.value) : 5000000; // Default 5M per month for branch
-
-        // Calculate disbursement rate based on monthly target
-        const disbursementRate = monthlyTarget > 0 ? (disbursedAmount / monthlyTarget) * 100 : 0;
-
-        // Get high risk loans (overdue > 30 days or DSCR < 1.0)
-        const highRiskLoans = await prisma.loan.count({
-            where: {
+            }),
+            this.dashboardRepository.findSystemConfig('monthly_disbursement_target'),
+            this.dashboardRepository.countLoans({
                 ...branchWhere,
                 status: 'ACTIVE',
-                OR: [
-                    { overdueDays: { gte: 30 } },
-                    { dscr: { lt: 1.0 } },
-                ],
-            },
-        });
+                OR: [{ overdueDays: { gte: 30 } }, { dscr: { lt: 1.0 } }],
+            }),
+        ]);
 
-        // Get officer performance data
+        const disbursedAmount = approvedLoans.reduce((sum: number, loan: any) => sum + Number(loan.principal || 0), 0);
+        const monthlyTarget = targetConfig ? parseFloat(targetConfig.value) : 5000000;
+        const disbursementRate = monthlyTarget > 0 ? (disbursedAmount / monthlyTarget) * 100 : 0;
+
         const officerPerformance = await this.getOfficerPerformance(branchId, monthStart, monthEnd);
 
         const dashboardResult = {
@@ -700,7 +507,7 @@ export class DashboardService {
             outstandingBalance: Number(outstandingBalance),
             nplRatio: Number(nplRatio.toFixed(2)),
             pendingApprovals,
-            collectionRate: Number(disbursementRate.toFixed(2)), // อัตราการปล่อยสินเชื่อ
+            collectionRate: Number(disbursementRate.toFixed(2)),
             highRiskLoans,
             officerPerformance,
         };
@@ -714,59 +521,38 @@ export class DashboardService {
      * Get Officer Performance data for Branch Manager Dashboard
      */
     private async getOfficerPerformance(branchId: string | undefined, monthStart: Date, monthEnd: Date): Promise<OfficerPerformance[]> {
-        // Build where clause for branch filtering
         const branchWhere = branchId ? { branchId } : {};
 
-        // Get all officers in the branch with their monthly targets
-        const officers = await prisma.user.findMany({
-            where: {
-                ...branchWhere,
-                role: 'OFFICER',
-                status: 'ACTIVE',
-            },
-            select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                monthlyTarget: true,
-            },
+        const officers = await this.dashboardRepository.findOfficers({
+            where: { ...branchWhere, role: 'OFFICER', status: 'ACTIVE' },
+            select: { id: true, firstName: true, lastName: true, monthlyTarget: true },
         });
 
-        // Calculate performance for each officer based on approved loans
         const performance = await Promise.all(
-            officers.map(async (officer): Promise<OfficerPerformance> => {
-                // Get approved loans by this officer for current month
-                const approvedLoans = await prisma.loan.findMany({
+            officers.map(async (officer: any): Promise<OfficerPerformance> => {
+                const approvedLoans = await this.dashboardRepository.findLoans({
                     where: {
                         officerId: officer.id,
-                        status: {
-                            in: ['APPROVED', 'DISBURSED', 'ACTIVE'], // นับสินเชื่อที่อนุมัติแล้ว
-                        },
-                        approvedAt: {
-                            gte: monthStart,
-                            lte: monthEnd,
-                        },
+                        status: { in: ['APPROVED', 'DISBURSED', 'ACTIVE'] },
+                        approvedAt: { gte: monthStart, lte: monthEnd },
                     },
                 });
 
-                const totalAmount = approvedLoans.reduce((sum, loan) => sum + Number(loan.principal || 0), 0);
+                const totalAmount = approvedLoans.reduce((sum: number, loan: any) => sum + Number(loan.principal || 0), 0);
                 const loanCount = approvedLoans.length;
-
-                // Use officer's personal target or default to 500,000 (for loan disbursement)
                 const target = officer.monthlyTarget ? Number(officer.monthlyTarget) : 500000;
 
                 return {
                     id: officer.id,
                     name: `${officer.firstName} ${officer.lastName}`,
                     current: totalAmount,
-                    target: target,
-                    loanCount: loanCount, // จำนวนสัญญาที่อนุมัติ
+                    target,
+                    loanCount,
                     percentage: target > 0 ? Math.round((totalAmount / target) * 100) : 0,
                 };
             })
         );
 
-        // Sort by performance percentage (highest first)
         return performance.sort((a, b) => b.percentage - a.percentage);
     }
 
@@ -775,26 +561,20 @@ export class DashboardService {
      */
     async getBranchKPIs(branchId?: string): Promise<BranchManagerDashboard & { alerts: Array<{ message: string; severity: 'low' | 'medium' | 'high' }> }> {
         const stats = await this.getBranchManagerDashboard(branchId);
-        
-        // Add alerts based on stats
+
         const alerts: Array<{ message: string; severity: 'low' | 'medium' | 'high' }> = [];
-        
+
         if (stats.nplRatio > 5) {
             alerts.push({ message: `อัตรา NPL สูงเกินกำหนด (${stats.nplRatio}%)`, severity: 'high' });
         }
-        
         if (stats.highRiskLoans > 0) {
             alerts.push({ message: `พบลูกหนี้ที่มีความเสี่ยงสูง ${stats.highRiskLoans} ราย`, severity: 'medium' });
         }
-        
         if (stats.pendingApprovals > 0) {
             alerts.push({ message: `มีคำขอสินเชื่อรอการอนุมัติ ${stats.pendingApprovals} รายการ`, severity: 'low' });
         }
 
-        return {
-            ...stats,
-            alerts,
-        };
+        return { ...stats, alerts };
     }
 
     /**
@@ -804,67 +584,26 @@ export class DashboardService {
         const now = new Date();
         const todayStart = new Date(now.setHours(0, 0, 0, 0));
 
-        // Get active users (unique users with valid, non-expired sessions)
-        const activeSessions = await prisma.session.findMany({
-            where: {
-                isValid: true,
-                expiresAt: {
-                    gt: new Date(), // Session not expired
-                },
-            },
-            select: {
-                userId: true,
-            },
-            distinct: ['userId'], // Get unique users only
-        });
+        const [activeUsers, securityAlerts, totalLoans, totalPayments, totalCustomers, totalDocuments, totalUsers, loansToday, paymentsToday] = await Promise.all([
+            this.dashboardRepository.countActiveSessions(),
+            this.dashboardRepository.countSecurityEvents({ createdAt: { gte: todayStart } }),
+            this.dashboardRepository.countAllLoans(),
+            this.dashboardRepository.countAllPayments(),
+            this.dashboardRepository.countAllCustomers(),
+            this.dashboardRepository.countAllDocuments(),
+            this.dashboardRepository.countAllUsers(),
+            this.dashboardRepository.countLoansCreatedAfter(todayStart),
+            this.dashboardRepository.countPaymentsCreatedAfter(todayStart),
+        ]);
 
-        const activeUsers = activeSessions.length;
-
-        // Get failed jobs from queue (would need to check Redis/BullMQ)
-        // For now, return 0 as placeholder
         const failedJobs = 0;
 
-        // Get security alerts from security_events table (new security system)
-        // Count all security events created today
-        const securityAlerts = await prisma.securityEvent.count({
-            where: {
-                createdAt: {
-                    gte: todayStart,
-                },
-            },
-        });
-
-        // Determine system health
         let systemHealth: 'healthy' | 'warning' | 'critical' = 'healthy';
         if (failedJobs > 10 || securityAlerts > 5) {
             systemHealth = 'critical';
         } else if (failedJobs > 5 || securityAlerts > 2) {
             systemHealth = 'warning';
         }
-
-        // Get total data volume in system (all time)
-        const totalLoans = await prisma.loan.count();
-        const totalPayments = await prisma.payment.count();
-        const totalCustomers = await prisma.customer.count();
-        const totalDocuments = await prisma.document.count();
-        const totalUsers = await prisma.user.count();
-
-        // Get data created today
-        const loansToday = await prisma.loan.count({
-            where: {
-                createdAt: {
-                    gte: todayStart,
-                },
-            },
-        });
-
-        const paymentsToday = await prisma.payment.count({
-            where: {
-                createdAt: {
-                    gte: todayStart,
-                },
-            },
-        });
 
         return {
             systemHealth,

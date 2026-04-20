@@ -85,4 +85,38 @@ export class SystemConfigRepository {
     async delete(key: string): Promise<void> {
         await this.db.systemConfig.delete({ where: { key } });
     }
+
+    /**
+     * Get next sequence number atomically (thread-safe via transaction)
+     */
+    async getNextSequence(sequenceKey: string): Promise<number> {
+        const configKey = `SEQ:${sequenceKey}`;
+
+        return this.db.$transaction(async (tx) => {
+            const config = await tx.systemConfig.findUnique({ where: { key: configKey } });
+
+            let current = 0;
+            if (config) {
+                current = parseInt(config.value, 10);
+                if (isNaN(current)) current = 0;
+            }
+
+            const next = current + 1;
+
+            await tx.systemConfig.upsert({
+                where: { key: configKey },
+                create: {
+                    key: configKey,
+                    value: next.toString(),
+                    category: 'SEQUENCE',
+                    description: `Auto-generated sequence number for ${sequenceKey}`,
+                    dataType: 'INTEGER',
+                    createdBy: 'SYSTEM',
+                },
+                update: { value: next.toString() },
+            });
+
+            return next;
+        });
+    }
 }

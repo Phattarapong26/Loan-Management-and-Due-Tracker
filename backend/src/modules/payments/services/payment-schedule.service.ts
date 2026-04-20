@@ -1,5 +1,4 @@
 import { PaymentScheduleRepository } from '../repositories/payment-schedule.repository';
-import { prisma } from '@config/database.config';
 
 export interface PaymentScheduleWithCalculation {
     id: string;
@@ -46,18 +45,7 @@ export class PaymentScheduleService {
         };
 
         // 1. Get loan data
-        const loan = await prisma.loan.findUnique({
-            where: { id: loanId },
-            select: {
-                principal: true,
-                outstandingBalance: true,
-                interestRate: true,
-                termMonths: true,
-                firstPaymentDate: true,
-                paymentDay: true,
-                monthlyPayment: true
-            }
-        });
+        const loan = await this.paymentScheduleRepo.findLoanForSchedule(loanId);
 
         if (!loan) {
             throw new Error('Loan not found');
@@ -67,10 +55,7 @@ export class PaymentScheduleService {
         const existingSchedules = await this.paymentScheduleRepo.findByLoanId(loanId);
 
         // 3. Get all payments
-        const allPayments = await prisma.payment.findMany({
-            where: { loanId },
-            orderBy: { paymentDate: 'asc' }
-        });
+        const allPayments = await this.paymentScheduleRepo.findPaymentsByLoanId(loanId);
 
         const totalPrincipal = Number(loan.principal);
         const currentOutstanding = Number(loan.outstandingBalance);

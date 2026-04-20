@@ -14,7 +14,6 @@ import { dynamicInterestCalculator } from '@loans/calculators/dynamic-interest-c
 import { loanStatusNotification } from '@notifications/services/loan-status-notification.service';
 import { NotificationService } from '@notifications/services/notification.service';
 import { FastifyRequest } from 'fastify';
-import { prisma } from '@config/database.config';
 import { DisbursementPDFService } from './disbursement-pdf.service';
 import { EncryptionUtil } from '@utils/security/encryption.util';
 import { logger } from '@utils/common/logger.util';
@@ -717,15 +716,10 @@ export class DisbursementService {
 
             // Update status to 'generating'
             const currentConfig = loan.productConfig as any || {};
-            await prisma.loan.update({
-                where: { id: disbursement.loanId },
-                data: {
-                    productConfig: {
-                        ...currentConfig,
-                        disbursementPdfStatus: 'generating',
-                        disbursementPdfError: null,
-                    },
-                },
+            await this.disbursementRepository.updateLoanProductConfig(disbursement.loanId, {
+                ...currentConfig,
+                disbursementPdfStatus: 'generating',
+                disbursementPdfError: null,
             });
 
             const pdfService = new DisbursementPDFService();
@@ -782,18 +776,13 @@ export class DisbursementService {
 
             // Store PDF URL in loan's productConfig with success status
             if (pdfUrl) {
-                await prisma.loan.update({
-                    where: { id: disbursement.loanId },
-                    data: {
-                        productConfig: {
-                            ...currentConfig,
-                            disbursementPdfUrl: pdfUrl,
-                            disbursementPdfGeneratedAt: new Date().toISOString(),
-                            disbursementPdfStatus: 'success',
-                            disbursementPdfError: null,
-                            disbursementPdfRetryCount: 0,
-                        },
-                    },
+                await this.disbursementRepository.updateLoanProductConfig(disbursement.loanId, {
+                    ...currentConfig,
+                    disbursementPdfUrl: pdfUrl,
+                    disbursementPdfGeneratedAt: new Date().toISOString(),
+                    disbursementPdfStatus: 'success',
+                    disbursementPdfError: null,
+                    disbursementPdfRetryCount: 0,
                 });
                 console.log('✅ Disbursement PDF URL stored in loan config with success status');
             }
@@ -808,16 +797,11 @@ export class DisbursementService {
             const currentConfig = loan.productConfig as any || {};
             const retryCount = (currentConfig.disbursementPdfRetryCount || 0) + 1;
             
-            await prisma.loan.update({
-                where: { id: disbursement.loanId },
-                data: {
-                    productConfig: {
-                        ...currentConfig,
-                        disbursementPdfStatus: 'failed',
-                        disbursementPdfError: pdfError.message,
-                        disbursementPdfRetryCount: retryCount,
-                    },
-                },
+            await this.disbursementRepository.updateLoanProductConfig(disbursement.loanId, {
+                ...currentConfig,
+                disbursementPdfStatus: 'failed',
+                disbursementPdfError: pdfError.message,
+                disbursementPdfRetryCount: retryCount,
             });
             
             console.log('⚠️ PDF status updated to failed, retry count:', retryCount);
@@ -985,13 +969,7 @@ export class DisbursementService {
             branchId
         });
 
-        const loan = await prisma.loan.findUnique({
-            where: { id: loanId },
-            include: {
-                customer: true,
-                branch: true,
-            },
-        });
+        const loan = await this.disbursementRepository.findLoanWithRelations(loanId);
 
         if (!loan) {
             console.log('[Disbursement Service] Loan not found:', loanId);
@@ -1013,15 +991,7 @@ export class DisbursementService {
             throw new Error('Loan not found');
         }
 
-        const latestDisbursement = await prisma.loanDisbursement.findFirst({
-            where: {
-                loanId,
-                status: DisbursementStatus.DISBURSED,
-            },
-            orderBy: {
-                disbursedAt: 'desc',
-            },
-        });
+        const latestDisbursement = await this.disbursementRepository.findLatestDisbursedByLoanId(loanId);
 
         console.log('[Disbursement Service] Disbursement search result:', {
             found: !!latestDisbursement,
@@ -1037,15 +1007,10 @@ export class DisbursementService {
 
         // Update status to 'generating'
         const currentConfig = (loan.productConfig as any) || {};
-        await prisma.loan.update({
-            where: { id: loanId },
-            data: {
-                productConfig: {
-                    ...currentConfig,
-                    disbursementPdfStatus: 'generating',
-                    disbursementPdfError: null,
-                },
-            },
+        await this.disbursementRepository.updateLoanProductConfig(loanId, {
+            ...currentConfig,
+            disbursementPdfStatus: 'generating',
+            disbursementPdfError: null,
         });
 
         try {
@@ -1081,19 +1046,14 @@ export class DisbursementService {
             const pdfUrl = await pdfService.savePDF(encryptedPDF, filename);
 
             // Update with success status
-            await prisma.loan.update({
-                where: { id: loanId },
-                data: {
-                    productConfig: {
-                        ...currentConfig,
-                        disbursementPdfUrl: pdfUrl,
-                        disbursementPdfGeneratedAt: new Date().toISOString(),
-                        disbursementPdfStatus: 'success',
-                        disbursementPdfError: null,
-                        disbursementPdfRetryCount: 0,
-                        contractPdfRegeneratedBy: userId,
-                    },
-                },
+            await this.disbursementRepository.updateLoanProductConfig(loanId, {
+                ...currentConfig,
+                disbursementPdfUrl: pdfUrl,
+                disbursementPdfGeneratedAt: new Date().toISOString(),
+                disbursementPdfStatus: 'success',
+                disbursementPdfError: null,
+                disbursementPdfRetryCount: 0,
+                contractPdfRegeneratedBy: userId,
             });
 
             // Send LINE notification with PDF
@@ -1103,16 +1063,7 @@ export class DisbursementService {
                 
                 if (isLineTriggered) {
                     // Send custom message for LINE-triggered generation
-                    const loan = await prisma.loan.findUnique({
-                        where: { id: loanId },
-                        include: {
-                            customer: {
-                                include: {
-                                    user: true,
-                                },
-                            },
-                        },
-                    });
+                    const loan = await this.disbursementRepository.findLoanWithCustomerLine(loanId);
 
                     if (loan) {
                         const lineUserId = loan.customer.lineUserId || loan.customer.user?.lineUserId;
@@ -1159,16 +1110,11 @@ export class DisbursementService {
         } catch (error: any) {
             // Update status to 'failed'
             const retryCount = (currentConfig.disbursementPdfRetryCount || 0) + 1;
-            await prisma.loan.update({
-                where: { id: loanId },
-                data: {
-                    productConfig: {
-                        ...currentConfig,
-                        disbursementPdfStatus: 'failed',
-                        disbursementPdfError: error.message,
-                        disbursementPdfRetryCount: retryCount,
-                    },
-                },
+            await this.disbursementRepository.updateLoanProductConfig(loanId, {
+                ...currentConfig,
+                disbursementPdfStatus: 'failed',
+                disbursementPdfError: error.message,
+                disbursementPdfRetryCount: retryCount,
             });
 
             throw error;

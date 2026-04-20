@@ -351,4 +351,31 @@ export class ContactLogRepository {
             take,
         });
     }
+
+    /**
+     * Create a payment intention contact log
+     */
+    async createPaymentIntention(data: {
+        customerId: string;
+        loanId: string;
+        officerId: string;
+        promisedDate: Date;
+        notes: string;
+        nextFollowUpDate: Date;
+    }): Promise<ContactLog> {
+        return this.db.contactLog.create({
+            data: {
+                customerId: data.customerId,
+                loanId: data.loanId,
+                officerId: data.officerId,
+                contactMethod: 'LINE',
+                contactStatus: 'PROMISED_TO_PAY',
+                outcome: 'PROMISED_TO_PAY',
+                notes: data.notes,
+                nextFollowUpDate: data.nextFollowUpDate,
+                promisedDate: data.promisedDate,
+                contactDate: new Date(),
+            },
+        });
+    }
 }

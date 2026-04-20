@@ -1,5 +1,5 @@
 import { logger } from '@utils/common/logger.util';
-import { prisma } from '@config/database.config';
+import { InvoiceRepository } from '../repositories/invoice.repository';
 import { ReferenceNumberService } from './reference-number.service';
 import { formatThaiDate } from '@utils/common/thai-language.util';
 
@@ -43,6 +43,12 @@ export interface InvoiceData {
 }
 
 export class InvoiceService {
+    private invoiceRepo: InvoiceRepository;
+
+    constructor() {
+        this.invoiceRepo = new InvoiceRepository();
+    }
+
     /**
      * Get or generate invoice data for a specific payment schedule
      * Uses hybrid approach: check for pre-generated invoice first, then generate on-demand
@@ -51,10 +57,7 @@ export class InvoiceService {
         try {
             // Check for pre-generated invoice first (unless force regenerate)
             if (!forceRegenerate) {
-                const existingInvoice = await (prisma as any).invoice.findFirst({
-                    where: { paymentScheduleId },
-                    orderBy: { createdAt: 'desc' },
-                });
+                const existingInvoice = await this.invoiceRepo.findLatestByScheduleId(paymentScheduleId);
 
                 if (existingInvoice) {
                     logger.info({ paymentScheduleId }, 'Using pre-generated invoice');
@@ -79,21 +82,7 @@ export class InvoiceService {
         try {
             console.log('🔍 Starting generateInvoiceData for paymentScheduleId:', paymentScheduleId);
             
-            const schedule = await prisma.paymentSchedule.findUnique({
-                where: { id: paymentScheduleId },
-                include: {
-                    loan: {
-                        include: {
-                            customer: {
-                                include: {
-                                    branch: true,
-                                },
-                            },
-                            loanProduct: true,
-                        },
-                    },
-                },
-            });
+            const schedule = await this.invoiceRepo.findScheduleWithDetails(paymentScheduleId);
 
             if (!schedule) {
                 throw new Error('Payment schedule not found');
@@ -109,44 +98,30 @@ export class InvoiceService {
             });
 
             // Fetch payments separately
-            const payments = await prisma.payment.findMany({
-                where: { paymentScheduleId } as any,
-                orderBy: { paymentDate: 'desc' },
-                take: 1,
-            });
+            const payments = await this.invoiceRepo.findPaymentsByScheduleId(paymentScheduleId, 1);
 
-            const loan = (schedule as any).loan;
+            const loan = schedule.loan;
             const customer = loan.customer;
 
             // Count paid installments
-            const paidCount = await prisma.paymentSchedule.count({
-                where: {
-                    loanId: loan.id,
-                    status: 'PAID',
-                },
-            });
+            const paidCount = await this.invoiceRepo.countPaidSchedules(loan.id);
 
             // Calculate overdue amount
-            const overdueSchedules = await prisma.paymentSchedule.findMany({
-                where: {
-                    loanId: loan.id,
-                    status: 'OVERDUE',
-                },
-            });
+            const overdueSchedules = await this.invoiceRepo.findOverdueSchedules(loan.id);
 
             const overdueAmount = overdueSchedules.reduce(
-                (sum, s) => sum + Number(s.totalPayment),
+                (sum: number, s: any) => sum + Number(s.totalPayment),
                 0
             );
 
             // Format dates - ป้องกัน undefined/null
             const billingDate = schedule.createdAt 
                 ? formatThaiDate(schedule.createdAt, 'd MMM yyyy')
-                : formatThaiDate(new Date(), 'd MMM yyyy'); // ใช้วันที่ปัจจุบันถ้าไม่มีข้อมูล
+                : formatThaiDate(new Date(), 'd MMM yyyy');
             
             const dueDate = schedule.paymentDate 
                 ? formatThaiDate(schedule.paymentDate, 'd MMM yyyy')
-                : formatThaiDate(new Date(), 'd MMM yyyy'); // ใช้วันที่ปัจจุบันถ้าไม่มีข้อมูล
+                : formatThaiDate(new Date(), 'd MMM yyyy');
 
             // Get payment info if exists
             const payment = payments[0];
@@ -154,8 +129,8 @@ export class InvoiceService {
             const invoiceData: InvoiceData = {
                 accountNo: this.formatAccountNumber(loan.id),
                 loanType: loan.loanProduct?.productName || 'สินเชื่อ SME',
-                installmentNo: schedule.paymentNumber || 1, // ป้องกัน undefined
-                totalInstallments: loan.termMonths || 12, // ป้องกัน undefined
+                installmentNo: schedule.paymentNumber || 1,
+                totalInstallments: loan.termMonths || 12,
                 billingDate,
                 dueDate,
                 customer: {
@@ -168,7 +143,7 @@ export class InvoiceService {
                 breakdown: {
                     principal: Number(schedule.principalAmount),
                     interest: Number(schedule.interestAmount),
-                    fees: 0, // Add fees logic if needed
+                    fees: 0,
                     total: Number(schedule.totalPayment),
                 },
                 summary: {
@@ -192,7 +167,6 @@ export class InvoiceService {
                     : undefined,
             };
 
-            // เพิ่ม logging เพื่อ debug
             console.log('📋 Generated invoice data:', {
                 accountNo: invoiceData.accountNo,
                 billingDate: invoiceData.billingDate,
@@ -227,17 +201,14 @@ export class InvoiceService {
             const invoiceData = await this.generateInvoiceData(paymentScheduleId);
 
             // Get payment schedule for metadata
-            const schedule = await prisma.paymentSchedule.findUnique({
-                where: { id: paymentScheduleId },
-                include: { loan: true },
-            });
+            const schedule = await this.invoiceRepo.findScheduleWithLoan(paymentScheduleId);
 
             if (!schedule) {
                 throw new Error('Payment schedule not found');
             }
 
             // Generate invoice number using branch ID from loan
-            const invoiceNumber = await this.generateInvoiceNumber((schedule.loan as any).branchId);
+            const invoiceNumber = await this.generateInvoiceNumber(schedule.loan.branchId);
 
             // Determine status
             const now = new Date();
@@ -254,20 +225,18 @@ export class InvoiceService {
             }
 
             // Save invoice
-            const invoice = await (prisma as any).invoice.create({
-                data: {
-                    paymentScheduleId,
-                    loanId: schedule.loanId,
-                    customerId: (schedule.loan as any).customerId,
-                    invoiceNumber,
-                    invoiceDate: now,
-                    dueDate: schedule.paymentDate,
-                    invoiceData: invoiceData as any,
-                    status,
-                    sentAt: sendVia ? now : null,
-                    sentVia: sendVia || null,
-                    generatedBy,
-                },
+            const invoice = await this.invoiceRepo.create({
+                paymentScheduleId,
+                loanId: schedule.loanId,
+                customerId: schedule.loan.customerId,
+                invoiceNumber,
+                invoiceDate: now,
+                dueDate: schedule.paymentDate,
+                invoiceData: invoiceData as any,
+                status,
+                sentAt: sendVia ? now : null,
+                sentVia: sendVia || null,
+                generatedBy,
             });
 
             logger.info(
@@ -296,13 +265,8 @@ export class InvoiceService {
      * Format: INV-[สาขา(4ตัว)]-[ปีพ.ศ.(2ตัว)]-[เดือน(2ตัว)]-[ลำดับที่(5ตัว)]
      * Example: INV-BKK1-67-03-00123
      */
-
     private async generateInvoiceNumber(branchId: string): Promise<string> {
-        // Get branch code first
-        const branch = await prisma.branch.findUnique({
-            where: { id: branchId },
-            select: { code: true }
-        });
+        const branch = await this.invoiceRepo.findBranchById(branchId);
 
         if (!branch) {
             throw new Error(`Branch not found: ${branchId}`);
@@ -316,23 +280,14 @@ export class InvoiceService {
      * Mark invoice as viewed by customer
      */
     async markAsViewed(invoiceId: string): Promise<void> {
-        await (prisma as any).invoice.update({
-            where: { id: invoiceId },
-            data: {
-                status: 'VIEWED',
-                viewedAt: new Date(),
-            },
-        });
+        await this.invoiceRepo.updateStatus(invoiceId, 'VIEWED', { viewedAt: new Date() });
     }
 
     /**
      * Get all invoices for a payment schedule (audit trail)
      */
     async getInvoiceHistory(paymentScheduleId: string) {
-        return await (prisma as any).invoice.findMany({
-            where: { paymentScheduleId },
-            orderBy: { createdAt: 'desc' },
-        });
+        return this.invoiceRepo.findAllByScheduleId(paymentScheduleId);
     }
 
     /**
@@ -340,12 +295,7 @@ export class InvoiceService {
      */
     async getInvoiceByInstallment(loanId: string, installmentNo: number): Promise<InvoiceData> {
         try {
-            const schedule = await prisma.paymentSchedule.findFirst({
-                where: {
-                    loanId,
-                    paymentNumber: installmentNo,
-                },
-            });
+            const schedule = await this.invoiceRepo.findScheduleByLoanAndNumber(loanId, installmentNo);
 
             if (!schedule) {
                 throw new Error('Payment schedule not found');
@@ -363,13 +313,10 @@ export class InvoiceService {
      */
     async getLoanInvoices(loanId: string): Promise<InvoiceData[]> {
         try {
-            const schedules = await prisma.paymentSchedule.findMany({
-                where: { loanId },
-                orderBy: { paymentNumber: 'asc' },
-            });
+            const schedules = await this.invoiceRepo.findSchedulesByLoanId(loanId);
 
             const invoices = await Promise.all(
-                schedules.map((schedule) => this.getInvoiceData(schedule.id))
+                schedules.map((schedule: any) => this.getInvoiceData(schedule.id))
             );
 
             return invoices;

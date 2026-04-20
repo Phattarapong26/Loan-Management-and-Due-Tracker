@@ -1,12 +1,10 @@
-import { prisma } from '@config/database.config';
 import { logger } from '@utils/common/logger.util';
+import { NextPaymentInvoiceRepository } from '../repositories/next-payment-invoice.repository';
 import { PrincipalCalculatorService } from '@loans/calculators/principal-calculator.service';
 import { ReferenceNumberService } from './reference-number.service';
 
 // Force TypeScript reload after Prisma schema changes - updated
 // Use type assertion to work around TypeScript language server issues
-const db = prisma as any;
-
 export interface NextPaymentInvoiceData {
     invoiceId: string;
     invoiceNumber: string;
@@ -68,10 +66,12 @@ export interface NextPaymentInvoiceData {
 export class NextPaymentInvoiceService {
     private principalCalculator: PrincipalCalculatorService;
     private referenceService: ReferenceNumberService;
+    private invoiceRepo: NextPaymentInvoiceRepository;
 
     constructor() {
         this.principalCalculator = new PrincipalCalculatorService();
         this.referenceService = new ReferenceNumberService();
+        this.invoiceRepo = new NextPaymentInvoiceRepository();
     }
 
     /**
@@ -91,16 +91,7 @@ export class NextPaymentInvoiceService {
             logger.info({ loanId, generatedBy }, 'Generating next payment invoice');
 
             // ดึงข้อมูลสินเชื่อและลูกค้า
-            const loan = await prisma.loan.findUnique({
-                where: { id: loanId },
-                include: {
-                    customer: {
-                        include: {
-                            branch: true,
-                        },
-                    },
-                },
-            });
+            const loan = await this.invoiceRepo.findLoanWithCustomerAndBranch(loanId);
 
             if (!loan) {
                 throw new Error('Loan not found');
@@ -117,7 +108,6 @@ export class NextPaymentInvoiceService {
 
             // ตรวจสอบว่ามี Invoice สำหรับงวดนี้แล้วหรือไม่
             const existingInvoice = await this.findExistingInvoice(nextSchedule.id);
-            
             if (existingInvoice && !this.shouldRegenerateInvoice(existingInvoice)) {
                 logger.info({ invoiceId: existingInvoice.id }, 'Using existing invoice');
                 return this.formatInvoiceData(existingInvoice, principalCalc);
@@ -139,7 +129,6 @@ export class NextPaymentInvoiceService {
 
             // ตรวจสอบการชำระเงิน (ถ้ามี)
             const paymentInfo = await this.getPaymentInfo(nextSchedule.id);
-
             // สร้างข้อมูล Banking (ถ้าต้องการ)
             let bankingInfo;
             if (options.includeBankingInfo) {
@@ -263,10 +252,7 @@ export class NextPaymentInvoiceService {
     ): Promise<void> {
         try {
             // หา Invoice ที่เกี่ยวข้อง
-            const invoice = await db.nextPaymentInvoice.findFirst({
-                where: { paymentScheduleId },
-                orderBy: { createdAt: 'desc' },
-            });
+            const invoice = await this.invoiceRepo.findLatestByScheduleId(paymentScheduleId);
 
             if (!invoice) {
                 logger.warn({ paymentScheduleId }, 'No invoice found to update after payment');
@@ -274,15 +260,12 @@ export class NextPaymentInvoiceService {
             }
 
             // อัพเดทสถานะ Invoice
-            await db.nextPaymentInvoice.update({
-                where: { id: invoice.id },
-                data: {
-                    status: 'PAID',
-                    paidAt: paymentData.paymentDate,
-                    paidAmount: paymentData.amount,
-                    paymentMethod: paymentData.paymentMethod,
-                    receiptNumber: paymentData.receiptNumber,
-                },
+            await this.invoiceRepo.updateAfterPayment(invoice.id, {
+                status: 'PAID',
+                paidAt: paymentData.paymentDate,
+                paidAmount: paymentData.amount,
+                paymentMethod: paymentData.paymentMethod,
+                receiptNumber: paymentData.receiptNumber,
             });
 
             logger.info(
@@ -312,16 +295,7 @@ export class NextPaymentInvoiceService {
             }
 
             // หา Invoice ล่าสุดสำหรับงวดนี้ (ไม่รวม SUPERSEDED)
-            const invoice = await db.nextPaymentInvoice.findFirst({
-                where: { 
-                    paymentScheduleId: principalCalc.nextPaymentSchedule.id,
-                    status: { 
-                        in: ['PENDING', 'SENT'],
-                        not: 'SUPERSEDED' as any // ไม่เอา invoice ที่ถูก supersede
-                    },
-                },
-                orderBy: { createdAt: 'desc' },
-            });
+            const invoice = await this.invoiceRepo.findPendingByScheduleId(principalCalc.nextPaymentSchedule.id);
 
             if (!invoice) {
                 // สร้าง Invoice ใหม่
@@ -344,30 +318,17 @@ export class NextPaymentInvoiceService {
         sentBy: string
     ): Promise<{ success: boolean; message: string }> {
         try {
-            const invoice = await db.nextPaymentInvoice.findUnique({
-                where: { id: invoiceId },
-                include: {
-                    loan: {
-                        include: {
-                            customer: true,
-                        },
-                    },
-                },
-            });
+            const invoice = await this.invoiceRepo.findByIdWithLoan(invoiceId);
 
             if (!invoice) {
                 throw new Error('Invoice not found');
             }
 
             // อัพเดทสถานะเป็น SENT
-            await db.nextPaymentInvoice.update({
-                where: { id: invoiceId },
-                data: {
-                    status: 'SENT',
-                    sentAt: new Date(),
-                    sentVia: method,
-                    sentBy,
-                },
+            await this.invoiceRepo.updateStatus(invoiceId, 'SENT', {
+                sentAt: new Date(),
+                sentVia: method,
+                sentBy,
             });
 
             // TODO: Implement actual sending logic
@@ -402,10 +363,7 @@ export class NextPaymentInvoiceService {
      */
     async getInvoiceHistory(loanId: string): Promise<NextPaymentInvoiceData[]> {
         try {
-            const invoices = await db.nextPaymentInvoice.findMany({
-                where: { loanId },
-                orderBy: { createdAt: 'desc' },
-            });
+            const invoices = await this.invoiceRepo.findAllByLoanId(loanId);
 
             const results = [];
             for (const invoice of invoices) {
@@ -425,13 +383,7 @@ export class NextPaymentInvoiceService {
      */
     async getCustomerInvoiceHistory(loanId: string): Promise<NextPaymentInvoiceData[]> {
         try {
-            const invoices = await db.nextPaymentInvoice.findMany({
-                where: { 
-                    loanId,
-                    status: { not: 'SUPERSEDED' as any } // ลูกค้าไม่เห็น invoice ที่ถูก supersede
-                },
-                orderBy: { createdAt: 'desc' },
-            });
+            const invoices = await this.invoiceRepo.findActiveByLoanId(loanId);
 
             const results = [];
             for (const invoice of invoices) {
@@ -449,13 +401,7 @@ export class NextPaymentInvoiceService {
     // Private methods
 
     private async findExistingInvoice(paymentScheduleId: string) {
-        return await db.nextPaymentInvoice.findFirst({
-            where: { 
-                paymentScheduleId,
-                status: { not: 'SUPERSEDED' as any } // ไม่เอา invoice ที่ถูก supersede แล้ว
-            },
-            orderBy: { createdAt: 'desc' },
-        });
+        return await this.invoiceRepo.findActiveByScheduleId(paymentScheduleId);
     }
 
     private shouldRegenerateInvoice(invoice: any): boolean {
@@ -492,14 +438,7 @@ export class NextPaymentInvoiceService {
      */
     private async markInvoiceAsSuperseded(invoiceId: string, supersededBy: string) {
         try {
-            await prisma.nextPaymentInvoice.update({
-                where: { id: invoiceId },
-                data: {
-                    status: 'SUPERSEDED' as any, // Use type assertion to handle enum
-                    updatedAt: new Date(),
-                    // Note: We don't have supersededBy field, so we'll use a comment in invoiceData
-                },
-            });
+            await this.invoiceRepo.markAsSuperseded(invoiceId);
             
             logger.info({ invoiceId, supersededBy, reason: 'data_correction' }, 'Invoice marked as superseded');
         } catch (error) {
@@ -509,11 +448,7 @@ export class NextPaymentInvoiceService {
     }
 
     private async getPaymentInfo(paymentScheduleId: string) {
-        const payments = await prisma.payment.findMany({
-            where: { paymentScheduleId } as any,
-            orderBy: { paymentDate: 'desc' },
-            take: 1,
-        });
+        const payments = await this.invoiceRepo.findPaymentsByScheduleId(paymentScheduleId, 1);
 
         if (payments.length === 0) {
             return undefined;
@@ -556,17 +491,15 @@ export class NextPaymentInvoiceService {
         invoiceData: NextPaymentInvoiceData,
         generatedBy: string
     ) {
-        return await db.nextPaymentInvoice.create({
-            data: {
-                invoiceNumber: invoiceData.invoiceNumber,
-                loanId: invoiceData.loanId,
-                customerId: invoiceData.customerId,
-                paymentScheduleId: invoiceData.paymentScheduleId,
-                invoiceData: invoiceData as any,
-                status: 'PENDING',
-                generatedBy,
-                validUntil: invoiceData.metadata.validUntil,
-            },
+        return await this.invoiceRepo.create({
+            invoiceNumber: invoiceData.invoiceNumber,
+            loanId: invoiceData.loanId,
+            customerId: invoiceData.customerId,
+            paymentScheduleId: invoiceData.paymentScheduleId,
+            invoiceData: invoiceData as any,
+            status: 'PENDING',
+            generatedBy,
+            validUntil: invoiceData.metadata.validUntil,
         });
     }
 

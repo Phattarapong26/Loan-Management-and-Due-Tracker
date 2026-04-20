@@ -1,11 +1,20 @@
-import { prisma } from '@config/database.config';
 import { Prisma } from '@prisma/client';
 import {
   commitBudgetWithRetry,
 } from './product-budget-safe.service';
 import { budgetCache } from '@/core/cache/cache.service';
+import { ProductBudgetRepository } from '../repositories/product-budget.repository';
+import { LoanProductRepository } from '@loans/repositories/loan-product.repository';
 
 export class ProductBudgetService {
+  private budgetRepo: ProductBudgetRepository;
+  private loanProductRepo: LoanProductRepository;
+
+  constructor() {
+    this.budgetRepo = new ProductBudgetRepository();
+    this.loanProductRepo = new LoanProductRepository();
+  }
+
   /**
    * Get budget for a specific product and fiscal year
    */
@@ -15,30 +24,7 @@ export class ProductBudgetService {
     quarter?: number,
     tx?: Prisma.TransactionClient
   ) {
-    const db = tx || prisma;
-    const where: any = {
-      product_id: productId,
-      fiscal_year: fiscalYear,
-    };
-
-    if (quarter) {
-      where.quarter = quarter;
-    }
-
-    return db.product_budgets.findFirst({
-      where,
-      include: {
-        loan_products: true,
-        users_product_budgets_budget_ownerTousers: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-      },
-    });
+    return this.budgetRepo.findByProduct(productId, fiscalYear, quarter, tx);
   }
 
   /**
@@ -56,38 +42,7 @@ export class ProductBudgetService {
     
     // Try to get from cache first
     return budgetCache.getOrSet(cacheKey, async () => {
-      const where: any = {
-        product_id: { in: productIds },
-        fiscal_year: fiscalYear,
-      };
-
-      if (quarter) {
-        where.quarter = quarter;
-      }
-
-      // PERFORMANCE: Select only required fields, no includes
-      const budgets = await prisma.product_budgets.findMany({
-        where,
-        select: {
-          id: true,
-          product_id: true,
-          product_code: true,
-          product_name: true,
-          fiscal_year: true,
-          quarter: true,
-          total_budget_amount: true,
-          available_amount: true,
-          committed_amount: true,
-          disbursed_amount: true,
-          pending_amount: true,
-          utilization_rate: true,
-          warning_threshold: true,
-          critical_threshold: true,
-          budget_status: true,
-          created_at: true,
-          updated_at: true,
-        },
-      });
+      const budgets = await this.budgetRepo.findManyByProducts(productIds, fiscalYear, quarter);
 
       // Convert array to object with productId as key for easy lookup
       const budgetMap: Record<string, any> = {};
@@ -110,26 +65,7 @@ export class ProductBudgetService {
    * Get all budgets for a product
    */
   async getAllBudgetsByProduct(productId: string) {
-    return prisma.product_budgets.findMany({
-      where: {
-        product_id: productId,
-      },
-      include: {
-        loan_products: true,
-        users_product_budgets_budget_ownerTousers: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-      },
-      orderBy: [
-        { fiscal_year: 'desc' },
-        { quarter: 'asc' },
-      ],
-    });
+    return this.budgetRepo.findAllByProduct(productId);
   }
 
   /**
@@ -148,50 +84,37 @@ export class ProductBudgetService {
     createdBy: string;
   }) {
     // Get product details
-    const product = await prisma.loanProduct.findUnique({
-      where: { id: data.productId },
-    });
+    const product = await this.loanProductRepo.findById(data.productId);
 
     if (!product) {
       throw new Error('Loan product not found');
     }
 
     // Check if budget already exists
-    const existing = await prisma.product_budgets.findFirst({
-      where: {
-        product_id: data.productId,
-        fiscal_year: data.fiscalYear,
-        quarter: data.quarter || null,
-      },
-    });
+    const existing = await this.budgetRepo.findExisting(data.productId, data.fiscalYear, data.quarter);
 
     if (existing) {
       throw new Error('Budget already exists for this period');
     }
 
-    const budget = await prisma.product_budgets.create({
-      data: {
-        product_id: data.productId,
-        product_code: product.productCode,
-        product_name: product.productName,
-        fiscal_year: data.fiscalYear,
-        quarter: data.quarter,
-        total_budget_amount: data.totalBudgetAmount,
-        available_amount: data.totalBudgetAmount,
-        committed_amount: 0,
-        disbursed_amount: 0,
-        pending_amount: 0,
-        utilization_rate: 0,
-        warning_threshold: data.warningThreshold || 80,
-        critical_threshold: data.criticalThreshold || 95,
-        budget_status: 'ACTIVE',
-        budget_owner: data.budgetOwner,
-        notes: data.notes,
-        created_by: data.createdBy,
-      },
-      include: {
-        loan_products: true,
-      },
+    const budget = await this.budgetRepo.create({
+      product_id: data.productId,
+      product_code: product.productCode,
+      product_name: product.productName,
+      fiscal_year: data.fiscalYear,
+      quarter: data.quarter,
+      total_budget_amount: data.totalBudgetAmount,
+      available_amount: data.totalBudgetAmount,
+      committed_amount: 0,
+      disbursed_amount: 0,
+      pending_amount: 0,
+      utilization_rate: 0,
+      warning_threshold: data.warningThreshold || 80,
+      critical_threshold: data.criticalThreshold || 95,
+      budget_status: 'ACTIVE',
+      budget_owner: data.budgetOwner,
+      notes: data.notes,
+      created_by: data.createdBy,
     });
 
     // Invalidate cache
@@ -208,9 +131,7 @@ export class ProductBudgetService {
     additionalAmount: number,
     _updatedBy: string
   ) {
-    const budget = await prisma.product_budgets.findUnique({
-      where: { id: budgetId },
-    });
+    const budget = await this.budgetRepo.findById(budgetId);
 
     if (!budget) {
       throw new Error('Budget not found');
@@ -220,16 +141,13 @@ export class ProductBudgetService {
     const newAvailableAmount = Number(budget.available_amount || 0) + additionalAmount;
     // Calculate utilization rate including both disbursed and committed amounts
     const totalUsed = Number(budget.disbursed_amount || 0) + Number(budget.committed_amount || 0);
-    const utilizationRate = ((totalUsed / newTotalBudget) * 100).toFixed(2);
+    const utilizationRate = parseFloat(((totalUsed / newTotalBudget) * 100).toFixed(2));
 
-    return prisma.product_budgets.update({
-      where: { id: budgetId },
-      data: {
-        total_budget_amount: newTotalBudget,
-        available_amount: newAvailableAmount,
-        utilization_rate: parseFloat(utilizationRate),
-        updated_at: new Date(),
-      },
+    return this.budgetRepo.update(budgetId, {
+      total_budget_amount: newTotalBudget,
+      available_amount: newAvailableAmount,
+      utilization_rate: utilizationRate,
+      updated_at: new Date(),
     });
   }
 
@@ -366,7 +284,7 @@ export class ProductBudgetService {
     productId: string,
     loanId: string,
     disbursedAmount: number,
-    _branchId?: string, // Although not strictly needed for update, interface might need it if we create new records later
+    _branchId?: string,
     fiscalYear?: number,
     quarter?: number
   ) {
@@ -388,33 +306,16 @@ export class ProductBudgetService {
     const newDisbursedAmount = Number(budget.disbursed_amount || 0) + disbursedAmount;
     // Calculate utilization rate including both disbursed and remaining committed amounts
     const totalUsed = newDisbursedAmount + Math.max(0, newCommittedAmount);
-    const utilizationRate = ((totalUsed / Number(budget.total_budget_amount)) * 100).toFixed(2);
+    const utilizationRate = parseFloat(((totalUsed / Number(budget.total_budget_amount)) * 100).toFixed(2));
 
-    await prisma.product_budgets.update({
-      where: { id: budget.id },
-      data: {
-        committed_amount: Math.max(0, newCommittedAmount),
-        disbursed_amount: newDisbursedAmount,
-        utilization_rate: parseFloat(utilizationRate),
-        updated_at: new Date(),
-      },
+    await this.budgetRepo.update(budget.id, {
+      committed_amount: Math.max(0, newCommittedAmount),
+      disbursed_amount: newDisbursedAmount,
+      utilization_rate: utilizationRate,
+      updated_at: new Date(),
     });
 
-    // Update budget consumption record
-    await prisma.budget_consumption.updateMany({
-      where: {
-        product_budget_id: budget.id, // Fixed field name
-        loan_id: loanId,
-        consumption_type: 'COMMITMENT',
-        status: 'COMMITTED',
-      },
-      data: {
-        consumption_type: 'DISBURSEMENT',
-        status: 'DISBURSED',
-        updated_at: new Date(), // Fixed field name and type
-        disbursed_amount: disbursedAmount, // Also record the disbursed amount
-      },
-    });
+    await this.budgetRepo.updateConsumptionToDisbursed(budget.id, loanId, disbursedAmount);
 
     return budget;
   }
@@ -448,32 +349,16 @@ export class ProductBudgetService {
     const newAvailableAmount = Number(budget.available_amount || 0) + amount;
     // Calculate utilization rate including both disbursed and remaining committed amounts
     const totalUsed = Number(budget.disbursed_amount || 0) + Math.max(0, newCommittedAmount);
-    const utilizationRate = ((totalUsed / Number(budget.total_budget_amount)) * 100).toFixed(2);
+    const utilizationRate = parseFloat(((totalUsed / Number(budget.total_budget_amount)) * 100).toFixed(2));
 
-    await prisma.product_budgets.update({
-      where: { id: budget.id },
-      data: {
-        committed_amount: Math.max(0, newCommittedAmount),
-        available_amount: newAvailableAmount,
-        utilization_rate: parseFloat(utilizationRate),
-        updated_at: new Date(),
-      },
+    await this.budgetRepo.update(budget.id, {
+      committed_amount: Math.max(0, newCommittedAmount),
+      available_amount: newAvailableAmount,
+      utilization_rate: utilizationRate,
+      updated_at: new Date(),
     });
 
-    // Update budget consumption record
-    await prisma.budget_consumption.updateMany({
-      where: {
-        product_budget_id: budget.id, // Fixed field name
-        loan_id: loanId,
-        status: 'COMMITTED',
-      },
-      data: {
-        status: 'RELEASED',
-        released_at: new Date(),
-        updated_at: new Date(), // Added updated_at
-        released_amount: amount, // Record released amount
-      },
-    });
+    await this.budgetRepo.updateConsumptionToReleased(budget.id, loanId, amount);
 
     return budget;
   }
@@ -482,17 +367,7 @@ export class ProductBudgetService {
    * Get budget statistics
    */
   async getBudgetStats(productId?: string) {
-    const where: any = {};
-    if (productId) {
-      where.product_id = productId;
-    }
-
-    const budgets = await prisma.product_budgets.findMany({
-      where,
-      include: {
-        loan_products: true,
-      },
-    });
+    const budgets = await this.budgetRepo.findAll(productId);
 
     const stats = {
       totalBudgets: budgets.length,
@@ -520,31 +395,6 @@ export class ProductBudgetService {
    * Get budget consumption history
    */
   async getBudgetConsumptionHistory(budgetId: string) {
-    return prisma.budget_consumption.findMany({
-      where: {
-        product_budget_id: budgetId, // Fixed field name
-      },
-      include: {
-        loans: {
-          include: {
-            customer: {
-              select: {
-                customerCode: true,
-                businessName: true,
-              },
-            },
-          },
-        },
-        branches: {
-          select: {
-            code: true,
-            name: true,
-          },
-        },
-      },
-      orderBy: {
-        consumption_date: 'desc',
-      },
-    });
+    return this.budgetRepo.findConsumptionHistory(budgetId);
   }
 }

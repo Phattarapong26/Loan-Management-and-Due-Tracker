@@ -157,6 +157,47 @@ export class PaymentRepository {
     }
 
     /**
+     * Find first payment for a loan on a specific date (for payment confirmation)
+     */
+    async findFirstByLoanAndDate(loanId: string, dateStart: Date, dateEnd: Date): Promise<Payment | null> {
+        return this.db.payment.findFirst({
+            where: {
+                loanId,
+                paymentDate: { gte: dateStart, lte: dateEnd },
+            },
+            orderBy: { paymentDate: 'desc' },
+        });
+    }
+
+    /**
+     * Find payment by ID with full loan/customer/schedule include
+     */
+    async findByIdWithDetails(id: string): Promise<any | null> {
+        return this.db.payment.findUnique({
+            where: { id },
+            include: {
+                loan: {
+                    include: {
+                        customer: { include: { branch: true } },
+                    },
+                },
+                paymentSchedule: true,
+            },
+        });
+    }
+
+    /**
+     * Find payments by payment schedule ID
+     */
+    async findByScheduleId(paymentScheduleId: string, take?: number): Promise<Payment[]> {
+        return this.db.payment.findMany({
+            where: { paymentScheduleId } as any,
+            orderBy: { paymentDate: 'desc' },
+            ...(take ? { take } : {}),
+        });
+    }
+
+    /**
      * Get payment statistics
      */
     async getStats(params: {

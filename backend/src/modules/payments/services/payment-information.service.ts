@@ -12,7 +12,9 @@
  * Tasks: 7.1.1 - 7.1.11
  */
 
-import { prisma } from '@config/database.config';
+import { PaymentScheduleRepository } from '../repositories/payment-schedule.repository';
+import { PaymentRepository } from '../repositories/payment.repository';
+import { ContactLogRepository } from '@collections/repositories/contact-log.repository';
 
 export interface PaymentReminder {
     loanId: string;
@@ -48,6 +50,16 @@ export interface PaymentChannel {
 }
 
 export class PaymentInformationService {
+    private paymentScheduleRepo: PaymentScheduleRepository;
+    private paymentRepo: PaymentRepository;
+    private contactLogRepo: ContactLogRepository;
+
+    constructor() {
+        this.paymentScheduleRepo = new PaymentScheduleRepository();
+        this.paymentRepo = new PaymentRepository();
+        this.contactLogRepo = new ContactLogRepository();
+    }
+
     /**
      * Task 7.1.2: Get upcoming payments for reminders (7, 3, 1 day lookups)
      * 
@@ -63,43 +75,7 @@ export class PaymentInformationService {
             targetDate.setDate(targetDate.getDate() + daysAhead);
             targetDate.setHours(23, 59, 59, 999);
 
-            // Query payment schedules due on target date
-            const schedules = await prisma.paymentSchedule.findMany({
-                where: {
-                    paymentDate: {
-                        gte: targetDate,
-                        lte: targetDate,
-                    },
-                    status: 'UNPAID',
-                    loan: {
-                        status: {
-                            in: ['ACTIVE', 'NPL'],
-                        },
-                        customer: {
-                            lineUserId: {
-                                not: null,
-                            },
-                            user: {
-                                lineActive: true,
-                                lineNotificationsEnabled: true,
-                            },
-                        },
-                    },
-                },
-                include: {
-                    loan: {
-                        include: {
-                            customer: {
-                                select: {
-                                    id: true,
-                                    businessName: true,
-                                    lineUserId: true,
-                                },
-                            },
-                        },
-                    },
-                },
-            });
+            const schedules = await this.paymentScheduleRepo.findUpcomingForNotification(targetDate, targetDate);
 
             return schedules.map(schedule => ({
                 loanId: schedule.loanId,
@@ -131,47 +107,7 @@ export class PaymentInformationService {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
-            // Query overdue payment schedules
-            const schedules = await prisma.paymentSchedule.findMany({
-                where: {
-                    paymentDate: {
-                        lt: today,
-                    },
-                    status: {
-                        in: ['UNPAID', 'OVERDUE'],
-                    },
-                    loan: {
-                        status: {
-                            in: ['ACTIVE', 'NPL'],
-                        },
-                        customer: {
-                            lineUserId: {
-                                not: null,
-                            },
-                            user: {
-                                lineActive: true,
-                                lineNotificationsEnabled: true,
-                            },
-                        },
-                    },
-                },
-                include: {
-                    loan: {
-                        include: {
-                            customer: {
-                                select: {
-                                    id: true,
-                                    businessName: true,
-                                    lineUserId: true,
-                                },
-                            },
-                        },
-                    },
-                },
-                orderBy: {
-                    paymentDate: 'asc',
-                },
-            });
+            const schedules = await this.paymentScheduleRepo.findOverdueForNotification(today);
 
             return schedules.map(schedule => {
                 const daysOverdue = Math.floor(
@@ -207,16 +143,7 @@ export class PaymentInformationService {
      */
     async getPaymentInstructions(loanId: string): Promise<PaymentInstruction | null> {
         try {
-            // Get the next payment schedule for this loan
-            const nextPayment = await prisma.paymentSchedule.findFirst({
-                where: {
-                    loanId,
-                    status: 'UNPAID',
-                },
-                orderBy: {
-                    paymentDate: 'asc',
-                },
-            });
+            const nextPayment = await this.paymentScheduleRepo.findFirstUnpaidByLoanId(loanId);
 
             if (!nextPayment) {
                 return null;
@@ -319,33 +246,18 @@ export class PaymentInformationService {
      */
     async getPaymentConfirmation(loanId: string, paymentDate: Date): Promise<any | null> {
         try {
-            const payment = await prisma.payment.findFirst({
-                where: {
-                    loanId,
-                    paymentDate: {
-                        gte: new Date(paymentDate.setHours(0, 0, 0, 0)),
-                        lte: new Date(paymentDate.setHours(23, 59, 59, 999)),
-                    },
-                },
-                orderBy: {
-                    paymentDate: 'desc',
-                },
-            });
+            const dateStart = new Date(paymentDate);
+            dateStart.setHours(0, 0, 0, 0);
+            const dateEnd = new Date(paymentDate);
+            dateEnd.setHours(23, 59, 59, 999);
 
-            return payment;
+            return await this.paymentRepo.findFirstByLoanAndDate(loanId, dateStart, dateEnd);
         } catch (error) {
             console.error('Error getting payment confirmation:', error);
             return null;
         }
     }
 
-    /**
-     * Record customer payment intention (for follow-up tracking)
-     * 
-     * @param loanId - Loan ID
-     * @param customerId - Customer ID
-     * @param promisedDate - Promised payment date
-     */
     /**
      * Record customer payment intention (for follow-up tracking)
      * 
@@ -361,20 +273,13 @@ export class PaymentInformationService {
         officerId: string
     ): Promise<void> {
         try {
-            // Create a contact log to track the payment promise
-            await prisma.contactLog.create({
-                data: {
-                    customerId,
-                    loanId,
-                    officerId,
-                    contactMethod: 'LINE',
-                    contactStatus: 'PROMISED_TO_PAY',
-                    outcome: 'PROMISED_TO_PAY',
-                    notes: `ลูกค้าสัญญาชำระเงินวันที่ ${promisedDate.toLocaleDateString('th-TH')}`,
-                    nextFollowUpDate: promisedDate,
-                    promisedDate,
-                    contactDate: new Date(),
-                },
+            await this.contactLogRepo.createPaymentIntention({
+                customerId,
+                loanId,
+                officerId,
+                promisedDate,
+                notes: `ลูกค้าสัญญาชำระเงินวันที่ ${promisedDate.toLocaleDateString('th-TH')}`,
+                nextFollowUpDate: promisedDate,
             });
 
             console.log(`Payment intention recorded for loan ${loanId}`);

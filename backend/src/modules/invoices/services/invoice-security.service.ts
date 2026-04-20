@@ -1,5 +1,5 @@
 import { logger } from '@utils/common/logger.util';
-import { prisma } from '@config/database.config';
+import { InvoiceSecurityRepository } from '../repositories/invoice-security.repository';
 import crypto from 'crypto';
 
 /**
@@ -10,34 +10,25 @@ export class InvoiceSecurityService {
     private readonly ALGORITHM = 'aes-256-gcm';
     private readonly KEY_LENGTH = 32;
     private readonly IV_LENGTH = 16;
+    private securityRepo: InvoiceSecurityRepository;
+
+    constructor() {
+        this.securityRepo = new InvoiceSecurityRepository();
+    }
 
     /**
      * ตรวจสอบว่าเลขบัตรประชาชนถูกต้องหรือไม่
      */
     async verifyNationalId(paymentScheduleId: string, nationalId: string): Promise<boolean> {
         try {
-            // ดึงข้อมูล payment schedule และ customer
-            const schedule = await prisma.paymentSchedule.findUnique({
-                where: { id: paymentScheduleId },
-                include: {
-                    loan: {
-                        include: {
-                            customer: {
-                                select: {
-                                    thaiId: true,
-                                },
-                            },
-                        },
-                    },
-                },
-            });
+            const schedule = await this.securityRepo.findScheduleWithCustomerNationalId(paymentScheduleId);
 
             if (!schedule) {
                 logger.warn({ paymentScheduleId }, 'Payment schedule not found');
                 return false;
             }
 
-            const customer = (schedule as any).loan?.customer;
+            const customer = schedule.loan?.customer;
             if (!customer || !customer.thaiId) {
                 logger.warn({ paymentScheduleId }, 'Customer national ID not found');
                 return false;
@@ -52,7 +43,7 @@ export class InvoiceSecurityService {
             // บันทึก audit log
             await this.logAccessAttempt(
                 paymentScheduleId,
-                ((schedule as any).loan as any).customerId,
+                schedule.loan.customerId,
                 isValid
             );
 
@@ -68,24 +59,14 @@ export class InvoiceSecurityService {
      */
     async verifyNationalIdForLoan(loanId: string, nationalId: string): Promise<boolean> {
         try {
-            const loan = await prisma.loan.findUnique({
-                where: { id: loanId },
-                include: {
-                    customer: {
-                        select: {
-                            id: true,
-                            thaiId: true,
-                        },
-                    },
-                },
-            });
+            const loan = await this.securityRepo.findLoanWithCustomerNationalId(loanId);
 
             if (!loan) {
                 logger.warn({ loanId }, 'Loan not found');
                 return false;
             }
 
-            const customer = (loan as any).customer;
+            const customer = loan.customer;
             if (!customer || !customer.nationalId) {
                 logger.warn({ loanId }, 'Customer national ID not found');
                 return false;
@@ -212,15 +193,13 @@ export class InvoiceSecurityService {
         success: boolean
     ): Promise<void> {
         try {
-            await (prisma as any).invoiceAccessLog.create({
-                data: {
-                    resourceId,
-                    customerId,
-                    success,
-                    attemptedAt: new Date(),
-                    ipAddress: null, // จะถูกเพิ่มจาก controller
-                    userAgent: null, // จะถูกเพิ่มจาก controller
-                },
+            await this.securityRepo.createAccessLog({
+                resourceId,
+                customerId,
+                success,
+                attemptedAt: new Date(),
+                ipAddress: null, // จะถูกเพิ่มจาก controller
+                userAgent: null, // จะถูกเพิ่มจาก controller
             });
         } catch (error) {
             // ไม่ throw error เพื่อไม่ให้กระทบกับ main flow
@@ -233,11 +212,7 @@ export class InvoiceSecurityService {
      */
     async getAccessHistory(resourceId: string, limit = 50) {
         try {
-            return await (prisma as any).invoiceAccessLog.findMany({
-                where: { resourceId },
-                orderBy: { attemptedAt: 'desc' },
-                take: limit,
-            });
+            return await this.securityRepo.findAccessHistory(resourceId, limit);
         } catch (error) {
             logger.error({ error }, 'Error getting access history');
             return [];
@@ -257,15 +232,7 @@ export class InvoiceSecurityService {
             const timeWindow = new Date();
             timeWindow.setMinutes(timeWindow.getMinutes() - timeWindowMinutes);
 
-            const recentAttempts = await (prisma as any).invoiceAccessLog.count({
-                where: {
-                    resourceId,
-                    success: false,
-                    attemptedAt: {
-                        gte: timeWindow,
-                    },
-                },
-            });
+            const recentAttempts = await this.securityRepo.countFailedAttempts(resourceId, timeWindow);
 
             const resetAt = new Date();
             resetAt.setMinutes(resetAt.getMinutes() + timeWindowMinutes);

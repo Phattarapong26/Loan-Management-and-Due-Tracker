@@ -1,4 +1,4 @@
-import { prisma } from '@config/database.config';
+import { ReportRepository } from '../repositories/report.repository';
 import type { Prisma } from '@prisma/client';
 
 type ReportFilters = {
@@ -14,8 +14,10 @@ type ReportFilters = {
  * Aggregates and formats data for various report types
  */
 export class ReportService {
+    private reportRepository: ReportRepository;
+
     constructor() {
-        // No repositories needed - using Prisma directly
+        this.reportRepository = new ReportRepository();
     }
 
     private buildLoanWhere(params: Pick<ReportFilters, 'branchId' | 'officerId' | 'productId'>): Prisma.LoanWhereInput {
@@ -36,10 +38,6 @@ export class ReportService {
 
     /**
      * Generate Branch Summary Report
-     *
-     * Notes:
-     * - Portfolio = DISBURSED/ACTIVE/NPL/DEFAULTED (still has exposure)
-     * - NPL definition here aligns with Loan tracking: 30+ DPD (or status NPL/DEFAULTED)
      */
     async generateBranchSummaryReport(params: ReportFilters) {
         const loanWhere = this.buildLoanWhere(params);
@@ -50,59 +48,46 @@ export class ReportService {
             status: { in: [...portfolioStatuses] },
         };
 
-        const portfolioLoans = await prisma.loan.count({ where: portfolioWhere });
+        const portfolioLoans = await this.reportRepository.countLoans(portfolioWhere);
 
-        const [activeLoans, outstandingResult] = await Promise.all([
-            prisma.loan.count({ where: { ...loanWhere, status: { in: ['DISBURSED', 'ACTIVE'] } } }),
-            prisma.loan.aggregate({ where: portfolioWhere, _sum: { outstandingBalance: true } }),
+        const [activeLoans, totalOutstanding] = await Promise.all([
+            this.reportRepository.countLoans({ ...loanWhere, status: { in: ['DISBURSED', 'ACTIVE'] } }),
+            this.reportRepository.aggregateLoanBalance(portfolioWhere),
         ]);
-        const totalOutstanding = Number(outstandingResult._sum.outstandingBalance || 0);
 
         const disbursedAtRange = this.buildDateRange(params);
-        const disbursedResult = await prisma.loanDisbursement.aggregate({
-            where: {
-                status: 'DISBURSED',
-                ...(disbursedAtRange ? { disbursedAt: disbursedAtRange } : {}),
-                loan: loanWhere,
-            },
-            _sum: { amount: true },
+        const totalDisbursed = await this.reportRepository.aggregateDisbursements({
+            status: 'DISBURSED',
+            ...(disbursedAtRange ? { disbursedAt: disbursedAtRange } : {}),
+            loan: loanWhere,
         });
-        const totalDisbursed = Number(disbursedResult._sum.amount || 0);
 
         const paymentDateRange = this.buildDateRange(params);
-        const collectedResult = await prisma.payment.aggregate({
-            where: {
+        const [totalCollected, totalExpected] = await Promise.all([
+            this.reportRepository.aggregatePayments({
                 ...(paymentDateRange ? { paymentDate: paymentDateRange } : {}),
                 loan: loanWhere,
-            },
-            _sum: { amount: true },
-        });
-        const totalCollected = Number(collectedResult._sum.amount || 0);
+            }),
+            this.reportRepository.aggregatePaymentSchedules({
+                loan: loanWhere,
+                ...(paymentDateRange ? { paymentDate: paymentDateRange } : {}),
+            }),
+        ]);
 
-        const expectedResult = await prisma.paymentSchedule.aggregate({
-            where: {
-                loan: loanWhere,
-                ...(paymentDateRange ? { paymentDate: paymentDateRange } : {}),
-            },
-            _sum: { totalPayment: true },
-        });
-        const totalExpected = Number(expectedResult._sum.totalPayment || 0);
         const collectionRate = totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0;
 
-        const nplLoans = await prisma.loan.count({
-            where: {
-                ...portfolioWhere,
-                OR: [{ status: 'NPL' }, { status: 'DEFAULTED' }, { overdueDays: { gte: 30 } }],
-            },
+        const nplLoans = await this.reportRepository.countLoans({
+            ...portfolioWhere,
+            OR: [{ status: 'NPL' }, { status: 'DEFAULTED' }, { overdueDays: { gte: 30 } }],
         });
         const nplRatio = portfolioLoans > 0 ? (nplLoans / portfolioLoans) * 100 : 0;
 
         const [current, dpd1to7, dpd8to29, dpd30to89, dpd90plus] = await Promise.all([
-            prisma.loan.count({ where: { ...portfolioWhere, overdueDays: 0 } }),
-            prisma.loan.count({ where: { ...portfolioWhere, overdueDays: { gte: 1, lte: 7 } } }),
-            prisma.loan.count({ where: { ...portfolioWhere, overdueDays: { gte: 8, lte: 29 } } }),
-            prisma.loan.count({ where: { ...portfolioWhere, overdueDays: { gte: 30, lte: 89 } } }),
-            prisma.loan.count({ where: { ...portfolioWhere, overdueDays: { gte: 90 } } }),
+            this.reportRepository.countLoans({ ...portfolioWhere, overdueDays: 0 }),
+            this.reportRepository.countLoans({ ...portfolioWhere, overdueDays: { gte: 1, lte: 7 } }),
+            this.reportRepository.countLoans({ ...portfolioWhere, overdueDays: { gte: 8, lte: 29 } }),
+            this.reportRepository.countLoans({ ...portfolioWhere, overdueDays: { gte: 30, lte: 89 } }),
+            this.reportRepository.countLoans({ ...portfolioWhere, overdueDays: { gte: 90 } }),
         ]);
 
         return {
@@ -128,7 +113,7 @@ export class ReportService {
         const loanWhere = this.buildLoanWhere(params);
         const updatedAtRange = this.buildDateRange(params);
 
-        const nplLoans = await prisma.loan.findMany({
+        const nplLoans = await this.reportRepository.findLoans({
             where: {
                 ...loanWhere,
                 OR: [{ status: 'NPL' }, { status: 'DEFAULTED' }, { overdueDays: { gte: 30 } }],
@@ -166,7 +151,7 @@ export class ReportService {
         const baseLoanWhere = this.buildLoanWhere({ branchId: params.branchId, productId: params.productId });
         const portfolioStatuses = ['DISBURSED', 'ACTIVE', 'NPL', 'DEFAULTED'] as const;
 
-        const officers = await prisma.user.findMany({
+        const officers = await this.reportRepository.findOfficers({
             where: {
                 role: 'OFFICER',
                 ...(params.branchId ? { branchId: params.branchId } : {}),
@@ -179,51 +164,38 @@ export class ReportService {
         const disbursedAtRange = this.buildDateRange(params);
 
         const performanceData = await Promise.all(
-            officers.map(async (officer) => {
+            officers.map(async (officer: any) => {
                 const officerLoanWhere: Prisma.LoanWhereInput = {
                     ...baseLoanWhere,
                     officerId: officer.id,
                 };
 
                 const [portfolioLoans, activeLoans, nplLoans] = await Promise.all([
-                    prisma.loan.count({ where: { ...officerLoanWhere, status: { in: [...portfolioStatuses] } } }),
-                    prisma.loan.count({ where: { ...officerLoanWhere, status: { in: ['DISBURSED', 'ACTIVE'] } } }),
-                    prisma.loan.count({
-                        where: {
-                            ...officerLoanWhere,
-                            OR: [{ status: 'NPL' }, { status: 'DEFAULTED' }, { overdueDays: { gte: 30 } }],
-                        },
+                    this.reportRepository.countLoans({ ...officerLoanWhere, status: { in: [...portfolioStatuses] } }),
+                    this.reportRepository.countLoans({ ...officerLoanWhere, status: { in: ['DISBURSED', 'ACTIVE'] } }),
+                    this.reportRepository.countLoans({
+                        ...officerLoanWhere,
+                        OR: [{ status: 'NPL' }, { status: 'DEFAULTED' }, { overdueDays: { gte: 30 } }],
                     }),
                 ]);
 
-                const collectedResult = await prisma.payment.aggregate({
-                    where: {
+                const [totalCollected, totalExpected, disbursementAmount] = await Promise.all([
+                    this.reportRepository.aggregatePayments({
                         ...(paymentDateRange ? { paymentDate: paymentDateRange } : {}),
                         loan: officerLoanWhere,
-                    },
-                    _sum: { amount: true },
-                });
-                const totalCollected = Number(collectedResult._sum.amount || 0);
-
-                const expectedResult = await prisma.paymentSchedule.aggregate({
-                    where: {
+                    }),
+                    this.reportRepository.aggregatePaymentSchedules({
                         ...(paymentDateRange ? { paymentDate: paymentDateRange } : {}),
                         loan: officerLoanWhere,
-                    },
-                    _sum: { totalPayment: true },
-                });
-                const totalExpected = Number(expectedResult._sum.totalPayment || 0);
-                const collectionRate = totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0;
-
-                const disbursedResult = await prisma.loanDisbursement.aggregate({
-                    where: {
+                    }),
+                    this.reportRepository.aggregateDisbursements({
                         status: 'DISBURSED',
                         ...(disbursedAtRange ? { disbursedAt: disbursedAtRange } : {}),
                         loan: officerLoanWhere,
-                    },
-                    _sum: { amount: true },
-                });
-                const disbursementAmount = Number(disbursedResult._sum.amount || 0);
+                    }),
+                ]);
+
+                const collectionRate = totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0;
 
                 return {
                     officerId: officer.id,
@@ -249,7 +221,7 @@ export class ReportService {
         const loanWhere = this.buildLoanWhere(params);
         const createdAtRange = this.buildDateRange(params);
 
-        const loans = await prisma.loan.findMany({
+        const loans = await this.reportRepository.findLoans({
             where: {
                 ...loanWhere,
                 ...(createdAtRange ? { createdAt: createdAtRange } : {}),
@@ -264,7 +236,7 @@ export class ReportService {
             take: 2000,
         });
 
-        return loans.map((loan) => ({
+        return loans.map((loan: any) => ({
             loanId: loan.id,
             contractNumber: loan.contract_number,
             customerName: loan.customer.businessName,
@@ -288,7 +260,7 @@ export class ReportService {
         const loanWhere = this.buildLoanWhere(params);
         const paymentDateRange = this.buildDateRange(params);
 
-        const payments = await prisma.payment.findMany({
+        const payments = await this.reportRepository.findPayments({
             where: {
                 ...(paymentDateRange ? { paymentDate: paymentDateRange } : {}),
                 loan: loanWhere,
@@ -311,14 +283,14 @@ export class ReportService {
             take: 5000,
         });
 
-        const totalCollected = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+        const totalCollected = payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
 
         return {
             summary: {
                 totalPayments: payments.length,
                 totalCollected: Number(totalCollected.toFixed(2)),
             },
-            payments: payments.map((p) => ({
+            payments: payments.map((p: any) => ({
                 paymentId: p.id,
                 paymentDate: p.paymentDate.toISOString(),
                 amount: Number(p.amount),
@@ -337,4 +309,3 @@ export class ReportService {
         };
     }
 }
-

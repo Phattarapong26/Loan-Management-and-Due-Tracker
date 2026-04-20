@@ -575,4 +575,133 @@ export class PaymentScheduleRepository {
         });
     }
 
+    /**
+     * Find upcoming unpaid schedules for LINE notification reminders
+     * Filters by loan status and LINE notification settings
+     */
+    async findUpcomingForNotification(targetDateStart: Date, targetDateEnd: Date): Promise<any[]> {
+        return this.db.paymentSchedule.findMany({
+            where: {
+                paymentDate: {
+                    gte: targetDateStart,
+                    lte: targetDateEnd,
+                },
+                status: 'UNPAID',
+                loan: {
+                    status: { in: ['ACTIVE', 'NPL'] },
+                    customer: {
+                        lineUserId: { not: null },
+                        user: {
+                            lineActive: true,
+                            lineNotificationsEnabled: true,
+                        },
+                    },
+                },
+            },
+            include: {
+                loan: {
+                    include: {
+                        customer: {
+                            select: {
+                                id: true,
+                                businessName: true,
+                                lineUserId: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+    }
+
+    /**
+     * Find overdue unpaid schedules for LINE notification reminders
+     * Filters by loan status and LINE notification settings
+     */
+    async findOverdueForNotification(beforeDate: Date): Promise<any[]> {
+        return this.db.paymentSchedule.findMany({
+            where: {
+                paymentDate: { lt: beforeDate },
+                status: { in: ['UNPAID', 'OVERDUE'] },
+                loan: {
+                    status: { in: ['ACTIVE', 'NPL'] },
+                    customer: {
+                        lineUserId: { not: null },
+                        user: {
+                            lineActive: true,
+                            lineNotificationsEnabled: true,
+                        },
+                    },
+                },
+            },
+            include: {
+                loan: {
+                    include: {
+                        customer: {
+                            select: {
+                                id: true,
+                                businessName: true,
+                                lineUserId: true,
+                            },
+                        },
+                    },
+                },
+            },
+            orderBy: { paymentDate: 'asc' },
+        });
+    }
+
+    /**
+     * Find first unpaid schedule for a loan (for payment instructions)
+     */
+    async findFirstUnpaidByLoanId(loanId: string): Promise<any | null> {
+        return this.db.paymentSchedule.findFirst({
+            where: { loanId, status: 'UNPAID' },
+            orderBy: { paymentDate: 'asc' },
+        });
+    }
+
+    /**
+     * Find schedule by ID with full loan/customer include
+     */
+    async findByIdWithLoanAndCustomer(id: string): Promise<any | null> {
+        return this.db.paymentSchedule.findUnique({
+            where: { id },
+            include: {
+                loan: {
+                    include: {
+                        customer: { select: { thaiId: true, id: true } },
+                    },
+                },
+            },
+        });
+    }
+
+    /**
+     * Count paid schedules for a loan
+     */
+    async countPaidByLoanId(loanId: string): Promise<number> {
+        return this.db.paymentSchedule.count({
+            where: { loanId, status: 'PAID' },
+        });
+    }
+
+    /**
+     * Find overdue schedules for a loan
+     */
+    async findOverdueByLoanId(loanId: string): Promise<any[]> {
+        return this.db.paymentSchedule.findMany({
+            where: { loanId, status: 'OVERDUE' },
+        });
+    }
+
+    /**
+     * Find schedule by loan and payment number
+     */
+    async findByLoanAndPaymentNumber(loanId: string, paymentNumber: number): Promise<any | null> {
+        return this.db.paymentSchedule.findFirst({
+            where: { loanId, paymentNumber },
+        });
+    }
+
 }
