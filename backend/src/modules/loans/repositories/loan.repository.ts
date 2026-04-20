@@ -630,4 +630,30 @@ export class LoanRepository {
             },
         });
     }
+
+    /**
+     * Find active portfolio loans for bucket analysis
+     */
+    async findActivePortfolioLoans(params: {
+        branchId?: string;
+        officerId?: string;
+        productId?: string;
+    }): Promise<Array<{ id: string }>> {
+        const and: any[] = [];
+        if (params.productId) and.push({ loanProductId: params.productId });
+        if (params.officerId) {
+            and.push({
+                OR: [{ officerId: params.officerId }, { customer: { createdBy: params.officerId } }],
+            });
+        }
+
+        return this.db.loan.findMany({
+            where: {
+                ...(params.branchId ? { branchId: params.branchId } : {}),
+                status: { in: ['ACTIVE', 'DISBURSED', 'DEFAULTED', 'NPL'] },
+                ...(and.length > 0 ? { AND: and } : {}),
+            },
+            select: { id: true },
+        });
+    }
 }

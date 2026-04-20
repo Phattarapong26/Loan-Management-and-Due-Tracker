@@ -58,6 +58,16 @@ export class UserRepository {
     }
 
     /**
+     * Find multiple users by IDs
+     */
+    async findManyByIds(ids: string[]): Promise<Array<{ id: string; firstName: string; lastName: string }>> {
+        return prisma.user.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, firstName: true, lastName: true },
+        });
+    }
+
+    /**
      * Create new user
      */
     async create(data: {
@@ -323,3 +333,4 @@ export class UserRepository {
         }) as any;
     }
 }
+

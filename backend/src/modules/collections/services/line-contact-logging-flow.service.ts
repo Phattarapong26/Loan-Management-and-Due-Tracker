@@ -3,7 +3,7 @@
  * Handles multi-step conversation flow for contact logging through LINE
  */
 
-import { prisma } from '@config/database.config';
+import { CustomerRepository } from '@customers/repositories/customer.repository';
 import { ContactLoggingService, ContactType, ContactOutcome } from './contact-logging.service';
 import { ConversationStateService } from '@core-services/services/conversation-state.service';
 import { LineMessagesService } from '@line/services/messaging/line-messages.service';
@@ -11,10 +11,12 @@ import { LineMessagesService } from '@line/services/messaging/line-messages.serv
 export class LineContactLoggingFlowService {
     private contactService: ContactLoggingService;
     private conversationService: ConversationStateService;
+    private customerRepository: CustomerRepository;
 
     constructor() {
         this.contactService = new ContactLoggingService();
         this.conversationService = new ConversationStateService();
+        this.customerRepository = new CustomerRepository();
     }
 
     /**
@@ -29,23 +31,13 @@ export class LineContactLoggingFlowService {
     ): Promise<any[]> {
         try {
             // Get customer name
-            const customer = await prisma.customer.findUnique({
-                where: { id: customerId },
-                include: {
-                    user: {
-                        select: {
-                            firstName: true,
-                            lastName: true,
-                        },
-                    },
-                },
-            });
+            const customer = await this.customerRepository.findById(customerId);
 
             if (!customer) {
                 return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า' }];
             }
 
-            const customerName = `${customer.user?.firstName || ''} ${customer.user?.lastName || ''}`.trim();
+            const customerName = customer.businessName;
 
             // Update conversation state
             await this.conversationService.setState(

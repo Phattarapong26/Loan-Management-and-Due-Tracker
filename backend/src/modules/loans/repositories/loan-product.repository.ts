@@ -114,4 +114,19 @@ export class LoanProductRepository {
 
     return this.prisma.loanProduct.count({ where });
   }
+
+  async createWithTiers(createData: any): Promise<LoanProduct> {
+    return this.prisma.loanProduct.create({
+      data: createData,
+      include: { yearInterestTiers: true },
+    });
+  }
+
+  async updateWithTiers(id: string, updateData: any): Promise<LoanProduct> {
+    return this.prisma.loanProduct.update({
+      where: { id },
+      data: updateData,
+      include: { yearInterestTiers: true },
+    });
+  }
 }

@@ -3,7 +3,8 @@
  * ระบบบันทึกการติดต่อแบบสมบูรณ์สำหรับ Loan Officer
  */
 
-import { prisma } from '@config/database.config';
+import { CustomerRepository } from '@customers/repositories/customer.repository';
+import { ContactLogRepository } from '../repositories/contact-log.repository';
 import { ConversationStateService } from '@core-services/services/conversation-state.service';
 import { COLORS } from '@line/messages/theme';
 
@@ -23,9 +24,13 @@ export interface ContactLogData {
 
 export class LineContactLoggingEnhancedService {
     private conversationService: ConversationStateService;
+    private customerRepository: CustomerRepository;
+    private contactLogRepository: ContactLogRepository;
 
     constructor() {
         this.conversationService = new ConversationStateService();
+        this.customerRepository = new CustomerRepository();
+        this.contactLogRepository = new ContactLogRepository();
     }
 
     /**
@@ -114,10 +119,7 @@ export class LineContactLoggingEnhancedService {
             return await this.showCustomerSelection(userId);
         }
 
-        const customer = await prisma.customer.findUnique({
-            where: { id: customerId },
-            select: { businessName: true }
-        });
+        const customer = await this.customerRepository.findById(customerId);
 
         if (!customer) {
             return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า' }];
@@ -140,35 +142,7 @@ export class LineContactLoggingEnhancedService {
      */
     private async showCustomerSelection(userId: string): Promise<any[]> {
         // Get officer's customers with active loans
-        const customers = await prisma.customer.findMany({
-            where: {
-                loans: {
-                    some: {
-                        officerId: userId,
-                        status: {
-                            in: ['ACTIVE', 'DISBURSED']
-                        }
-                    }
-                }
-            },
-            select: {
-                id: true,
-                businessName: true,
-                loans: {
-                    where: {
-                        officerId: userId,
-                        status: {
-                            in: ['ACTIVE', 'DISBURSED']
-                        }
-                    },
-                    select: {
-                        id: true,
-                        overdueDays: true
-                    }
-                }
-            },
-            take: 10
-        });
+        const customers = await this.customerRepository.findWithActiveLoansByOfficer(userId, 10);
 
         if (customers.length === 0) {
             return [{ type: 'text', text: '❌ ไม่พบลูกค้าที่ต้องติดตาม' }];
@@ -737,18 +711,20 @@ export class LineContactLoggingEnhancedService {
      * Save contact log to database
      */
     private async saveContactLog(userId: string, data: ContactLogData): Promise<any> {
-        return await prisma.contactLog.create({
-            data: {
-                customerId: data.customerId,
-                loanId: data.loanId,
-                officerId: userId,
-                contactMethod: this.mapContactTypeToMethod(data.contactType),
-                contactStatus: this.mapOutcomeToContactStatus(data.outcome),
-                outcome: this.mapOutcomeToContactStatus(data.outcome),
-                notes: data.notes || '',
-                contactDate: new Date(),
-                nextFollowUpDate: data.nextFollowUpDate,
-                promisedDate: data.promisedDate,
+        return this.contactLogRepository.createWithLoanInclude({
+            customerId: data.customerId,
+            loanId: data.loanId,
+            officerId: userId,
+            contactMethod: this.mapContactTypeToMethod(data.contactType),
+            contactStatus: this.mapOutcomeToContactStatus(data.outcome),
+            outcome: this.mapOutcomeToContactStatus(data.outcome),
+            notes: data.notes || '',
+            contactDate: new Date(),
+            nextFollowUpDate: data.nextFollowUpDate,
+            promisedDate: data.promisedDate,
+            taskId: data.taskId,
+        });
+    }misedDate,
                 taskId: data.taskId
             },
             include: {
@@ -872,17 +848,6 @@ export class LineContactLoggingEnhancedService {
      * Get recent contact logs for a customer
      */
     async getContactHistory(customerId: string, limit: number = 5): Promise<any[]> {
-        const contactLogs = await prisma.contactLog.findMany({
-            where: { customerId },
-            include: {
-                officer: {
-                    select: { firstName: true, lastName: true }
-                }
-            },
-            orderBy: { contactDate: 'desc' },
-            take: limit
-        });
-
-        return contactLogs;
+        return this.contactLogRepository.findRecentByCustomer(customerId, limit);
     }
 }

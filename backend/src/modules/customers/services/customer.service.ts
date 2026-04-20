@@ -1,11 +1,13 @@
 import { FastifyRequest } from 'fastify';
 import { CustomerRepository } from '../repositories/customer.repository';
 import { BranchRepository } from '@branches/repositories/branch.repository';
+import { UserRepository } from '@users/repositories/user.repository';
+import { DocumentRepository } from '@documents/repositories/document.repository';
 import { CreateCustomerInput, UpdateCustomerInput } from '../models/customer.model';
 import { EncryptionUtil } from '@utils/security/encryption.util';
-import { prisma } from '@config/database.config';
 import { Customer } from '@prisma/client';
 import { CacheUtil } from '@utils/cache/cache.util';
+import { LoanRepository } from '@loans/repositories/loan.repository';
 
 interface BusinessProfile {
     companyInfo?: {
@@ -43,10 +45,16 @@ interface AIData {
 export class CustomerService {
     private customerRepository: CustomerRepository;
     private branchRepository: BranchRepository;
+    private userRepository: UserRepository;
+    private documentRepository: DocumentRepository;
+    private loanRepository: LoanRepository;
 
     constructor() {
         this.customerRepository = new CustomerRepository();
         this.branchRepository = new BranchRepository();
+        this.userRepository = new UserRepository();
+        this.documentRepository = new DocumentRepository();
+        this.loanRepository = new LoanRepository();
     }
 
     /**
@@ -186,10 +194,7 @@ export class CustomerService {
         ) as string[];
 
         const creators = creatorIds.length
-            ? await prisma.user.findMany({
-                  where: { id: { in: creatorIds } },
-                  select: { id: true, firstName: true, lastName: true },
-              })
+            ? await this.userRepository.findManyByIds(creatorIds)
             : [];
 
         const creatorMap = new Map(
@@ -342,13 +347,11 @@ export class CustomerService {
         }
 
         // Check if customer has active loans
-        const activeLoans = await prisma.loan.count({
-            where: {
-                customerId: customerId,
-                status: {
-                    in: ['ACTIVE', 'PENDING_APPROVAL', 'APPROVED', 'DISBURSED']
-                }
-            }
+        const { total: activeLoans } = await this.loanRepository.list({
+            customerId: customerId,
+            status: 'ACTIVE,PENDING_APPROVAL,APPROVED,DISBURSED',
+            page: 1,
+            limit: 1,
         });
 
         if (activeLoans > 0) {
@@ -400,15 +403,12 @@ export class CustomerService {
         const customer = await this.customerRepository.create(customerData);
 
         // Link document to customer and save extracted data
-        await prisma.document.update({
-            where: { id: documentId },
-            data: { 
-                customerId: customer.id,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                extractedData: businessProfile as any,
-                aiStatus: 'completed',
-                aiProcessed: true
-            },
+        await this.documentRepository.update(documentId, {
+            customerId: customer.id,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            extractedData: businessProfile as any,
+            aiStatus: 'completed',
+            aiProcessed: true,
         });
 
         console.log(`[Customer Service] Customer created and document data saved: ${customer.id}`);

@@ -300,4 +300,55 @@ export class ContactLogRepository {
     async updateTaskLink(id: string, taskId: string): Promise<void> {
         await this.db.contactLog.update({ where: { id }, data: { taskId } });
     }
+
+    /**
+     * Create contact log with loan include (for LINE contact logging)
+     */
+    async createWithLoanInclude(data: {
+        customerId: string;
+        loanId: string;
+        officerId: string;
+        contactMethod: any;
+        contactStatus: any;
+        outcome: any;
+        notes: string;
+        contactDate: Date;
+        nextFollowUpDate?: Date;
+        promisedDate?: Date;
+        taskId?: string;
+    }): Promise<any> {
+        return this.db.contactLog.create({
+            data: {
+                customerId: data.customerId,
+                loanId: data.loanId,
+                officerId: data.officerId,
+                contactMethod: data.contactMethod,
+                contactStatus: data.contactStatus,
+                outcome: data.outcome,
+                notes: data.notes,
+                contactDate: data.contactDate,
+                nextFollowUpDate: data.nextFollowUpDate || null,
+                promisedDate: data.promisedDate || null,
+                taskId: data.taskId || null,
+            },
+            include: {
+                customer: { select: { businessName: true } },
+                loan: { select: { principal: true, outstandingBalance: true } },
+            },
+        });
+    }
+
+    /**
+     * Find recent contact logs for a customer (for LINE contact history)
+     */
+    async findRecentByCustomer(customerId: string, take: number = 5): Promise<any[]> {
+        return this.db.contactLog.findMany({
+            where: { customerId },
+            include: {
+                officer: { select: { firstName: true, lastName: true } },
+            },
+            orderBy: { contactDate: 'desc' },
+            take,
+        });
+    }
 }

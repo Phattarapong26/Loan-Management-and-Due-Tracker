@@ -552,4 +552,27 @@ export class PaymentScheduleRepository {
         });
     }
 
+    /**
+     * Find unpaid/partial/overdue schedules for given loan IDs (for bucket analysis)
+     */
+    async findUnpaidByLoanIds(loanIds: string[]): Promise<Array<{
+        id: string;
+        paymentDate: Date;
+        totalPayment: any;
+        loanId: string;
+    }>> {
+        return this.db.paymentSchedule.findMany({
+            where: {
+                loanId: { in: loanIds },
+                status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] },
+            },
+            select: {
+                id: true,
+                paymentDate: true,
+                totalPayment: true,
+                loanId: true,
+            },
+        });
+    }
+
 }

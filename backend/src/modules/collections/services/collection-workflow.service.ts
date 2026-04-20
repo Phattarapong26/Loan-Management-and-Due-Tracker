@@ -4,9 +4,7 @@
  * Manages collection workflow steps and templates
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { CollectionWorkflowRepository } from '../repositories/collection-workflow.repository';
 
 export interface CreateWorkflowStepInput {
   daysOverdueFrom: number;
@@ -47,57 +45,24 @@ export interface WorkflowStep {
 }
 
 export class CollectionWorkflowService {
+  private repository: CollectionWorkflowRepository;
+
+  constructor() {
+    this.repository = new CollectionWorkflowRepository();
+  }
+
   /**
    * Create new workflow step
    */
   async createWorkflowStep(data: CreateWorkflowStepInput): Promise<WorkflowStep> {
-    const step = await prisma.collection_workflow_steps.create({
-      data: {
-        days_overdue_from: data.daysOverdueFrom,
-        days_overdue_to: data.daysOverdueTo,
-        action_type: data.actionType,
-        template_id: data.templateId,
-        priority: data.priority,
-        assigned_role: data.assignedRole,
-        sla_hours: data.slaHours,
-        is_active: data.isActive ?? true,
-        created_by: data.createdBy,
-        created_at: new Date(),
-      },
-      include: {
-        users: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-      },
-    });
-
-    return step as WorkflowStep;
+    return this.repository.create(data);
   }
 
   /**
    * Get workflow step by ID
    */
   async getWorkflowStepById(stepId: string): Promise<WorkflowStep | null> {
-    const step = await prisma.collection_workflow_steps.findUnique({
-      where: { id: stepId },
-      include: {
-        users: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-      },
-    });
-
-    return step as WorkflowStep | null;
+    return this.repository.findById(stepId);
   }
 
   /**
@@ -122,91 +87,28 @@ export class CollectionWorkflowService {
       where.action_type = filters.actionType;
     }
 
-    const steps = await prisma.collection_workflow_steps.findMany({
-      where,
-      include: {
-        users: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-      },
-      orderBy: { days_overdue_from: 'asc' },
-    });
-
-    return steps as WorkflowStep[];
+    return this.repository.findMany(where);
   }
 
   /**
    * Get workflow step for specific days overdue
    */
   async getWorkflowStepForDaysOverdue(daysOverdue: number): Promise<WorkflowStep | null> {
-    const step = await prisma.collection_workflow_steps.findFirst({
-      where: {
-        is_active: true,
-        days_overdue_from: { lte: daysOverdue },
-        OR: [
-          { days_overdue_to: null },
-          { days_overdue_to: { gte: daysOverdue } },
-        ],
-      },
-      include: {
-        users: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-      },
-      orderBy: { days_overdue_from: 'desc' },
-    });
-
-    return step as WorkflowStep | null;
+    return this.repository.findFirst(daysOverdue);
   }
 
   /**
    * Update workflow step
    */
   async updateWorkflowStep(stepId: string, data: UpdateWorkflowStepInput): Promise<WorkflowStep> {
-    const step = await prisma.collection_workflow_steps.update({
-      where: { id: stepId },
-      data: {
-        days_overdue_from: data.daysOverdueFrom,
-        days_overdue_to: data.daysOverdueTo,
-        action_type: data.actionType,
-        template_id: data.templateId,
-        priority: data.priority,
-        assigned_role: data.assignedRole,
-        sla_hours: data.slaHours,
-        is_active: data.isActive,
-      },
-      include: {
-        users: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-      },
-    });
-
-    return step as WorkflowStep;
+    return this.repository.update(stepId, data);
   }
 
   /**
    * Delete workflow step
    */
   async deleteWorkflowStep(stepId: string): Promise<void> {
-    await prisma.collection_workflow_steps.delete({
-      where: { id: stepId },
-    });
+    await this.repository.delete(stepId);
   }
 
   /**
@@ -227,18 +129,12 @@ export class CollectionWorkflowService {
     stepsByActionType: Record<string, number>;
   }> {
     const [totalSteps, activeSteps, inactiveSteps, allSteps] = await Promise.all([
-      prisma.collection_workflow_steps.count(),
-      prisma.collection_workflow_steps.count({ where: { is_active: true } }),
-      prisma.collection_workflow_steps.count({ where: { is_active: false } }),
-      prisma.collection_workflow_steps.findMany({
-        select: {
-          priority: true,
-          action_type: true,
-        },
-      }),
+      this.repository.count(),
+      this.repository.count({ is_active: true }),
+      this.repository.count({ is_active: false }),
+      this.repository.findManyForStats(),
     ]);
 
-    // Count by priority
     const stepsByPriority: Record<string, number> = {};
     const stepsByActionType: Record<string, number> = {};
 

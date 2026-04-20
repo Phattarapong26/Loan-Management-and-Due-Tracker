@@ -1,10 +1,8 @@
 import { LoanProduct, Prisma } from '@prisma/client';
 import { LoanProductRepository } from '../repositories/loan-product.repository';
-import { prisma } from '@config/database.config';
 
 export class LoanProductService {
   private repository: LoanProductRepository;
-  private prisma = prisma;
 
   constructor() {
     this.repository = new LoanProductRepository();
@@ -156,12 +154,7 @@ export class LoanProductService {
       };
     }
 
-    return this.prisma.loanProduct.create({
-      data: createData,
-      include: {
-        yearInterestTiers: true,
-      },
-    });
+    return this.repository.createWithTiers(createData);
   }
 
   async updateProduct(
@@ -218,13 +211,7 @@ export class LoanProductService {
       };
     }
 
-    return this.prisma.loanProduct.update({
-      where: { id },
-      data: updateData,
-      include: {
-        yearInterestTiers: true,
-      },
-    });
+    return this.repository.updateWithTiers(id, updateData);
   }
 
   async deleteProduct(id: string): Promise<void> {

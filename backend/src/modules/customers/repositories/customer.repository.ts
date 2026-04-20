@@ -573,4 +573,36 @@ export class CustomerRepository {
             }
         });
     }
+
+    /**
+     * Find customers with active loans for a given officer (for contact logging)
+     */
+    async findWithActiveLoansByOfficer(officerId: string, take: number = 10): Promise<Array<{
+        id: string;
+        businessName: string;
+        loans: Array<{ id: string; overdueDays: number }>;
+    }>> {
+        return this.db.customer.findMany({
+            where: {
+                loans: {
+                    some: {
+                        officerId,
+                        status: { in: ['ACTIVE', 'DISBURSED'] },
+                    },
+                },
+            },
+            select: {
+                id: true,
+                businessName: true,
+                loans: {
+                    where: {
+                        officerId,
+                        status: { in: ['ACTIVE', 'DISBURSED'] },
+                    },
+                    select: { id: true, overdueDays: true },
+                },
+            },
+            take,
+        }) as any;
+    }
 }

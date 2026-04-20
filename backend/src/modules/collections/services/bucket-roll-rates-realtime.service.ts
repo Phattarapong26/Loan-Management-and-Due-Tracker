@@ -14,7 +14,8 @@
  * - NPL: 90+ days past due (Non-Performing Loan)
  */
 
-import { prisma } from '@config/database.config';
+import { LoanRepository } from '@loans/repositories/loan.repository';
+import { PaymentScheduleRepository } from '@payments/repositories/payment-schedule.repository';
 import { logger } from '@utils/common/logger.util';
 import {
     subMonths,
@@ -78,6 +79,14 @@ function getAgingBucket(daysOverdue: number): string {
 }
 
 export class BucketRollRatesRealtimeService {
+    private loanRepository: LoanRepository;
+    private paymentScheduleRepository: PaymentScheduleRepository;
+
+    constructor() {
+        this.loanRepository = new LoanRepository();
+        this.paymentScheduleRepository = new PaymentScheduleRepository();
+    }
+
     /**
      * Get comprehensive bucket roll rates analysis from payment schedules
      */
@@ -154,51 +163,19 @@ export class BucketRollRatesRealtimeService {
         loanBuckets: Map<string, { bucket: string; amount: number }>;
         distribution: BucketDistribution[];
     }> {
-        // Build where clause for branch filtering
-        const branchWhere = branchId ? { branchId } : {};
-        const and: any[] = [];
-        if (productId) and.push({ loanProductId: productId });
-        if (officerId) {
-            and.push({
-                OR: [{ officerId }, { customer: { createdBy: officerId } }],
-            });
-        }
-
         // Get all active portfolio loans (not just schedules that are due)
         // Keep status definition consistent with "Active Contracts" / Payments screens:
         // ACTIVE, DISBURSED, DEFAULTED, NPL
-        const activeLoans = await prisma.loan.findMany({
-            where: {
-                ...branchWhere,
-                status: {
-                    in: ['ACTIVE', 'DISBURSED', 'DEFAULTED', 'NPL'],
-                },
-                ...(and.length > 0 ? { AND: and } : {}),
-            },
-            select: {
-                id: true,
-            },
+        const activeLoans = await this.loanRepository.findActivePortfolioLoans({
+            branchId,
+            officerId,
+            productId,
         });
 
         const activeLoanIds = activeLoans.map(l => l.id);
 
         // Get unpaid schedules for active loans (including future dates for proper counting)
-        const schedules = await prisma.paymentSchedule.findMany({
-            where: {
-                loanId: {
-                    in: activeLoanIds,
-                },
-                status: {
-                    in: ['UNPAID', 'PARTIAL', 'OVERDUE'],
-                },
-            },
-            select: {
-                id: true,
-                paymentDate: true,
-                totalPayment: true,
-                loanId: true,
-            },
-        });
+        const schedules = await this.paymentScheduleRepository.findUnpaidByLoanIds(activeLoanIds);
 
         // Earliest unpaid schedule per loan (source of truth for "next due" and DPD)
         const loanEarliestSchedule = new Map<string, { paymentDate: Date; amount: number }>();

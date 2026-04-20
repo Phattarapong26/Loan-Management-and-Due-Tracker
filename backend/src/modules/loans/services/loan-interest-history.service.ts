@@ -4,9 +4,7 @@
  * Tracks interest rate changes and calculations for loans
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { LoanInterestHistoryRepository } from '../repositories/loan-interest-history.repository';
 
 export interface CreateInterestHistoryInput {
   loanId: string;
@@ -34,96 +32,31 @@ export interface InterestHistory {
 }
 
 export class LoanInterestHistoryService {
+  private repository: LoanInterestHistoryRepository;
+
+  constructor() {
+    this.repository = new LoanInterestHistoryRepository();
+  }
+
   /**
    * Create interest history record
    */
   async createInterestHistory(data: CreateInterestHistoryInput): Promise<InterestHistory> {
-    const history = await prisma.loanInterestHistory.create({
-      data: {
-        loanId: data.loanId,
-        paymentNumber: data.paymentNumber,
-        outstandingBalance: data.outstandingBalance,
-        appliedRate: data.appliedRate,
-        tierName: data.tierName,
-        gracePeriodDays: data.gracePeriodDays || 0,
-        interestAmount: data.interestAmount,
-        effectiveDate: data.effectiveDate,
-        calculatedAt: new Date(),
-      },
-      include: {
-        loan: {
-          select: {
-            id: true,
-            principal: true,
-            interestRate: true,
-            status: true,
-            customer: {
-              select: {
-                id: true,
-                businessName: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    return history as InterestHistory;
+    return this.repository.create(data);
   }
 
   /**
    * Get interest history by loan ID
    */
   async getInterestHistoryByLoanId(loanId: string): Promise<InterestHistory[]> {
-    const history = await prisma.loanInterestHistory.findMany({
-      where: { loanId },
-      include: {
-        loan: {
-          select: {
-            id: true,
-            principal: true,
-            interestRate: true,
-            status: true,
-            customer: {
-              select: {
-                id: true,
-                businessName: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: [{ effectiveDate: 'desc' }, { paymentNumber: 'desc' }],
-    });
-
-    return history as InterestHistory[];
+    return this.repository.findManyByLoanId(loanId);
   }
 
   /**
    * Get interest history by ID
    */
   async getInterestHistoryById(historyId: string): Promise<InterestHistory | null> {
-    const history = await prisma.loanInterestHistory.findUnique({
-      where: { id: historyId },
-      include: {
-        loan: {
-          select: {
-            id: true,
-            principal: true,
-            interestRate: true,
-            status: true,
-            customer: {
-              select: {
-                id: true,
-                businessName: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    return history as InterestHistory | null;
+    return this.repository.findById(historyId);
   }
 
   /**
@@ -133,30 +66,7 @@ export class LoanInterestHistoryService {
     loanId: string,
     paymentNumber: number
   ): Promise<InterestHistory | null> {
-    const history = await prisma.loanInterestHistory.findFirst({
-      where: {
-        loanId,
-        paymentNumber,
-      },
-      include: {
-        loan: {
-          select: {
-            id: true,
-            principal: true,
-            interestRate: true,
-            status: true,
-            customer: {
-              select: {
-                id: true,
-                businessName: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    return history as InterestHistory | null;
+    return this.repository.findFirst(loanId, paymentNumber);
   }
 
   /**
@@ -167,34 +77,7 @@ export class LoanInterestHistoryService {
     startDate: Date,
     endDate: Date
   ): Promise<InterestHistory[]> {
-    const history = await prisma.loanInterestHistory.findMany({
-      where: {
-        loanId,
-        effectiveDate: {
-          gte: startDate,
-          lte: endDate,
-        },
-      },
-      include: {
-        loan: {
-          select: {
-            id: true,
-            principal: true,
-            interestRate: true,
-            status: true,
-            customer: {
-              select: {
-                id: true,
-                businessName: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { effectiveDate: 'asc' },
-    });
-
-    return history as InterestHistory[];
+    return this.repository.findManyByDateRange(loanId, startDate, endDate);
   }
 
   /**
@@ -215,9 +98,7 @@ export class LoanInterestHistoryService {
     }
 
     if (filters?.customerId) {
-      where.loan = {
-        customerId: filters.customerId,
-      };
+      where.loan = { customerId: filters.customerId };
     }
 
     if (filters?.tierName) {
@@ -234,29 +115,7 @@ export class LoanInterestHistoryService {
       }
     }
 
-    const history = await prisma.loanInterestHistory.findMany({
-      where,
-      include: {
-        loan: {
-          select: {
-            id: true,
-            principal: true,
-            interestRate: true,
-            status: true,
-            customer: {
-              select: {
-                id: true,
-                businessName: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { effectiveDate: 'desc' },
-      take: filters?.limit || 100,
-    });
-
-    return history as InterestHistory[];
+    return this.repository.findMany(where, filters?.limit);
   }
 
   /**
@@ -269,22 +128,10 @@ export class LoanInterestHistoryService {
     minRate: number;
     maxRate: number;
   }> {
-    const history = await prisma.loanInterestHistory.findMany({
-      where: { loanId },
-      select: {
-        interestAmount: true,
-        appliedRate: true,
-      },
-    });
+    const history = await this.repository.findManyForInterestCalc(loanId);
 
     if (history.length === 0) {
-      return {
-        totalInterest: 0,
-        recordCount: 0,
-        averageRate: 0,
-        minRate: 0,
-        maxRate: 0,
-      };
+      return { totalInterest: 0, recordCount: 0, averageRate: 0, minRate: 0, maxRate: 0 };
     }
 
     const totalInterest = history.reduce(
@@ -297,13 +144,7 @@ export class LoanInterestHistoryService {
     const minRate = Math.min(...rates);
     const maxRate = Math.max(...rates);
 
-    return {
-      totalInterest,
-      recordCount: history.length,
-      averageRate,
-      minRate,
-      maxRate,
-    };
+    return { totalInterest, recordCount: history.length, averageRate, minRate, maxRate };
   }
 
   /**
@@ -318,15 +159,7 @@ export class LoanInterestHistoryService {
       paymentNumber: number;
     }>
   > {
-    const history = await prisma.loanInterestHistory.findMany({
-      where: { loanId },
-      select: {
-        effectiveDate: true,
-        appliedRate: true,
-        paymentNumber: true,
-      },
-      orderBy: { effectiveDate: 'asc' },
-    });
+    const history = await this.repository.findManyForRates(loanId);
 
     const changes: Array<{
       effectiveDate: Date;
@@ -339,14 +172,12 @@ export class LoanInterestHistoryService {
     for (let i = 0; i < history.length; i++) {
       const current = history[i];
       if (!current) continue;
-      
-      const previous = i > 0 ? history[i - 1] : null;
 
+      const previous = i > 0 ? history[i - 1] : null;
       const newRate = parseFloat(current.appliedRate.toString());
       const oldRate = previous ? parseFloat(previous.appliedRate.toString()) : null;
       const change = oldRate !== null ? newRate - oldRate : null;
 
-      // Only include if rate changed
       if (change === null || Math.abs(change) > 0.0001) {
         changes.push({
           effectiveDate: current.effectiveDate,
@@ -372,18 +203,9 @@ export class LoanInterestHistoryService {
     recordsByTier: Record<string, number>;
   }> {
     const [totalRecords, uniqueLoans, allRecords] = await Promise.all([
-      prisma.loanInterestHistory.count(),
-      prisma.loanInterestHistory.findMany({
-        select: { loanId: true },
-        distinct: ['loanId'],
-      }),
-      prisma.loanInterestHistory.findMany({
-        select: {
-          interestAmount: true,
-          appliedRate: true,
-          tierName: true,
-        },
-      }),
+      this.repository.count(),
+      this.repository.findDistinctLoanIds(),
+      this.repository.findManyForStats(),
     ]);
 
     const totalInterestCalculated = allRecords.reduce(
@@ -392,11 +214,9 @@ export class LoanInterestHistoryService {
     );
 
     const rates = allRecords.map((record) => parseFloat(record.appliedRate.toString()));
-    const averageInterestRate = rates.length > 0 
-      ? rates.reduce((sum, rate) => sum + rate, 0) / rates.length 
-      : 0;
+    const averageInterestRate =
+      rates.length > 0 ? rates.reduce((sum, rate) => sum + rate, 0) / rates.length : 0;
 
-    // Count by tier
     const recordsByTier: Record<string, number> = {};
     allRecords.forEach((record) => {
       const tier = record.tierName || 'N/A';
@@ -416,30 +236,14 @@ export class LoanInterestHistoryService {
    * Delete interest history record
    */
   async deleteInterestHistory(historyId: string): Promise<void> {
-    await prisma.loanInterestHistory.delete({
-      where: { id: historyId },
-    });
+    await this.repository.delete(historyId);
   }
 
   /**
    * Bulk create interest history
    */
   async bulkCreateInterestHistory(records: CreateInterestHistoryInput[]): Promise<number> {
-    const result = await prisma.loanInterestHistory.createMany({
-      data: records.map((record) => ({
-        loanId: record.loanId,
-        paymentNumber: record.paymentNumber,
-        outstandingBalance: record.outstandingBalance,
-        appliedRate: record.appliedRate,
-        tierName: record.tierName,
-        gracePeriodDays: record.gracePeriodDays || 0,
-        interestAmount: record.interestAmount,
-        effectiveDate: record.effectiveDate,
-        calculatedAt: new Date(),
-      })),
-    });
-
-    return result.count;
+    return this.repository.createMany(records);
   }
 }
 
