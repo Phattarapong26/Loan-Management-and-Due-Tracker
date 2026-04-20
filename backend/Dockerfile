@@ -1,6 +1,21 @@
 # Backend Dockerfile for Railway
 FROM node:20-alpine AS base
 
+# Install Chromium and dependencies for Puppeteer
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    font-noto \
+    font-noto-cjk
+
+# Tell Puppeteer to use installed Chromium instead of downloading its own
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+
 # Install dependencies only when needed
 FROM base AS deps
 WORKDIR /app
