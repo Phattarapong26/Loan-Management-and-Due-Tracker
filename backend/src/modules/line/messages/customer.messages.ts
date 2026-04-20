@@ -211,7 +211,7 @@ export class CustomerMessages {
      */
     static async createBalanceMessage(userId?: string): Promise<any[]> {
         if (!userId) {
-            return [{ type: 'text', text: '❌ ไม่พบข้อมูลผู้ใช้ กรุณาลงทะเบียนก่อนใช้งาน', weight: 'bold' }];
+            return [{ type: 'text', text: '❌ ไม่พบข้อมูลผู้ใช้ กรุณาลงทะเบียนก่อนใช้งาน' }];
         }
 
         try {
@@ -219,18 +219,18 @@ export class CustomerMessages {
             const user = await this.findUserWithCustomer(userId);
 
             if (!user || !user.customers || user.customers.length === 0) {
-                return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า กรุณาติดต่อเจ้าหน้าที่', weight: 'bold' }];
+                return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า กรุณาติดต่อเจ้าหน้าที่' }];
             }
 
             const customer = user.customers?.[0];
             if (!customer) {
-                return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า กรุณาติดต่อเจ้าหน้าที่', weight: 'bold' }];
+                return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า กรุณาติดต่อเจ้าหน้าที่' }];
             }
 
             // Get loan balance using user.id (for dbQueryService compatibility)
             const balance = await this.dbQueryService.getLoanBalance(user.id);
             if (!balance) {
-                return [{ type: 'text', text: '❌ ไม่พบข้อมูลสินเชื่อของคุณ กรุณาติดต่อเจ้าหน้าที่', weight: 'bold' }];
+                return [{ type: 'text', text: '❌ ไม่พบข้อมูลสินเชื่อของคุณ กรุณาติดต่อเจ้าหน้าที่' }];
             }
 
             const formatCurrency = (amount: number) => {
@@ -337,7 +337,7 @@ export class CustomerMessages {
             ];
         } catch (error) {
             console.error('Error creating balance message:', error);
-            return [{ type: 'text', text: '❌ เกิดข้อผิดพลาดในการดึงข้อมูล กรุณาลองใหม่อีกครั้ง', weight: 'bold' }];
+            return [{ type: 'text', text: '❌ เกิดข้อผิดพลาดในการดึงข้อมูล กรุณาลองใหม่อีกครั้ง' }];
         }
     }
 
@@ -346,7 +346,7 @@ export class CustomerMessages {
      */
     static async createNextDueMessage(userId?: string): Promise<any[]> {
             if (!userId) {
-                return [{ type: 'text', text: '❌ ไม่พบข้อมูลผู้ใช้ กรุณาลงทะเบียนก่อนใช้งาน', weight: 'bold' }];
+                return [{ type: 'text', text: '❌ ไม่พบข้อมูลผู้ใช้ กรุณาลงทะเบียนก่อนใช้งาน' }];
             }
 
             try {
@@ -354,12 +354,12 @@ export class CustomerMessages {
                 const user = await this.findUserWithCustomer(userId);
 
                 if (!user || !user.customers || user.customers.length === 0) {
-                    return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า กรุณาติดต่อเจ้าหน้าที่', weight: 'bold' }];
+                    return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า กรุณาติดต่อเจ้าหน้าที่' }];
                 }
 
                 const customer = user.customers?.[0];
                 if (!customer) {
-                    return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า กรุณาติดต่อเจ้าหน้าที่', weight: 'bold' }];
+                    return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า กรุณาติดต่อเจ้าหน้าที่' }];
                 }
 
                 const customerId = customer.id;
@@ -606,24 +606,24 @@ export class CustomerMessages {
                 ];
             } catch (error) {
                 console.error('Error creating next due message:', error);
-                return [{ type: 'text', text: '❌ เกิดข้อผิดพลาดในการดึงข้อมูล กรุณาลองใหม่อีกครั้ง', weight: 'bold' }];
+                return [{ type: 'text', text: '❌ เกิดข้อผิดพลาดในการดึงข้อมูล กรุณาลองใหม่อีกครั้ง' }];
             }
         }
 
     static async createContractsMessage(userId?: string): Promise<any[]> {
         if (!userId) {
-            return [{ type: 'text', text: '❌ ไม่พบข้อมูลผู้ใช้ กรุณาลงทะเบียนก่อนใช้งาน', weight: 'bold' }];
+            return [{ type: 'text', text: '❌ ไม่พบข้อมูลผู้ใช้ กรุณาลงทะเบียนก่อนใช้งาน' }];
         }
 
         try {
             const user = await this.findUserWithCustomer(userId);
             if (!user || !user.customers || user.customers.length === 0) {
-                return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า กรุณาติดต่อเจ้าหน้าที่', weight: 'bold' }];
+                return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า กรุณาติดต่อเจ้าหน้าที่' }];
             }
 
             const customer = user.customers?.[0];
             if (!customer) {
-                return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า กรุณาติดต่อเจ้าหน้าที่', weight: 'bold' }];
+                return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า กรุณาติดต่อเจ้าหน้าที่' }];
             }
 
             const loans = await prisma.loan.findMany({
@@ -644,7 +644,7 @@ export class CustomerMessages {
             });
 
             if (!loans || loans.length === 0) {
-                return [{ type: 'text', text: 'ยังไม่พบข้อมูลสัญญา/สินเชื่อของคุณ', weight: 'bold' }];
+                return [{ type: 'text', text: 'ยังไม่พบข้อมูลสัญญา/สินเชื่อของคุณ' }];
             }
 
             const formatCurrency = (amount: any) => {
@@ -765,7 +765,7 @@ export class CustomerMessages {
             ];
         } catch (error) {
             console.error('Error creating contracts message:', error);
-            return [{ type: 'text', text: '❌ เกิดข้อผิดพลาดในการดึงข้อมูล กรุณาลองใหม่อีกครั้ง', weight: 'bold' }];
+            return [{ type: 'text', text: '❌ เกิดข้อผิดพลาดในการดึงข้อมูล กรุณาลองใหม่อีกครั้ง' }];
         }
     }
 
@@ -774,7 +774,7 @@ export class CustomerMessages {
      */
     static async createHistoryMessage(userId?: string): Promise<any[]> {
             if (!userId) {
-                return [{ type: 'text', text: '❌ ไม่พบข้อมูลผู้ใช้ กรุณาลงทะเบียนก่อนใช้งาน', weight: 'bold' }];
+                return [{ type: 'text', text: '❌ ไม่พบข้อมูลผู้ใช้ กรุณาลงทะเบียนก่อนใช้งาน' }];
             }
 
             try {
@@ -782,12 +782,12 @@ export class CustomerMessages {
                 const user = await this.findUserWithCustomer(userId);
 
                 if (!user || !user.customers || user.customers.length === 0) {
-                    return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า กรุณาติดต่อเจ้าหน้าที่', weight: 'bold' }];
+                    return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า กรุณาติดต่อเจ้าหน้าที่' }];
                 }
 
                 const customer = user.customers?.[0];
                 if (!customer) {
-                    return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า กรุณาติดต่อเจ้าหน้าที่', weight: 'bold' }];
+                    return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า กรุณาติดต่อเจ้าหน้าที่' }];
                 }
 
                 const customerId = customer.id;
@@ -1053,7 +1053,7 @@ export class CustomerMessages {
                 ];
             } catch (error) {
                 console.error('Error creating history message:', error);
-                return [{ type: 'text', text: '❌ เกิดข้อผิดพลาดในการดึงข้อมูล กรุณาลองใหม่อีกครั้ง', weight: 'bold' }];
+                return [{ type: 'text', text: '❌ เกิดข้อผิดพลาดในการดึงข้อมูล กรุณาลองใหม่อีกครั้ง' }];
             }
         }
     /**
@@ -1061,18 +1061,18 @@ export class CustomerMessages {
      */
     static async createScheduleMessage(userId?: string): Promise<any[]> {
         if (!userId) {
-            return [{ type: 'text', text: '❌ ไม่พบข้อมูลผู้ใช้ กรุณาลงทะเบียนก่อนใช้งาน', weight: 'bold' }];
+            return [{ type: 'text', text: '❌ ไม่พบข้อมูลผู้ใช้ กรุณาลงทะเบียนก่อนใช้งาน' }];
         }
 
         try {
             const user = await this.findUserWithCustomer(userId);
             if (!user || !user.customers || user.customers.length === 0) {
-                return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า กรุณาติดต่อเจ้าหน้าที่', weight: 'bold' }];
+                return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า กรุณาติดต่อเจ้าหน้าที่' }];
             }
 
             const customer = user.customers?.[0];
             if (!customer) {
-                return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า กรุณาติดต่อเจ้าหน้าที่', weight: 'bold' }];
+                return [{ type: 'text', text: '❌ ไม่พบข้อมูลลูกค้า กรุณาติดต่อเจ้าหน้าที่' }];
             }
 
             const loans = await prisma.loan.findMany({
@@ -1093,7 +1093,7 @@ export class CustomerMessages {
             });
 
             if (!loans || loans.length === 0) {
-                return [{ type: 'text', text: 'ยังไม่พบข้อมูลสัญญา/สินเชื่อของคุณ', weight: 'bold' }];
+                return [{ type: 'text', text: 'ยังไม่พบข้อมูลสัญญา/สินเชื่อของคุณ' }];
             }
 
             const formatCurrency = (amount: any) => {
@@ -1190,7 +1190,7 @@ export class CustomerMessages {
             ];
         } catch (error) {
             console.error('Error creating schedule message:', error);
-            return [{ type: 'text', text: '❌ เกิดข้อผิดพลาดในการดึงข้อมูล กรุณาลองใหม่อีกครั้ง', weight: 'bold' }];
+            return [{ type: 'text', text: '❌ เกิดข้อผิดพลาดในการดึงข้อมูล กรุณาลองใหม่อีกครั้ง' }];
         }
     }
 
@@ -1210,11 +1210,11 @@ export class CustomerMessages {
             });
 
             if (!loan) {
-                return [{ type: 'text', text: '❌ ไม่พบข้อมูลสินเชื่อ', weight: 'bold' }];
+                return [{ type: 'text', text: '❌ ไม่พบข้อมูลสินเชื่อ' }];
             }
 
             if (loan.customerId !== customerId) {
-                return [{ type: 'text', text: '❌ ไม่มีสิทธิ์เข้าถึงข้อมูลสินเชื่อนี้', weight: 'bold' }];
+                return [{ type: 'text', text: '❌ ไม่มีสิทธิ์เข้าถึงข้อมูลสินเชื่อนี้' }];
             }
 
             const schedule = loan.paymentSchedule || [];
@@ -1348,7 +1348,7 @@ export class CustomerMessages {
             ];
         } catch (error) {
             console.error('Error creating schedule detail message:', error);
-            return [{ type: 'text', text: '❌ เกิดข้อผิดพลาดในการดึงข้อมูล กรุณาลองใหม่อีกครั้ง', weight: 'bold' }];
+            return [{ type: 'text', text: '❌ เกิดข้อผิดพลาดในการดึงข้อมูล กรุณาลองใหม่อีกครั้ง' }];
         }
     }
 
