@@ -195,6 +195,19 @@ export async function backfillPaymentTimelines(): Promise<BackfillTaskResult> {
 export async function backfillPaymentReceipts(): Promise<BackfillTaskResult> {
     logger.info('LINE backfill Task B: Payment Receipts');
 
+    // Resolve a real ADMIN user ID to satisfy the issued_by FK constraint
+    const adminUser = await prisma.user.findFirst({
+        where: { role: 'ADMIN', status: 'ACTIVE' },
+        select: { id: true },
+    });
+
+    if (!adminUser) {
+        logger.error('Task B: no active ADMIN user found — cannot backfill receipts');
+        return { created: 0, failed: 0, skipped: 0 };
+    }
+
+    const systemUserId = adminUser.id;
+
     const payments = await prisma.payment.findMany({
         where: {
             NOT: { paymentReceipts: { some: {} } },
@@ -221,7 +234,7 @@ export async function backfillPaymentReceipts(): Promise<BackfillTaskResult> {
         for (const payment of batch) {
             try {
                 // autoSend: false → NO LINE message for historical data
-                await receiptService.generatePaymentReceipt(payment.id, 'SYSTEM', {
+                await receiptService.generatePaymentReceipt(payment.id, systemUserId, {
                     autoSend: false,
                 });
                 created++;
