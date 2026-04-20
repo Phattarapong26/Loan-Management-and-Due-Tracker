@@ -1,7 +1,6 @@
 import { FastifyRequest } from 'fastify';
 import { SystemConfigRepository } from '../repositories/system-config.repository';
 import { ProductConfigRepository } from '../repositories/product-config.repository';
-import { prisma } from '@config/database.config';
 import {
     CreateSystemConfigInput,
     UpdateSystemConfigInput,
@@ -81,198 +80,64 @@ export class ConfigService {
         return config;
     }
 
-    /**
-     * List system configs
-     */
-    async listSystemConfigs(params: {
-        page: number;
-        limit: number;
-        category?: string;
-        search?: string;
-    }) {
-        let configs;
-        let total;
-
+    async listSystemConfigs(params: { page: number; limit: number; category?: string; search?: string }) {
         if (params.category) {
-            configs = await this.systemConfigRepository.getByCategory(params.category);
-            total = configs.length;
-        } else {
-            // For search, we need to query all and filter
-            const allConfigs = await prisma.systemConfig.findMany({
-                where: params.search
-                    ? {
-                          OR: [
-                              { key: { contains: params.search, mode: 'insensitive' } },
-                              { value: { contains: params.search, mode: 'insensitive' } },
-                              { description: { contains: params.search, mode: 'insensitive' } },
-                          ],
-                      }
-                    : {},
-                orderBy: { key: 'asc' },
-            });
-
-            total = allConfigs.length;
-            const start = (params.page - 1) * params.limit;
-            const end = start + params.limit;
-            configs = allConfigs.slice(start, end);
+            const configs = await this.systemConfigRepository.getByCategory(params.category);
+            return { configs, total: configs.length, page: params.page, limit: params.limit, totalPages: Math.ceil(configs.length / params.limit) };
         }
-
-        return {
-            configs,
-            total,
-            page: params.page,
-            limit: params.limit,
-            totalPages: Math.ceil(total / params.limit),
-        };
+        const { configs, total } = await this.systemConfigRepository.list({ page: params.page, limit: params.limit, search: params.search });
+        return { configs, total, page: params.page, limit: params.limit, totalPages: Math.ceil(total / params.limit) };
     }
 
-    /**
-     * Delete system config
-     */
     async deleteSystemConfig(key: string) {
         const config = await this.systemConfigRepository.getByKey(key);
-        if (!config) {
-            throw new Error(`Config key '${key}' not found`);
-        }
-
-        await prisma.systemConfig.delete({
-            where: { key },
-        });
-
+        if (!config) throw new Error(`Config key '${key}' not found`);
+        await this.systemConfigRepository.delete(key);
         return { message: 'Config deleted successfully' };
     }
 
     // ========== Product Config Methods ==========
 
-    /**
-     * Create product config
-     */
-    async createProductConfig(
-        _request: FastifyRequest,
-        input: CreateProductConfigInput,
-        userId: string
-    ) {
-        // Check if product code already exists
+    async createProductConfig(_request: FastifyRequest, input: CreateProductConfigInput, userId: string) {
         const existing = await this.productConfigRepository.findActiveByCode(input.productCode);
-        if (existing) {
-            throw new Error(`Product code '${input.productCode}' already exists`);
-        }
-
-        // Validate config structure
+        if (existing) throw new Error(`Product code '${input.productCode}' already exists`);
         this.validateProductConfig(input.config);
-
-        // Get latest version for this product code
-        const latest = await prisma.productConfig.findFirst({
-            where: { productCode: input.productCode },
-            orderBy: { version: 'desc' },
-        });
-
+        const latest = await this.productConfigRepository.findLatestByCode(input.productCode);
         const version = latest ? latest.version + 1 : 1;
-
-        return prisma.productConfig.create({
-            data: {
-                productCode: input.productCode,
-                productName: input.productName,
-                description: input.description,
-                config: input.config as any,
-                status: 'ACTIVE',
-                activeFrom: new Date(input.activeFrom),
-                activeUntil: input.activeUntil ? new Date(input.activeUntil) : null,
-                version,
-                createdBy: userId,
-            },
+        return this.productConfigRepository.create({
+            productCode: input.productCode,
+            productName: input.productName,
+            description: input.description,
+            config: input.config,
+            activeFrom: new Date(input.activeFrom),
+            activeUntil: input.activeUntil ? new Date(input.activeUntil) : null,
+            version,
+            createdBy: userId,
         });
     }
 
-    /**
-     * Update product config
-     */
-    async updateProductConfig(
-        _request: FastifyRequest,
-        id: string,
-        input: UpdateProductConfigInput
-    ) {
-        const existing = await prisma.productConfig.findUnique({
-            where: { id },
-        });
-
-        if (!existing) {
-            throw new Error('Product config not found');
-        }
-
-        // If config is being updated, validate it
-        if (input.config) {
-            this.validateProductConfig(input.config);
-        }
-
+    async updateProductConfig(_request: FastifyRequest, id: string, input: UpdateProductConfigInput) {
+        const existing = await this.productConfigRepository.findById(id);
+        if (!existing) throw new Error('Product config not found');
+        if (input.config) this.validateProductConfig(input.config);
         const updateData: any = {};
         if (input.productName !== undefined) updateData.productName = input.productName;
         if (input.description !== undefined) updateData.description = input.description;
-        if (input.config !== undefined) updateData.config = input.config as any;
+        if (input.config !== undefined) updateData.config = input.config;
         if (input.activeFrom !== undefined) updateData.activeFrom = new Date(input.activeFrom);
         if (input.activeUntil !== undefined) updateData.activeUntil = input.activeUntil ? new Date(input.activeUntil) : null;
-
-        return prisma.productConfig.update({
-            where: { id },
-            data: updateData,
-        });
+        return this.productConfigRepository.update(id, updateData);
     }
 
-    /**
-     * Get product config by ID
-     */
     async getProductConfig(id: string) {
-        const config = await prisma.productConfig.findUnique({
-            where: { id },
-        });
-
-        if (!config) {
-            throw new Error('Product config not found');
-        }
-
+        const config = await this.productConfigRepository.findById(id);
+        if (!config) throw new Error('Product config not found');
         return config;
     }
 
-    /**
-     * List product configs
-     */
-    async listProductConfigs(params: {
-        page: number;
-        limit: number;
-        status?: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
-        search?: string;
-    }) {
-        const where: any = {};
-
-        if (params.status) {
-            where.status = params.status;
-        }
-
-        if (params.search) {
-            where.OR = [
-                { productCode: { contains: params.search, mode: 'insensitive' } },
-                { productName: { contains: params.search, mode: 'insensitive' } },
-                { description: { contains: params.search, mode: 'insensitive' } },
-            ];
-        }
-
-        const [configs, total] = await Promise.all([
-            prisma.productConfig.findMany({
-                where,
-                skip: (params.page - 1) * params.limit,
-                take: params.limit,
-                orderBy: { createdAt: 'desc' },
-            }),
-            prisma.productConfig.count({ where }),
-        ]);
-
-        return {
-            configs,
-            total,
-            page: params.page,
-            limit: params.limit,
-            totalPages: Math.ceil(total / params.limit),
-        };
+    async listProductConfigs(params: { page: number; limit: number; status?: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED'; search?: string }) {
+        const { configs, total } = await this.productConfigRepository.list(params);
+        return { configs, total, page: params.page, limit: params.limit, totalPages: Math.ceil(total / params.limit) };
     }
 
     /**

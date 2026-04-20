@@ -1,9 +1,4 @@
-/**
- * Filter Options Service
- * Provides available filter options for debt management reports
- */
-
-import { prisma } from '@config/database.config';
+import { BranchRepository } from '@branches/repositories/branch.repository';
 import { logger } from '@utils/common/logger.util';
 
 // Thai provinces grouped by region
@@ -15,126 +10,70 @@ const THAI_REGIONS = {
 };
 
 export class FilterOptionsService {
-  /**
-   * Get available branches
-   */
+  private branchRepository: BranchRepository;
+
+  constructor() {
+    this.branchRepository = new BranchRepository();
+  }
+
   async getBranches() {
     try {
-      const branches = await prisma.branch.findMany({
-        select: {
-          id: true,
-          name: true,
-          province: true,
-          district: true,
-        },
-        orderBy: {
-          name: 'asc',
-        },
-      });
-
-      return branches;
+      const result = await this.branchRepository.list({ page: 1, limit: 1000 });
+      return result.branches.map((b: any) => ({ id: b.id, name: b.name, province: b.province, district: b.district }));
     } catch (error) {
       logger.error({ error }, 'Error getting branches');
       return [];
     }
   }
 
-  /**
-   * Get available regions based on branches
-   */
   async getRegions() {
     try {
-      const branches = await prisma.branch.findMany({
-        select: {
-          province: true,
-        },
-        distinct: ['province'],
-      });
-
+      const branches = await this.getBranches();
       const regions = new Set<string>();
-      
-      branches.forEach((branch) => {
+      branches.forEach((branch: any) => {
         if (branch.province) {
-          // Find which region this province belongs to
           for (const [region, provinces] of Object.entries(THAI_REGIONS)) {
-            if (provinces.includes(branch.province)) {
-              regions.add(region);
-              break;
-            }
+            if (provinces.includes(branch.province)) { regions.add(region); break; }
           }
         }
       });
-
-      return Array.from(regions).map((region) => ({
-        value: region,
-        label: this.getRegionLabel(region),
-      }));
+      return Array.from(regions).map((region) => ({ value: region, label: this.getRegionLabel(region) }));
     } catch (error) {
       logger.error({ error }, 'Error getting regions');
       return [];
     }
   }
 
-  /**
-   * Get available zones (districts) based on selected region
-   */
   async getZones(region?: string) {
     try {
-      let provinces: string[] = [];
-
-      if (region && region !== 'all') {
-        provinces = THAI_REGIONS[region as keyof typeof THAI_REGIONS] || [];
-      }
-
-      const whereClause = provinces.length > 0 ? { province: { in: provinces } } : {};
-
-      const branches = await prisma.branch.findMany({
-        where: whereClause,
-        select: {
-          district: true,
-        },
-        distinct: ['district'],
-      });
-
-      return branches
-        .filter((b) => b.district)
-        .map((b) => ({
-          value: b.district!,
-          label: b.district!,
-        }));
+      const branches = await this.getBranches();
+      const provinces = region && region !== 'all' ? THAI_REGIONS[region as keyof typeof THAI_REGIONS] || [] : [];
+      const filtered = provinces.length > 0 ? branches.filter((b: any) => b.province && provinces.includes(b.province)) : branches;
+      const districts = [...new Set(filtered.map((b: any) => b.district).filter(Boolean))];
+      return districts.map((d) => ({ value: d, label: d }));
     } catch (error) {
       logger.error({ error }, 'Error getting zones');
       return [];
     }
   }
 
-  /**
-   * Get available years from loan data
-   */
   async getAvailableYears() {
     try {
-      // Use financial timeline dates (payments/schedules) instead of loan.createdAt.
-      // This makes the report filters reflect years that actually have data.
+      const { prisma } = await import('@config/database.config');
       const rows = await prisma.$queryRaw<Array<{ year: number }>>`
         SELECT DISTINCT EXTRACT(YEAR FROM d)::int AS year
         FROM (
           SELECT created_at AS d FROM loans
-          UNION ALL
-          SELECT disbursement_date AS d FROM loans
-          UNION ALL
-          SELECT start_date AS d FROM loans
-          UNION ALL
-          SELECT payment_date AS d FROM payments
-          UNION ALL
-          SELECT payment_date AS d FROM payment_schedules
+          UNION ALL SELECT disbursement_date AS d FROM loans
+          UNION ALL SELECT start_date AS d FROM loans
+          UNION ALL SELECT payment_date AS d FROM payments
+          UNION ALL SELECT payment_date AS d FROM payment_schedules
         ) t
         WHERE d IS NOT NULL
         ORDER BY year DESC;
       `;
-
       const years = rows.map((r) => r.year).filter((y) => Number.isFinite(y));
       if (years.length > 0) return years;
-
       const currentYear = new Date().getFullYear();
       return [currentYear];
     } catch (error) {
@@ -144,16 +83,8 @@ export class FilterOptionsService {
     }
   }
 
-  /**
-   * Get region label in Thai
-   */
   private getRegionLabel(region: string): string {
-    const labels: Record<string, string> = {
-      north: 'ภาคเหนือ',
-      northeast: 'ภาคตะวันออกเฉียงเหนือ',
-      central: 'ภาคกลาง',
-      south: 'ภาคใต้',
-    };
+    const labels: Record<string, string> = { north: 'ภาคเหนือ', northeast: 'ภาคตะวันออกเฉียงเหนือ', central: 'ภาคกลาง', south: 'ภาคใต้' };
     return labels[region] || region;
   }
 }

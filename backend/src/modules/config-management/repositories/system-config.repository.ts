@@ -67,3 +67,22 @@ export class SystemConfigRepository {
         });
     }
 }
+
+    async list(params: { page: number; limit: number; search?: string }): Promise<{ configs: SystemConfig[]; total: number }> {
+        const where: any = params.search
+            ? {
+                  OR: [
+                      { key: { contains: params.search, mode: 'insensitive' } },
+                      { value: { contains: params.search, mode: 'insensitive' } },
+                      { description: { contains: params.search, mode: 'insensitive' } },
+                  ],
+              }
+            : {};
+        const all = await this.db.systemConfig.findMany({ where, orderBy: { key: 'asc' } });
+        const start = (params.page - 1) * params.limit;
+        return { configs: all.slice(start, start + params.limit), total: all.length };
+    }
+
+    async delete(key: string): Promise<void> {
+        await this.db.systemConfig.delete({ where: { key } });
+    }

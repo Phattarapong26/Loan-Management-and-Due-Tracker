@@ -8,7 +8,7 @@
  * - Track document access attempts
  */
 
-import { prisma } from '@config/database.config';
+import { SecureDocumentRepository } from '../repositories/secure-document.repository';
 import { env } from '@config/env.config';
 import { logger } from '@utils/common/logger.util';
 import crypto from 'crypto';
@@ -23,6 +23,11 @@ export interface SecureDocumentToken {
 }
 
 export class SecureDocumentService {
+    private repository: SecureDocumentRepository;
+
+    constructor() {
+        this.repository = new SecureDocumentRepository();
+    }
     /**
      * Generate secure token for document access
      * Token expires in 7 days
@@ -41,16 +46,7 @@ export class SecureDocumentService {
             expiresAt.setDate(expiresAt.getDate() + 7);
 
             // Store token in database
-            await prisma.secureDocumentToken.create({
-                data: {
-                    token,
-                    documentType,
-                    documentId,
-                    customerId,
-                    expiresAt,
-                    accessCount: 0,
-                },
-            });
+            await this.repository.createToken({ token, documentType, documentId, customerId, expiresAt });
 
             logger.info({
                 documentType,
@@ -75,12 +71,7 @@ export class SecureDocumentService {
     ): Promise<{ success: boolean; documentUrl?: string; error?: string }> {
         try {
             // Get token from database
-            const tokenRecord = await prisma.secureDocumentToken.findUnique({
-                where: { token },
-                include: {
-                    customer: true,
-                },
-            });
+            const tokenRecord = await this.repository.findToken(token);
 
             if (!tokenRecord) {
                 logger.warn({ token: token.substring(0, 10) }, 'Invalid token');
@@ -146,13 +137,7 @@ export class SecureDocumentService {
             await this.logAccessAttempt(token, true);
 
             // Update access count
-            await prisma.secureDocumentToken.update({
-                where: { token },
-                data: {
-                    accessCount: { increment: 1 },
-                    lastAccessedAt: new Date(),
-                },
-            });
+            await this.repository.incrementAccessCount(token);
 
             // Generate document URL based on type
             const documentUrl = await this.getDocumentUrl(
@@ -198,9 +183,7 @@ export class SecureDocumentService {
      */
     private async getReceiptPDFUrl(receiptId: string): Promise<string> {
             try {
-                const receipt = await prisma.paymentReceipt.findUnique({
-                    where: { id: receiptId },
-                });
+                const receipt = await this.repository.findReceipt(receiptId);
 
                 if (!receipt) {
                     throw new Error('Receipt not found');
@@ -223,15 +206,7 @@ export class SecureDocumentService {
                 const pdfUrl = await paymentReceiptPDFService.savePDF(pdfBuffer, filename);
 
                 // Update receiptData with PDF URL for future use
-                await prisma.paymentReceipt.update({
-                    where: { id: receiptId },
-                    data: {
-                        receiptData: {
-                            ...receiptData,
-                            pdfUrl,
-                        },
-                    },
-                });
+                await this.repository.updateReceiptData(receiptId, { ...receiptData, pdfUrl });
 
                 logger.info({ receiptId, pdfUrl }, 'PDF generated and URL stored');
                 return pdfUrl;
@@ -251,35 +226,19 @@ export class SecureDocumentService {
                     logger.info({ invoiceId }, 'Getting invoice PDF URL');
 
                     // Try to find invoice by ID
-                    let invoice = await prisma.nextPaymentInvoice.findUnique({
-                        where: { id: invoiceId },
-                    });
+                    let invoice = await this.repository.findInvoiceById(invoiceId);
 
                     // If invoice not found, it might be a payment schedule ID
-                    // Try to find invoice by payment schedule ID
                     if (!invoice) {
                         logger.warn({ invoiceId }, 'Invoice not found by ID, trying as payment schedule ID');
-                        invoice = await prisma.nextPaymentInvoice.findFirst({
-                            where: { paymentScheduleId: invoiceId },
-                            orderBy: { createdAt: 'desc' },
-                        });
+                        invoice = await this.repository.findInvoiceByScheduleId(invoiceId);
                     }
 
                     // If still not found, generate invoice from payment schedule
                     if (!invoice) {
                         logger.info({ paymentScheduleId: invoiceId }, 'Invoice not found, generating from payment schedule');
 
-                        // Check if payment schedule exists
-                        const schedule = await prisma.paymentSchedule.findUnique({
-                            where: { id: invoiceId },
-                            include: {
-                                loan: {
-                                    include: {
-                                        customer: true,
-                                    },
-                                },
-                            },
-                        });
+                        const schedule = await this.repository.findPaymentScheduleWithLoan(invoiceId);
 
                         if (!schedule) {
                             logger.error({ invoiceId }, 'Payment schedule not found');
@@ -296,9 +255,7 @@ export class SecureDocumentService {
                         );
 
                         // Fetch the created invoice
-                        invoice = await prisma.nextPaymentInvoice.findUnique({
-                            where: { id: invoiceData.invoiceId },
-                        });
+                        invoice = await this.repository.findInvoiceById(invoiceData.invoiceId);
 
                         if (!invoice) {
                             logger.error({ invoiceId: invoiceData.invoiceId }, 'Failed to fetch generated invoice');
@@ -439,15 +396,7 @@ export class SecureDocumentService {
 
                         // Update invoiceData with PDF URL for future use
                         logger.info({ invoiceId: invoice.id }, 'Updating invoice with PDF URL');
-                        await prisma.nextPaymentInvoice.update({
-                            where: { id: invoice.id },
-                            data: {
-                                invoiceData: {
-                                    ...invoiceData,
-                                    pdfUrl,
-                                },
-                            },
-                        });
+                        await this.repository.updateInvoiceData(invoice.id, { ...invoiceData, pdfUrl });
 
                         logger.info({ invoiceId: invoice.id, pdfUrl }, 'Invoice PDF generated and URL stored successfully');
                         return pdfUrl;
@@ -479,9 +428,7 @@ export class SecureDocumentService {
     private async getContractPDFUrl(loanId: string): Promise<string> {
             try {
                 // Get loan data
-                const loan = await prisma.loan.findUnique({
-                    where: { id: loanId },
-                });
+                const loan = await this.repository.findLoanById(loanId);
 
                 if (!loan) {
                     throw new Error('Loan not found');
@@ -519,23 +466,9 @@ export class SecureDocumentService {
             }
         }
 
-    /**
-     * Log access attempt
-     */
-    private async logAccessAttempt(
-        token: string,
-        success: boolean,
-        reason?: string
-    ): Promise<void> {
+    private async logAccessAttempt(token: string, success: boolean, reason?: string): Promise<void> {
         try {
-            await prisma.documentAccessLog.create({
-                data: {
-                    token,
-                    success,
-                    reason,
-                    accessedAt: new Date(),
-                },
-            });
+            await this.repository.logAccessAttempt(token, success, reason);
         } catch (error) {
             logger.error({ error, token: token.substring(0, 10) }, 'Error logging access attempt');
         }
@@ -552,21 +485,11 @@ export class SecureDocumentService {
         return `${baseUrl}/secure-document/${token}`;
     }
 
-    /**
-     * Cleanup expired tokens (run daily)
-     */
     async cleanupExpiredTokens(): Promise<number> {
         try {
-            const result = await prisma.secureDocumentToken.deleteMany({
-                where: {
-                    expiresAt: {
-                        lt: new Date(),
-                    },
-                },
-            });
-
-            logger.info({ count: result.count }, 'Cleaned up expired document tokens');
-            return result.count;
+            const count = await this.repository.deleteExpiredTokens();
+            logger.info({ count }, 'Cleaned up expired document tokens');
+            return count;
         } catch (error) {
             logger.error({ error }, 'Error cleaning up expired tokens');
             return 0;
