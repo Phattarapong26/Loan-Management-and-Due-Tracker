@@ -199,25 +199,37 @@ export class DatabaseQueryService {
      */
     async getLoanBalance(userId: string): Promise<LoanBalance | null> {
         try {
+            // Active loan statuses - include NPL/DEFAULTED so customers can still see their balance
+            const activeLoanStatuses = ['APPROVED', 'DISBURSED', 'ACTIVE', 'NPL', 'DEFAULTED'];
+
             // Find customer by userId (direct link)
-            const customer = await prisma.customer.findFirst({
-                where: { 
-                    userId: userId 
-                },
+            let customer = await prisma.customer.findFirst({
+                where: { userId: userId },
                 include: {
                     loans: {
-                        where: {
-                            status: {
-                                in: ['APPROVED', 'DISBURSED', 'ACTIVE'],
-                            },
-                        },
-                        orderBy: {
-                            createdAt: 'desc',
-                        },
+                        where: { status: { in: activeLoanStatuses } },
+                        orderBy: { createdAt: 'desc' },
                         take: 1,
                     },
                 },
             });
+
+            // Fallback: userId might actually be a Customer.id (synthetic user case)
+            if (!customer || !customer.loans || customer.loans.length === 0) {
+                const byCustomerId = await prisma.customer.findUnique({
+                    where: { id: userId },
+                    include: {
+                        loans: {
+                            where: { status: { in: activeLoanStatuses } },
+                            orderBy: { createdAt: 'desc' },
+                            take: 1,
+                        },
+                    },
+                });
+                if (byCustomerId && byCustomerId.loans && byCustomerId.loans.length > 0) {
+                    customer = byCustomerId;
+                }
+            }
 
             if (!customer || !customer.loans || customer.loans.length === 0) {
                 return null;
@@ -397,29 +409,25 @@ export class DatabaseQueryService {
             const futureDate = new Date();
             futureDate.setDate(futureDate.getDate() + days);
 
-            // Find user's customer record
-            const user = await prisma.user.findUnique({
-                where: { id: userId },
+            // Find customer linked to this user (correct relation: Customer.userId)
+            const customers = await prisma.customer.findMany({
+                where: { userId: userId },
                 include: {
-                    customers: {
-                        include: {
-                            loans: {
-                                where: {
-                                    status: {
-                                        in: ['APPROVED', 'DISBURSED', 'ACTIVE'],
-                                    },
-                                },
+                    loans: {
+                        where: {
+                            status: {
+                                in: ['APPROVED', 'DISBURSED', 'ACTIVE', 'NPL', 'DEFAULTED'],
                             },
                         },
                     },
                 },
             });
 
-            if (!user || !user.customers || user.customers.length === 0) {
+            if (!customers || customers.length === 0) {
                 return [];
             }
 
-            const loanIds = user.customers.flatMap((c) => c.loans.map((l) => l.id));
+            const loanIds = customers.flatMap((c) => c.loans.map((l) => l.id));
 
             const upcomingPayments = await prisma.paymentSchedule.findMany({
                 where: {

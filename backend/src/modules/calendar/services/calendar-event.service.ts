@@ -9,6 +9,7 @@ import { CreateCalendarEventInput, UpdateCalendarEventInput } from '../models/ca
 import { LineService } from '@line/services/core/line.service';
 import { format } from 'date-fns';
 import { th } from 'date-fns/locale';
+import { ensureHttps } from '@config/env.config';
 
 /**
  * Calendar Event Service - Business logic ONLY
@@ -395,7 +396,7 @@ export class CalendarEventService {
                             action: {
                                 type: 'uri',
                                 label: '📋 ดูรายละเอียด',
-                                uri: `${process.env.FRONTEND_URL}/calendar`,
+                                uri: `${ensureHttps(process.env.FRONTEND_URL || '')}/calendar`,
                             },
                             style: 'primary',
                             color: config.color,
@@ -615,7 +616,7 @@ export class CalendarEventService {
                             action: {
                                 type: 'uri',
                                 label: '📅 ดูในปฏิทิน',
-                                uri: `${process.env.FRONTEND_URL}/calendar`,
+                                uri: `${ensureHttps(process.env.FRONTEND_URL || '')}/calendar`,
                             },
                             style: 'primary',
                             color: '#0065FB',

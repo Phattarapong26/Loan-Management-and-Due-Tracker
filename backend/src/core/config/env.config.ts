@@ -68,6 +68,7 @@ const envSchema = z.object({
     // Backend URL (for serving public files like PDFs)
     BACKEND_URL: z.string().default('http://localhost:3000'),
 
+
     // Logging
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 
@@ -126,3 +127,17 @@ export const env = {
 };
 
 export type Env = typeof env;
+
+/**
+ * Ensure a URL has a protocol prefix (https:// for production, http:// for localhost)
+ * Fixes cases where env vars are set without protocol (e.g. "example.up.railway.app")
+ */
+export function ensureHttps(url: string): string {
+    if (!url) return url;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    // localhost/127.0.0.1 use http, everything else uses https
+    if (url.startsWith('localhost') || url.startsWith('127.0.0.1')) {
+        return `http://${url}`;
+    }
+    return `https://${url}`;
+}

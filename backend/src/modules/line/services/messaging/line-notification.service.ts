@@ -2,6 +2,7 @@ import { logger } from '@utils/common/logger.util';
 import { SecureDocumentService } from '@documents/services/secure-document.service';
 import { prisma } from '@config/database.config';
 import { formatThaiDate } from '@utils/common/thai-language.util';
+import { ensureHttps } from '@config/env.config';
 
 export interface PaymentInvoiceData {
     invoiceId: string;
@@ -346,7 +347,7 @@ export class LineNotificationService {
                                 action: {
                                     type: 'uri',
                                     label: 'ชำระเงิน',
-                                    uri: `${process.env.FRONTEND_URL}/payments/${reminderData.loanId}`
+                                    uri: `${ensureHttps(process.env.FRONTEND_URL || '')}/payments/${reminderData.loanId}`
                                 }
                             }
                         ]
@@ -694,7 +695,7 @@ export class LineNotificationService {
                                 action: {
                                     type: 'uri',
                                     label: 'ดูรายละเอียด',
-                                    uri: `${process.env.FRONTEND_URL}/loans/${nplData.loanId}`
+                                    uri: `${ensureHttps(process.env.FRONTEND_URL || '')}/loans/${nplData.loanId}`
                                 }
                             }
                         ]

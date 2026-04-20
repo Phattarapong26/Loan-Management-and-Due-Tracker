@@ -1,5 +1,6 @@
 import { Redis } from 'ioredis';
 import { logger } from '@utils/common/logger.util';
+import { ensureHttps } from '@config/env.config';
 
 /**
  * Config Service - Stores dynamic configuration like frontend URL
@@ -38,12 +39,12 @@ export class ConfigService {
             const dynamicUrl = await this.redis.get(this.FRONTEND_URL_KEY);
             if (dynamicUrl) {
                 logger.debug({ url: dynamicUrl }, 'Using dynamic frontend URL');
-                return dynamicUrl;
+                return ensureHttps(dynamicUrl);
             }
         } catch (error) {
             logger.warn({ error }, 'Failed to get dynamic frontend URL, using default');
         }
-        return defaultUrl;
+        return ensureHttps(defaultUrl);
     }
 
     /**

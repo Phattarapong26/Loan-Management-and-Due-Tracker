@@ -3,6 +3,7 @@ import { NotificationRepository } from '../repositories/notification.repository'
 import { UserRepository } from '@users/repositories/user.repository';
 import { CreateNotificationInput } from '../models/notification.model';
 import { LineService } from '@line/services/core/line.service';
+import { ensureHttps } from '@config/env.config';
 
 /**
  * Notification Service - Business logic ONLY
@@ -119,7 +120,7 @@ export class NotificationService {
                             action: {
                                 type: 'uri',
                                 label: 'ดูรายละเอียด',
-                                uri: `${process.env.FRONTEND_URL || 'https://app.example.com'}${notification.link}`,
+                                uri: `${ensureHttps(process.env.FRONTEND_URL || 'app.example.com')}${notification.link}`,
                             },
                             style: 'primary',
                             color: '#1DB954',

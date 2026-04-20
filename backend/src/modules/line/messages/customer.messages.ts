@@ -5,7 +5,7 @@
 
 import { DatabaseQueryService } from '@core-services/services/database-query.service';
 import { prisma } from '@config/database.config';
-import { env } from '@config/env.config';
+import { env, ensureHttps } from '@config/env.config';
 import { OverpaymentLinkTokenService } from '@line/services/overpayment-link-token.service';
 import { COLORS } from './theme';
 
@@ -368,7 +368,7 @@ export class CustomerMessages {
                 const loans = await prisma.loan.findMany({
                     where: {
                         customerId,
-                        status: 'DISBURSED',
+                        status: { in: ['DISBURSED', 'ACTIVE', 'NPL', 'DEFAULTED'] },
                         nextPaymentDate: { not: null },
                     },
                     include: {
@@ -738,7 +738,7 @@ export class CustomerMessages {
                                             apiBase = '';
                                         }
 
-                                        return `${env.FRONTEND_URL}/overpayment-calculator?t=${encodeURIComponent(token)}${
+                                        return `${ensureHttps(env.FRONTEND_URL)}/overpayment-calculator?t=${encodeURIComponent(token)}${
                                             apiBase ? `&apiBase=${encodeURIComponent(apiBase)}` : ''
                                         }`;
                                     })(),
