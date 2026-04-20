@@ -1790,7 +1790,8 @@ export class LineWebhookService {
                         apiBase = '';
                     }
 
-                    const calculatorUrl = `${frontendUrl}/overpayment-calculator?t=${encodeURIComponent(token)}${
+                    const safeUrl2 = frontendUrl?.startsWith('http') ? frontendUrl : `https://${frontendUrl}`;
+                    const calculatorUrl = `${safeUrl2}/overpayment-calculator?t=${encodeURIComponent(token)}${
                         apiBase ? `&apiBase=${encodeURIComponent(apiBase)}` : ''
                     }`;
                     
