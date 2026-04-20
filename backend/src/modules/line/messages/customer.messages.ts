@@ -13,20 +13,71 @@ export class CustomerMessages {
     private static dbQueryService = new DatabaseQueryService();
 
     private static async findUserWithCustomer(userIdOrLineUserId: string) {
-        return prisma.user.findFirst({
+        // First try: find via User.lineUserId or User.id
+        const userViaUser = await prisma.user.findFirst({
             where: {
                 OR: [
                     { id: userIdOrLineUserId },
                     { lineUserId: userIdOrLineUserId },
                 ],
             },
-            include: {
-                customers: {
-                    select: { id: true, businessName: true },
-                    take: 1,
-                },
-            },
+            select: { id: true, role: true, firstName: true, lastName: true, email: true, lineUserId: true },
         });
+
+        if (userViaUser) {
+            // Find customers linked to this user via Customer.userId (correct relation)
+            const linkedCustomers = await prisma.customer.findMany({
+                where: { userId: userViaUser.id },
+                select: { id: true, businessName: true },
+                take: 1,
+            });
+
+            if (linkedCustomers.length > 0) {
+                return { ...userViaUser, customers: linkedCustomers };
+            }
+
+            // Fallback: customers created by this user
+            const createdCustomers = await prisma.customer.findMany({
+                where: { createdBy: userViaUser.id },
+                select: { id: true, businessName: true },
+                take: 1,
+            });
+
+            if (createdCustomers.length > 0) {
+                return { ...userViaUser, customers: createdCustomers };
+            }
+
+            return { ...userViaUser, customers: [] };
+        }
+
+        // Second try: find via Customer.lineUserId (customer linked LINE directly)
+        const customer = await prisma.customer.findFirst({
+            where: { lineUserId: userIdOrLineUserId },
+            select: { id: true, businessName: true, userId: true },
+        });
+
+        if (!customer) return null;
+
+        // If customer has a linked user, return that user with customer attached
+        if (customer.userId) {
+            const userViaCustomer = await prisma.user.findUnique({
+                where: { id: customer.userId },
+                select: { id: true, role: true, firstName: true, lastName: true, email: true, lineUserId: true },
+            });
+            if (userViaCustomer) {
+                return { ...userViaCustomer, customers: [{ id: customer.id, businessName: customer.businessName }] };
+            }
+        }
+
+        // Fallback: return a synthetic user-like object
+        return {
+            id: customer.userId || customer.id,
+            role: 'CUSTOMER' as const,
+            firstName: customer.businessName,
+            lastName: '',
+            email: '',
+            customers: [{ id: customer.id, businessName: customer.businessName }],
+        };
     }
 
     /**
