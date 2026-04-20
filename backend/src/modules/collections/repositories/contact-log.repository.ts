@@ -294,3 +294,10 @@ export class ContactLogRepository {
         });
     }
 }
+
+    /**
+     * Update taskId link on a contact log
+     */
+    async updateTaskLink(id: string, taskId: string): Promise<void> {
+        await this.db.contactLog.update({ where: { id }, data: { taskId } });
+    }

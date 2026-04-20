@@ -14,7 +14,7 @@
  * - NPL: 90+ days past due (Non-Performing Loan)
  */
 
-import { prisma } from '@config/database.config';
+import { AgingAnalysisRepository } from '../repositories/aging-analysis.repository';
 import { logger } from '@utils/common/logger.util';
 import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
 
@@ -51,6 +51,12 @@ export interface BucketRollRatesAnalysis {
 }
 
 export class BucketRollRatesService {
+    private agingAnalysisRepository: AgingAnalysisRepository;
+
+    constructor() {
+        this.agingAnalysisRepository = new AgingAnalysisRepository();
+    }
+
     /**
      * Get comprehensive bucket roll rates analysis
      */
@@ -121,13 +127,7 @@ export class BucketRollRatesService {
             where.branch_id = branchId;
         }
 
-        const agingRecords = await prisma.aging_analysis.findMany({
-            where,
-            select: {
-                aging_bucket: true,
-                total_overdue: true,
-            },
-        });
+        const agingRecords = await this.agingAnalysisRepository.findByBranchAndDate(branchId, startDate);
 
         // Group by bucket
         const bucketMap = new Map<string, { count: number; totalAmount: number }>();
@@ -186,14 +186,7 @@ export class BucketRollRatesService {
             previousWhere.branch_id = branchId;
         }
 
-        const previousRecords = await prisma.aging_analysis.findMany({
-            where: previousWhere,
-            select: {
-                loan_id: true,
-                aging_bucket: true,
-                total_overdue: true,
-            },
-        });
+        const previousRecords = await this.agingAnalysisRepository.findByBranchAndDate(branchId, previousMonth);
 
         // Get current month records for the same loans
         const loanIds = previousRecords.map((r) => r.loan_id);
@@ -207,14 +200,7 @@ export class BucketRollRatesService {
             status: 'ACTIVE',
         };
 
-        const currentRecords = await prisma.aging_analysis.findMany({
-            where: currentWhere,
-            select: {
-                loan_id: true,
-                aging_bucket: true,
-                total_overdue: true,
-            },
-        });
+        const currentRecords = await this.agingAnalysisRepository.findByBranchAndDate(branchId, currentMonth);
 
         // Create map for current records
         const currentMap = new Map(currentRecords.map((r) => [r.loan_id, r]));

@@ -12,7 +12,7 @@
  * Requirements: Requirement 8 - Customer Contact Logging
  */
 
-import { prisma } from '@config/database.config';
+import { ContactLogRepository } from '../repositories/contact-log.repository';
 
 export type ContactType = 'PHONE' | 'VISIT' | 'EMAIL' | 'LINE';
 export type ContactOutcome = 'CONTACTED' | 'PROMISED' | 'EXTENSION' | 'UNREACHABLE' | 'PAID';
@@ -28,60 +28,30 @@ export interface ContactLogData {
 }
 
 export class ContactLoggingService {
-    /**
-     * Task 5.2.5: Save contact log with all context
-     * 
-     * @param data - Contact log data
-     * @param officerId - Loan officer ID
-     * @returns Created contact log
-     */
+    private contactLogRepository: ContactLogRepository;
+
+    constructor() {
+        this.contactLogRepository = new ContactLogRepository();
+    }
+
     async saveContactLog(data: ContactLogData, officerId: string): Promise<any> {
         try {
-            // Create contact log
-            const contactLog = await (prisma as any).contactLog.create({
-                data: {
-                    customerId: data.customerId,
-                    loanId: data.loanId,
-                    contactMethod: data.contactType as any,
-                    contactStatus: this.mapOutcomeToStatus(data.outcome),
-                    notes: data.notes,
-                    nextFollowUpDate: data.nextFollowUpDate,
-                    taskId: data.taskId,
-                    contactDate: new Date(),
-                    officerId: officerId,
-                    outcome: this.mapOutcomeToStatus(data.outcome),
-                },
-                include: {
-                    customer: {
-                        include: {
-                            user: {
-                                select: {
-                                    firstName: true,
-                                    lastName: true,
-                                },
-                            },
-                        },
-                    },
-                    loan: {
-                        select: {
-                            id: true,
-                            principal: true,
-                        },
-                    },
-                } as any,
+            const contactLog = await this.contactLogRepository.create({
+                customerId: data.customerId,
+                loanId: data.loanId,
+                contactMethod: data.contactType as any,
+                contactStatus: this.mapOutcomeToStatus(data.outcome),
+                notes: data.notes,
+                nextFollowUpDate: data.nextFollowUpDate?.toISOString(),
+                taskId: data.taskId,
+                contactDate: new Date().toISOString(),
+                officerId,
             });
 
-            // Task 5.2.6: Create new task if next follow-up date is set
             if (data.nextFollowUpDate) {
-                await this.createFollowUpTask(
-                    data.customerId,
-                    data.loanId,
-                    data.nextFollowUpDate,
-                    contactLog.id
-                );
+                await this.createFollowUpTask(data.customerId, data.loanId, data.nextFollowUpDate, contactLog.id);
             }
 
-            // Task 5.2.7: Update task status if linked to a task
             if (data.taskId) {
                 await this.updateTaskStatus(data.taskId, contactLog.id);
             }
@@ -94,100 +64,31 @@ export class ContactLoggingService {
         }
     }
 
-    /**
-     * Task 5.2.6: Create follow-up task
-     */
-    private async createFollowUpTask(
-        customerId: string,
-        loanId: string,
-        followUpDate: Date,
-        contactLogId: string
-    ): Promise<void> {
-        try {
-            // Update the contact log with taskId reference
-            // The task will be picked up by LoanOfficerTaskService based on nextFollowUpDate
-            console.log(`Follow-up task for customer ${customerId}, loan ${loanId} scheduled for ${followUpDate} (Log: ${contactLogId})`);
-        } catch (error) {
-            console.error('Error creating follow-up task:', error);
-            throw error;
-        }
+    private async createFollowUpTask(customerId: string, loanId: string, followUpDate: Date, contactLogId: string): Promise<void> {
+        console.log(`Follow-up task for customer ${customerId}, loan ${loanId} scheduled for ${followUpDate} (Log: ${contactLogId})`);
     }
 
-    /**
-     * Task 5.2.7: Update task status after contact logging
-     */
     private async updateTaskStatus(taskId: string, contactLogId: string): Promise<void> {
         try {
-            // Extract the actual ID from taskId (format: "overdue-{id}" or "followup-{id}")
             const [type, id] = taskId.split('-');
-
             if (type === 'followup') {
-                // Update the original contact log that created this task
-                await (prisma as any).contactLog.update({
-                    where: { id },
-                    data: {
-                        taskId: contactLogId, // Link to the new contact log
-                    },
-                });
+                await this.contactLogRepository.updateTaskLink(id, contactLogId);
             }
-
             console.log(`Task ${taskId} updated with contact log ${contactLogId}`);
         } catch (error) {
             console.error('Error updating task status:', error);
-            // Don't throw - this is not critical
         }
     }
 
-    /**
-     * Task 5.2.8: Get contact history for a customer
-     * 
-     * @param customerId - Customer ID
-     * @param loanId - Optional loan ID to filter by specific loan
-     * @param limit - Number of records to return
-     * @returns Contact history in chronological order
-     */
-    async getContactHistory(
-        customerId: string,
-        loanId?: string,
-        limit: number = 10
-    ): Promise<any[]> {
+    async getContactHistory(customerId: string, loanId?: string, limit: number = 10): Promise<any[]> {
         try {
-            const contactLogs = await (prisma as any).contactLog.findMany({
-                where: {
-                    customerId,
-                    ...(loanId && { loanId }),
-                },
-                include: {
-                    loan: {
-                        select: {
-                            id: true,
-                            principal: true,
-                        },
-                    },
-                    customer: {
-                        include: {
-                            user: {
-                                select: {
-                                    firstName: true,
-                                    lastName: true,
-                                },
-                            },
-                        },
-                    },
-                    officer: {
-                        select: {
-                            firstName: true,
-                            lastName: true,
-                        },
-                    },
-                } as any,
-                orderBy: {
-                    contactDate: 'desc',
-                },
-                take: limit,
+            const result = await this.contactLogRepository.list({
+                page: 1,
+                limit,
+                customerId,
+                ...(loanId ? { loanId } : {}),
             });
-
-            return contactLogs;
+            return result.contactLogs;
         } catch (error) {
             console.error('Error getting contact history:', error);
             throw error;

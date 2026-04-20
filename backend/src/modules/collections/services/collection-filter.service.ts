@@ -12,7 +12,7 @@
  * - กลุ่มใกล้ Overdue
  */
 
-import { prisma } from '@config/database.config';
+import { CollectionRepository } from '../repositories/collection.repository';
 import { logger } from '@utils/common/logger.util';
 import { EncryptionUtil } from '@core/utils/security/encryption.util';
 import { AuthorizedUser, AuthorizationService } from '../../../shared/services/authorization.service';
@@ -63,6 +63,12 @@ export interface CollectionDashboard {
 }
 
 export class CollectionFilterService {
+    private collectionRepository: CollectionRepository;
+
+    constructor() {
+        this.collectionRepository = new CollectionRepository();
+    }
+
     /**
      * Get start of day for a date
      */
@@ -179,25 +185,7 @@ export class CollectionFilterService {
             console.log('[Collection Dashboard] Executing query:', query);
             console.log('[Collection Dashboard] Query params:', queryParams);
 
-	            const schedules = await prisma.$queryRawUnsafe<Array<{
-	                schedule_id: string;
-	                payment_date: Date;
-	                payment_number: number;
-	                total_payment: number;
-	                principal_amount: number;
-	                interest_amount: number;
-	                status: string;
-	                loan_id: string;
-	                loan_status: string;
-	                overdue_days: number;
-	                customer_id: string;
-	                customer_name: string;
-	                customer_phone: string;
-	                dscr: number | null;
-	                dscr_status: string | null;
-                industry_code: string | null;
-                business_age_years: number | null;
-            }>>(query, ...queryParams);
+	            const schedules = await this.collectionRepository.findSchedulesRaw([query, ...queryParams]);
 
             console.log('[Collection Dashboard] Query returned schedules:', schedules.length);
 
@@ -331,29 +319,10 @@ export class CollectionFilterService {
         // Get authorization filter
         const authFilter = AuthorizationService.getBranchFilter(user);
 
-        const schedules = await prisma.paymentSchedule.findMany({
-            where: {
-                status: { in: ['UNPAID'] },
-                paymentDate: {
-                    gte: today,
-                    lte: futureDate,
-                },
-                loan: authFilter,
-            },
-            include: {
-                loan: {
-                    include: {
-                        customer: {
-                            select: {
-                                id: true,
-                                businessName: true,
-                                phone: true,
-                            },
-                        },
-                    },
-                },
-            },
-            orderBy: { paymentDate: 'asc' },
+        const schedules = await this.collectionRepository.findUnpaidSchedules({
+            status: { in: ['UNPAID'] },
+            paymentDate: { gte: today, lte: futureDate },
+            loan: authFilter,
         });
 
         const customerIds = [...new Set(schedules.map((s) => s.loan.customerId))];
@@ -401,29 +370,10 @@ export class CollectionFilterService {
         // Get authorization filter
         const authFilter = AuthorizationService.getBranchFilter(user);
 
-        const schedules = await prisma.paymentSchedule.findMany({
-            where: {
-                status: { in: ['UNPAID', 'OVERDUE'] },
-                paymentDate: {
-                    gte: pastDate,
-                    lt: today,
-                },
-                loan: authFilter,
-            },
-            include: {
-                loan: {
-                    include: {
-                        customer: {
-                            select: {
-                                id: true,
-                                businessName: true,
-                                phone: true,
-                            },
-                        },
-                    },
-                },
-            },
-            orderBy: { paymentDate: 'asc' },
+        const schedules = await this.collectionRepository.findUnpaidSchedules({
+            status: { in: ['UNPAID', 'OVERDUE'] },
+            paymentDate: { gte: pastDate, lt: today },
+            loan: authFilter,
         });
 
         const customerIds = [...new Set(schedules.map((s) => s.loan.customerId))];
@@ -470,26 +420,10 @@ export class CollectionFilterService {
         // Get authorization filter
         const authFilter = AuthorizationService.getBranchFilter(user);
 
-        const schedules = await prisma.paymentSchedule.findMany({
-            where: {
-                status: { in: ['OVERDUE', 'PARTIAL'] },
-                paymentDate: { lt: today },
-                loan: authFilter,
-            },
-            include: {
-                loan: {
-                    include: {
-                        customer: {
-                            select: {
-                                id: true,
-                                businessName: true,
-                                phone: true,
-                            },
-                        },
-                    },
-                },
-            },
-            orderBy: { paymentDate: 'asc' },
+        const schedules = await this.collectionRepository.findUnpaidSchedules({
+            status: { in: ['OVERDUE', 'PARTIAL'] },
+            paymentDate: { lt: today },
+            loan: authFilter,
         });
 
         const customerIds = [...new Set(schedules.map((s) => s.loan.customerId))];
@@ -530,68 +464,21 @@ export class CollectionFilterService {
         return 'CRITICAL_OVERDUE';
     }
 
-    /**
-     * Get last contact dates for customers
-     */
-    private async getLastContactDates(
-        customerIds: string[]
-    ): Promise<Map<string, { contactDate: Date; contactStatus: string }>> {
+    private async getLastContactDates(customerIds: string[]): Promise<Map<string, { contactDate: Date; contactStatus: string }>> {
         try {
-            const contacts = await prisma.contactLog.findMany({
-                where: {
-                    customerId: { in: customerIds },
-                },
-                orderBy: { contactDate: 'desc' },
-                distinct: ['customerId'],
-            });
-
-            const map = new Map();
-            contacts.forEach((contact) => {
-                map.set(contact.customerId, {
-                    contactDate: contact.contactDate,
-                    contactStatus: contact.contactStatus,
-                });
-            });
-
-            return map;
+            return this.collectionRepository.getLastContactsByCustomers(customerIds);
         } catch (error) {
             console.warn('Failed to get last contact dates:', error);
-            return new Map(); // Return empty map if table doesn't exist
+            return new Map();
         }
     }
 
-    /**
-     * Get NCB data for risk scoring
-     */
-    private async getNCBData(
-        customerIds: string[]
-    ): Promise<Map<string, { nplStatus: boolean; creditUtilization?: number }>> {
+    private async getNCBData(customerIds: string[]): Promise<Map<string, { nplStatus: boolean; creditUtilization?: number }>> {
         try {
-            const ncbRecords = await prisma.customerCreditBureau.findMany({
-                where: {
-                    customerId: { in: customerIds },
-                },
-                orderBy: { checkDate: 'desc' },
-                distinct: ['customerId'],
-            });
-
-            const map = new Map();
-            ncbRecords.forEach((ncb) => {
-                const creditUtilization = 
-                    ncb.totalLimit && Number(ncb.totalLimit) > 0
-                        ? (Number(ncb.totalOutstanding) / Number(ncb.totalLimit)) * 100
-                        : undefined;
-
-                map.set(ncb.customerId, {
-                    nplStatus: ncb.nplStatus,
-                    creditUtilization,
-                });
-            });
-
-            return map;
+            return this.collectionRepository.getNCBDataByCustomers(customerIds);
         } catch (error) {
             console.warn('Failed to get NCB data:', error);
-            return new Map(); // Return empty map if table doesn't exist
+            return new Map();
         }
     }
 
@@ -608,21 +495,14 @@ export class CollectionFilterService {
         // Get authorization filter
         const authFilter = AuthorizationService.getBranchFilter(user);
 
-        const totalCustomers = await prisma.loan.count({ 
-            where: {
-                status: { in: ['ACTIVE', 'DISBURSED'] },
-                ...authFilter,
-            }
+        const totalCustomers = await this.collectionRepository.countActiveLoans({
+            status: { in: ['ACTIVE', 'DISBURSED'] },
+            ...authFilter,
         });
 
-        const overdueSchedules = await prisma.paymentSchedule.findMany({
-            where: {
-                status: { in: ['OVERDUE', 'PARTIAL'] },
-                loan: {
-                    status: { in: ['ACTIVE', 'DISBURSED'] },
-                    ...authFilter,
-                },
-            },
+        const overdueSchedules = await this.collectionRepository.findUnpaidSchedules({
+            status: { in: ['OVERDUE', 'PARTIAL'] },
+            loan: { status: { in: ['ACTIVE', 'DISBURSED'] }, ...authFilter },
         });
 
         const customersWithOverdue = new Set(overdueSchedules.map((s) => s.loanId)).size;
