@@ -21,6 +21,7 @@ import { paymentSyncJob } from '@jobs/schedulers/payment-sync.job';
 import { pdfCleanupJob } from '@jobs/schedulers/pdf-cleanup.job';
 import { secureDocumentCleanupJob } from '@jobs/schedulers/secure-document-cleanup.job';
 import { startLineDataBackfillJob } from '@jobs/schedulers/line-data-backfill.job';
+import { startLineBackfillJob } from '@jobs/schedulers/line-backfill.job';
 import '@loans/workers/loan.worker'; // Initialize loan worker
 import '@payments/workers/payment.worker'; // Initialize payment worker
 import '@notifications/channels/email/email.worker'; // Initialize email worker
@@ -154,6 +155,14 @@ async function start() {
             logger.info(`✅ LINE data backfill job initialized (daily 03:00 AM)`);
         } catch (error) {
             logger.error({ error }, '⚠️ Failed to initialize LINE data backfill job (non-fatal)');
+        }
+
+        // LINE backfill job (daily 02:30 AM - timeline events, receipts, contract PDFs)
+        try {
+            startLineBackfillJob();
+            logger.info('✅ LINE backfill job initialized (daily 02:30)');
+        } catch (error) {
+            logger.error({ error }, '⚠️ Failed to initialize LINE backfill job (non-fatal)');
         }
 
         // Graceful shutdown

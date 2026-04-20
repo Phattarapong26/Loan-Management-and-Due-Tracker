@@ -224,6 +224,7 @@ import { secureDocumentRoutes } from '@documents/routes/secure-document.routes';
 import { businessProfileRoutes } from './business-profiles';
 import { securityRoutes } from '@monitoring/routes/security.routes';
 import { monitoringRoutes } from './monitoring.routes';
+import { lineBackfillRoutes } from './line-backfill.routes';
 
 export async function registerRoutes(app: FastifyInstance) {
     const authController = new AuthController();
@@ -2426,6 +2427,7 @@ export async function registerRoutes(app: FastifyInstance) {
     await app.register(businessProfileRoutes, { prefix: '/api' });
     await app.register(securityRoutes, { prefix: '/api' }); // Security routes for threat detection
     await app.register(monitoringRoutes, { prefix: '/api' }); // Performance monitoring routes
+    await app.register(lineBackfillRoutes); // LINE data backfill admin routes
 
     // Debt Management routes
     app.get<{ Querystring: DebtManagementQuery }>(
