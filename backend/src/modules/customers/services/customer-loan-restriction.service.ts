@@ -9,8 +9,9 @@
  * - Show progress of current loan product
  */
 
-import { prisma } from '@config/database.config';
 import { logger } from '@utils/common/logger.util';
+import { CustomerRepository } from '../repositories/customer.repository';
+import { LoanRepository } from '../../loans/repositories/loan.repository';
 
 export interface CustomerLoanStatus {
     hasActiveLoan: boolean;
@@ -47,6 +48,14 @@ export interface LoanProgress {
 }
 
 export class CustomerLoanRestrictionService {
+    private customerRepo: CustomerRepository;
+    private loanRepo: LoanRepository;
+
+    constructor() {
+        this.customerRepo = new CustomerRepository();
+        this.loanRepo = new LoanRepository();
+    }
+
     /**
      * Check if customer can apply for a new loan product
      */
@@ -56,20 +65,9 @@ export class CustomerLoanRestrictionService {
         activeProduct?: any;
     }> {
         try {
-            // Check for active loan product
-            const activeProduct = await prisma.customerActiveProduct.findFirst({
-                where: {
-                    customerId,
-                    status: 'ACTIVE',
-                },
-                include: {
-                    loanProduct: true,
-                    loan: true,
-                },
-            });
+            const activeProduct = await this.customerRepo.findActiveProduct(customerId);
 
             if (activeProduct) {
-                // Customer already has an active loan product
                 if (activeProduct.loanProductId === loanProductId) {
                     return {
                         allowed: false,
@@ -101,26 +99,17 @@ export class CustomerLoanRestrictionService {
         loanId: string
     ): Promise<void> {
         try {
-            // Check if customer already has active product
-            const existing = await prisma.customerActiveProduct.findFirst({
-                where: {
-                    customerId,
-                    status: 'ACTIVE',
-                },
-            });
+            const hasActive = await this.customerRepo.findActiveProductExists(customerId);
 
-            if (existing) {
+            if (hasActive) {
                 throw new Error('Customer already has an active loan product');
             }
 
-            // Create active product record
-            await prisma.customerActiveProduct.create({
-                data: {
-                    customerId,
-                    loanProductId,
-                    loanId,
-                    status: 'ACTIVE',
-                },
+            await this.customerRepo.createActiveProduct({
+                customerId,
+                loanProductId,
+                loanId,
+                status: 'ACTIVE',
             });
 
             logger.info(
@@ -138,25 +127,14 @@ export class CustomerLoanRestrictionService {
      */
     async deactivateLoanProduct(loanId: string, status: 'COMPLETED' | 'CANCELLED'): Promise<void> {
         try {
-            const activeProduct = await prisma.customerActiveProduct.findFirst({
-                where: {
-                    loanId,
-                    status: 'ACTIVE',
-                },
-            });
+            const activeProduct = await this.customerRepo.findActiveProductByLoanId(loanId);
 
             if (!activeProduct) {
                 logger.warn({ loanId }, 'No active product found for loan');
                 return;
             }
 
-            await prisma.customerActiveProduct.update({
-                where: { id: activeProduct.id },
-                data: {
-                    status,
-                    deactivatedAt: new Date(),
-                },
-            });
+            await this.customerRepo.updateActiveProductStatus(activeProduct.id, status);
 
             logger.info({ loanId, status }, 'Loan product deactivated');
         } catch (error) {
@@ -170,14 +148,7 @@ export class CustomerLoanRestrictionService {
      */
     async getCustomerLoanStatus(customerId: string): Promise<CustomerLoanStatus> {
         try {
-            const products = await prisma.customerActiveProduct.findMany({
-                where: { customerId },
-                include: {
-                    loanProduct: true,
-                    loan: true,
-                },
-                orderBy: { activatedAt: 'desc' },
-            });
+            const products = await this.customerRepo.findAllActiveProducts(customerId);
 
             const activeProduct = products.find((p: any) => p.status === 'ACTIVE');
 
@@ -213,16 +184,7 @@ export class CustomerLoanRestrictionService {
      */
     async getLoanProgress(loanId: string): Promise<LoanProgress> {
         try {
-            const loan = await prisma.loan.findUnique({
-                where: { id: loanId },
-                include: {
-                    loanProduct: true,
-                    disbursements: {
-                        where: { status: 'DISBURSED' },
-                    },
-                    paymentSchedule: true,
-                },
-            });
+            const loan = await this.loanRepo.findWithProgress(loanId);
 
             if (!loan) {
                 throw new Error('Loan not found');
@@ -235,7 +197,7 @@ export class CustomerLoanRestrictionService {
 
             const totalPayments = loan.paymentSchedule.length;
             const paidPayments = loan.paymentSchedule.filter(
-                (s) => s.status === 'PAID'
+                (s: any) => s.status === 'PAID'
             ).length;
             const paymentProgress = totalPayments > 0 ? (paidPayments / totalPayments) * 100 : 0;
 
@@ -267,17 +229,7 @@ export class CustomerLoanRestrictionService {
         totalLoans: number;
     }> {
         try {
-            const loans = await prisma.loan.findMany({
-                where: { customerId },
-                include: {
-                    loanProduct: true,
-                    disbursements: {
-                        where: { status: 'DISBURSED' },
-                    },
-                    paymentSchedule: true,
-                },
-                orderBy: { createdAt: 'desc' },
-            });
+            const loans = await this.loanRepo.findByCustomerWithProgress(customerId);
 
             const activeLoans: LoanProgress[] = [];
             const completedLoans: LoanProgress[] = [];

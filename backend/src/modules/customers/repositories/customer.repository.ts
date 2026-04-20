@@ -637,5 +637,52 @@ export class CustomerRepository {
             select: { customerId: true, nplStatus: true, totalLimit: true, totalOutstanding: true },
         });
     }
+
+    // ── CustomerActiveProduct methods ──────────────────────────────────────
+
+    async findActiveProduct(customerId: string): Promise<any | null> {
+        return this.db.customerActiveProduct.findFirst({
+            where: { customerId, status: 'ACTIVE' },
+            include: { loanProduct: true, loan: true },
+        });
+    }
+
+    async findActiveProductByLoanId(loanId: string): Promise<any | null> {
+        return this.db.customerActiveProduct.findFirst({
+            where: { loanId, status: 'ACTIVE' },
+        });
+    }
+
+    async findActiveProductExists(customerId: string): Promise<boolean> {
+        const record = await this.db.customerActiveProduct.findFirst({
+            where: { customerId, status: 'ACTIVE' },
+            select: { id: true },
+        });
+        return !!record;
+    }
+
+    async createActiveProduct(data: {
+        customerId: string;
+        loanProductId: string;
+        loanId: string;
+        status: string;
+    }): Promise<void> {
+        await this.db.customerActiveProduct.create({ data });
+    }
+
+    async updateActiveProductStatus(id: string, status: string): Promise<void> {
+        await this.db.customerActiveProduct.update({
+            where: { id },
+            data: { status, deactivatedAt: new Date() },
+        });
+    }
+
+    async findAllActiveProducts(customerId: string): Promise<any[]> {
+        return this.db.customerActiveProduct.findMany({
+            where: { customerId },
+            include: { loanProduct: true, loan: true },
+            orderBy: { activatedAt: 'desc' },
+        });
+    }
 }
 

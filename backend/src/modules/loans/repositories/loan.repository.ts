@@ -662,4 +662,33 @@ export class LoanRepository {
             select: { id: true },
         });
     }
+
+    /**
+     * Find loan with disbursements and payment schedule (for progress calculation)
+     */
+    async findWithProgress(loanId: string): Promise<any | null> {
+        return this.db.loan.findUnique({
+            where: { id: loanId },
+            include: {
+                loanProduct: true,
+                disbursements: { where: { status: 'DISBURSED' } },
+                paymentSchedule: true,
+            },
+        });
+    }
+
+    /**
+     * Find all loans for customer with disbursements and payment schedule
+     */
+    async findByCustomerWithProgress(customerId: string): Promise<any[]> {
+        return this.db.loan.findMany({
+            where: { customerId },
+            include: {
+                loanProduct: true,
+                disbursements: { where: { status: 'DISBURSED' } },
+                paymentSchedule: true,
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
 }
