@@ -30,23 +30,27 @@ export const SecureDocumentAccess: React.FC = () => {
   }, [token]);
 
   const getApiBaseUrl = () => {
-    const configured = import.meta.env.VITE_API_BASE_URL as string | undefined;
-    // Use explicitly configured API base URL (Railway backend service).
-    if (configured && !configured.includes('localhost') && !configured.includes('127.0.0.1')) {
-      return configured.replace(/\/+$/, '');
-    }
-    // In LINE browser, window.location.origin is the frontend URL
-    // Try to derive backend URL from frontend URL pattern
-    // e.g. frontend-production-xxxx.up.railway.app → backend-production-xxxx.up.railway.app
-    const origin = window.location.origin;
-    if (origin.includes('frontend-production')) {
-      // Try VITE_BACKEND_URL as fallback
-      const backendUrl = import.meta.env.VITE_BACKEND_URL as string | undefined;
-      if (backendUrl && !backendUrl.includes('localhost')) {
-        return backendUrl.replace(/\/+$/, '');
+    // Priority order: VITE_BACKEND_URL → VITE_API_BASE_URL → VITE_API_URL → window.location.origin
+    // VITE_BACKEND_URL is the most explicit and should always point to the Railway backend service.
+    // window.location.origin is the frontend URL in LINE browser and must NOT be used as a backend URL.
+    const candidates = [
+      import.meta.env.VITE_BACKEND_URL as string | undefined,
+      import.meta.env.VITE_API_BASE_URL as string | undefined,
+      import.meta.env.VITE_API_URL as string | undefined,
+    ];
+
+    for (const url of candidates) {
+      if (url && url.trim() !== '' && !url.includes('localhost') && !url.includes('127.0.0.1')) {
+        const resolved = url.replace(/\/+$/, '');
+        console.log('[SecureDoc] Resolved API base URL:', resolved);
+        return resolved;
       }
     }
-    return origin;
+
+    // Last resort: same-origin (only works when frontend and backend are co-located)
+    const fallback = window.location.origin;
+    console.warn('[SecureDoc] No backend URL env var found — falling back to window.location.origin:', fallback);
+    return fallback;
   };
 
   const apiFetch = async <T,>(path: string, init?: RequestInit): Promise<T> => {
