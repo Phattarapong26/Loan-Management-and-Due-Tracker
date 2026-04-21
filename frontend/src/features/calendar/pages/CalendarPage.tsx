@@ -51,6 +51,8 @@ import {
   Check,
   ChevronsUpDown,
   Building2,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { format, isSameDay } from 'date-fns';
 import { th } from 'date-fns/locale';
@@ -81,6 +83,7 @@ interface CalendarEvent {
   description: string;
   customerName?: string;
   amount?: number;
+  _backendEvent?: BackendEvent;
 }
 
 // Map backend event type to frontend type
@@ -114,6 +117,8 @@ export default function CalendarPage() {
   const isAdmin = currentRole === 'admin';
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<{ id: string; backendEvent: BackendEvent } | null>(null);
+  const [editForm, setEditForm] = useState({ title: '', date: '', time: '', type: '' as EventType | '', description: '' });
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [openStaffCombobox, setOpenStaffCombobox] = useState(false);
   const [eventForm, setEventForm] = useState({
@@ -243,6 +248,76 @@ export default function CalendarPage() {
     },
   });
 
+  // Update event mutation
+  const updateEventMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { title: string; startDate: string; eventType?: string; description?: string } }) => {
+      const result = await calendarApi.update(id, data);
+      if (result.error) throw result.error;
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      setEditingEvent(null);
+      alertDialog.success({ title: 'แก้ไขสำเร็จ', description: 'บันทึกการเปลี่ยนแปลงเรียบร้อยแล้ว', confirmText: 'เสร็จสิ้น' });
+    },
+    onError: (error: unknown) => {
+      alertDialog.error({ title: 'ไม่สามารถแก้ไขได้', description: (error as Error)?.message ?? 'เกิดข้อผิดพลาด', confirmText: 'ตกลง' });
+    },
+  });
+
+  // Delete event mutation
+  const deleteEventMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const result = await calendarApi.delete(id);
+      if (result.error) throw result.error;
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      alertDialog.success({ title: 'ลบสำเร็จ', description: 'ลบกิจกรรมเรียบร้อยแล้ว', confirmText: 'เสร็จสิ้น' });
+    },
+    onError: (error: unknown) => {
+      alertDialog.error({ title: 'ไม่สามารถลบได้', description: (error as Error)?.message ?? 'เกิดข้อผิดพลาด', confirmText: 'ตกลง' });
+    },
+  });
+
+  const handleEditEvent = (event: CalendarEvent, backendEvent: BackendEvent) => {
+    const startDate = new Date(String(backendEvent.startDate || event.date));
+    setEditForm({
+      title: event.title,
+      date: format(startDate, 'yyyy-MM-dd'),
+      time: format(startDate, 'HH:mm'),
+      type: event.type,
+      description: event.description,
+    });
+    setEditingEvent({ id: event.id, backendEvent });
+  };
+
+  const handleUpdateEvent = async () => {
+    if (!editingEvent || !editForm.title || !editForm.date) return;
+    const eventTypeMap: Record<string, string> = {
+      'payment': 'PAYMENT_DUE', 'appointment': 'APPOINTMENT',
+      'follow_up': 'FOLLOW_UP', 'meeting': 'MEETING',
+    };
+    const startDate = editForm.time
+      ? `${editForm.date}T${editForm.time}:00+07:00`
+      : `${editForm.date}T00:00:00+07:00`;
+    await updateEventMutation.mutateAsync({
+      id: editingEvent.id,
+      data: { title: editForm.title, startDate, eventType: eventTypeMap[editForm.type] || 'OTHER', description: editForm.description || undefined },
+    });
+  };
+
+  const handleDeleteEvent = (event: CalendarEvent) => {
+    alertDialog.confirm({
+      title: 'ยืนยันการลบ',
+      description: `ต้องการลบกิจกรรม "${event.title}" ใช่หรือไม่?`,
+      confirmText: 'ลบ',
+      cancelText: 'ยกเลิก',
+      onConfirm: () => deleteEventMutation.mutate(event.id),
+    });
+  };
+
   // Map backend events to frontend format
   const events: CalendarEvent[] = (eventsData?.events || []).map((e: any) => {
     const startDate = e.startDate ? new Date(String(e.startDate)) : new Date();
@@ -254,7 +329,8 @@ export default function CalendarPage() {
       type: mapEventType(String(e.eventType || 'OTHER')),
       description: e.description ? String(e.description) : '',
       customerName: e.customer?.businessName ? String(e.customer.businessName) : undefined,
-      amount: undefined, // Can be extracted from metadata if needed
+      amount: undefined,
+      _backendEvent: e,
     };
   });
 
@@ -654,12 +730,33 @@ export default function CalendarPage() {
                           <Icon className="h-4 w-4" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <Badge className={config.color}>{config.label}</Badge>
-                            <span className="text-sm text-muted-foreground flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {event.time}
-                            </span>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <Badge className={config.color}>{config.label}</Badge>
+                              <span className="text-sm text-muted-foreground flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {event.time}
+                              </span>
+                            </div>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => handleEditEvent(event, event._backendEvent!)}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                onClick={() => handleDeleteEvent(event)}
+                                disabled={deleteEventMutation.isPending}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
                           </div>
                           <p className="font-medium mt-1">{event.title}</p>
                           {event.customerName ? (
@@ -684,6 +781,54 @@ export default function CalendarPage() {
 
       {/* Alert Dialog */}
       <alertDialog.AlertDialog />
+
+      {/* Edit Event Dialog */}
+      <Dialog open={!!editingEvent} onOpenChange={(open) => !open && setEditingEvent(null)}>
+        <DialogContent className="max-w-[95vw] sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>แก้ไขกิจกรรม</DialogTitle>
+            <DialogDescription>แก้ไขรายละเอียดกิจกรรม</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>หัวข้อ *</Label>
+              <Input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>วันที่ *</Label>
+                <Input type="date" value={editForm.date} onChange={(e) => setEditForm({ ...editForm, date: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>เวลา</Label>
+                <Input type="time" value={editForm.time} onChange={(e) => setEditForm({ ...editForm, time: e.target.value })} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>ประเภท *</Label>
+              <Select value={editForm.type} onValueChange={(value) => setEditForm({ ...editForm, type: value as EventType })}>
+                <SelectTrigger><SelectValue placeholder="เลือกประเภท" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="payment">นัดชำระ</SelectItem>
+                  <SelectItem value="appointment">นัดพบลูกค้า</SelectItem>
+                  <SelectItem value="follow_up">ติดตามหนี้</SelectItem>
+                  <SelectItem value="meeting">ประชุม</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>รายละเอียด</Label>
+              <Textarea value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} rows={3} />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditingEvent(null)}>ยกเลิก</Button>
+            <Button onClick={handleUpdateEvent} disabled={updateEventMutation.isPending}>
+              {updateEventMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />กำลังบันทึก...</> : 'บันทึก'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </div>
     </DashboardLayout>
   );
