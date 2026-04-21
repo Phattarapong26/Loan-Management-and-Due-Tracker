@@ -338,7 +338,7 @@ export class CollectionFilterService {
             const base: CustomerDueStatus = {
                 customerId: schedule.loan.customerId,
                 customerName: schedule.loan.customer.businessName,
-                customerPhone: EncryptionUtil.decrypt(schedule.loan.customer.phone),
+                customerPhone: this.safeDecrypt(schedule.loan.customer.phone),
                 loanId: schedule.loanId,
                 scheduleId: schedule.id,
                 paymentNumber: schedule.paymentNumber,
@@ -389,7 +389,7 @@ export class CollectionFilterService {
             const base: CustomerDueStatus = {
                 customerId: schedule.loan.customerId,
                 customerName: schedule.loan.customer.businessName,
-                customerPhone: EncryptionUtil.decrypt(schedule.loan.customer.phone),
+                customerPhone: this.safeDecrypt(schedule.loan.customer.phone),
                 loanId: schedule.loanId,
                 scheduleId: schedule.id,
                 paymentNumber: schedule.paymentNumber,
@@ -439,7 +439,7 @@ export class CollectionFilterService {
             return {
                 customerId: schedule.loan.customerId,
                 customerName: schedule.loan.customer.businessName,
-                customerPhone: EncryptionUtil.decrypt(schedule.loan.customer.phone),
+                customerPhone: this.safeDecrypt(schedule.loan.customer.phone),
                 loanId: schedule.loanId,
                 scheduleId: schedule.id,
                 paymentNumber: schedule.paymentNumber,
