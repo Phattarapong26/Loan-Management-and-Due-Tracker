@@ -366,46 +366,14 @@ export default function Loans() {
       if (result.error) throw result.error;
       return result.data;
     },
-    onSuccess: async (approvedLoan, variables) => {
-      // Auto-create draft disbursement request
-      try {
-        // Use the approved loan data from backend response instead of local state
-        // This ensures we have the most up-to-date information
-        const loanData = (approvedLoan as any)?.loan || approvedLoan;
-        const loanAmount = loanData?.principal || loanData?.amount;
-        const customerName = loanData?.customer?.businessName;
-        
-        if (loanAmount && customerName) {
-          // Calculate default dates
-          const today = new Date();
-          const requestedDate = new Date(today);
-          requestedDate.setDate(today.getDate() + 1); // Tomorrow as default
-          
-          const firstPaymentDate = new Date(requestedDate);
-          firstPaymentDate.setDate(requestedDate.getDate() + 30); // 30 days after disbursement
-          
-          await disbursementsApi.create({
-            loanId: variables.loanId,
-            amount: Number(loanAmount), // Full loan amount as default
-            purpose: `เบิกจ่ายเงินกู้ตามสัญญา ${customerName}`,
-            requestedDate: requestedDate.toISOString(),
-            firstPaymentDate: firstPaymentDate.toISOString(),
-            paymentDay: 1, // Default to 1st of month
-            notes: 'สร้างอัตโนมัติจากการอนุมัติสินเชื่อ - กรุณาตรวจสอบและแก้ไขข้อมูลก่อนดำเนินการ',
-          });
-        }
-      } catch (error) {
-        console.error('Failed to create draft disbursement:', error);
-        // Don't block the approval success, just log the error
-      }
-      
+    onSuccess: async (_approvedLoan, variables) => {
       queryClient.invalidateQueries({ queryKey: ['loans'] });
       queryClient.invalidateQueries({ queryKey: ['pending-approvals'] });
       queryClient.invalidateQueries({ queryKey: ['loan'] });
-      queryClient.invalidateQueries({ queryKey: ['disbursements'] }); // Refresh disbursements list
+      queryClient.invalidateQueries({ queryKey: ['disbursements'] });
       alertDialog.success({
         title: 'อนุมัติสินเชื่อสำเร็จ!',
-        description: 'ระบบได้สร้างคำขอเบิกจ่ายเบื้องต้นแล้ว กรุณาไปที่เมนู "เบิกจ่ายเงินกู้" เพื่อตรวจสอบและแก้ไขข้อมูลก่อนดำเนินการ',
+        description: 'กรุณาไปที่เมนู "เบิกจ่ายเงินกู้" เพื่อสร้างคำขอเบิกจ่ายและดำเนินการต่อ',
         confirmText: 'ตกลง',
       });
     },
