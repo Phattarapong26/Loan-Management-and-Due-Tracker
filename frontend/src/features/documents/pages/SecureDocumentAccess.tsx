@@ -32,41 +32,61 @@ export const SecureDocumentAccess: React.FC = () => {
   const getApiBaseUrl = () => {
     const configured = import.meta.env.VITE_API_BASE_URL as string | undefined;
     // Use explicitly configured API base URL (Railway backend service).
-    // This avoids going through the frontend dev-server proxy which can leak `Host: localhost:3000`
-    // and cause backend-generated file URLs to redirect to localhost (unreachable for customers).
     if (configured && !configured.includes('localhost') && !configured.includes('127.0.0.1')) {
       return configured.replace(/\/+$/, '');
     }
-    // Fallback: same-origin `/api/*` + Vite proxy (works in local dev and some tunnel setups)
-    return window.location.origin;
+    // In LINE browser, window.location.origin is the frontend URL
+    // Try to derive backend URL from frontend URL pattern
+    // e.g. frontend-production-xxxx.up.railway.app → backend-production-xxxx.up.railway.app
+    const origin = window.location.origin;
+    if (origin.includes('frontend-production')) {
+      // Try VITE_BACKEND_URL as fallback
+      const backendUrl = import.meta.env.VITE_BACKEND_URL as string | undefined;
+      if (backendUrl && !backendUrl.includes('localhost')) {
+        return backendUrl.replace(/\/+$/, '');
+      }
+    }
+    return origin;
   };
 
   const apiFetch = async <T,>(path: string, init?: RequestInit): Promise<T> => {
     const baseUrl = getApiBaseUrl();
-    const response = await fetch(`${baseUrl}${path}`, {
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(init?.headers || {}),
-      },
-      ...init,
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const message =
-        body?.error ||
-        body?.message ||
-        (typeof body === 'string' ? body : null) ||
-        `HTTP ${response.status}`;
-      const error: any = new Error(message);
-      error.status = response.status;
-      error.body = body;
-      throw error;
+    try {
+      const response = await fetch(`${baseUrl}${path}`, {
+        credentials: 'include',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(init?.headers || {}),
+        },
+        ...init,
+      });
+
+      clearTimeout(timeoutId);
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message =
+          body?.error ||
+          body?.message ||
+          (typeof body === 'string' ? body : null) ||
+          `HTTP ${response.status}`;
+        const error: any = new Error(message);
+        error.status = response.status;
+        error.body = body;
+        throw error;
+      }
+
+      return (body?.data ?? body) as T;
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        throw new Error('การเชื่อมต่อหมดเวลา กรุณาลองใหม่อีกครั้ง');
+      }
+      throw err;
     }
-
-    // Backend sometimes wraps with { success, data }, sometimes raw object; handle both.
-    return (body?.data ?? body) as T;
   };
 
   const fetchTokenInfo = async () => {
@@ -90,6 +110,10 @@ export const SecureDocumentAccess: React.FC = () => {
     setError(null);
 
     try {
+      // Debug: log the API URL being used
+      const debugUrl = getApiBaseUrl();
+      console.log('[SecureDoc] API base URL:', debugUrl);
+
       const result = await apiFetch<{ success: boolean; documentUrl?: string; error?: string }>(
         '/api/secure-documents/validate',
         {
@@ -101,12 +125,14 @@ export const SecureDocumentAccess: React.FC = () => {
       if (result.success) {
         toast.success('ยืนยันตัวตนสำเร็จ');
         
-        // Instead of redirecting to documentUrl directly,
-        // redirect to backend view endpoint which handles the PDF serving
+        // Open PDF directly in new tab/window using the view endpoint
+        // Pass password as query param so backend can serve PDF directly
         const baseUrl = getApiBaseUrl();
-        const viewUrl = `${baseUrl}/api/secure-documents/${token}/view?password=${password}`;
+        const viewUrl = `${baseUrl}/api/secure-documents/${token}/view?password=${encodeURIComponent(password)}`;
         
-        window.location.href = viewUrl;
+        // Use window.open for LINE browser compatibility
+        // LINE browser sometimes blocks window.location.href for cross-origin
+        window.open(viewUrl, '_self');
       }
     } catch (err: any) {
       const errorMessage = err?.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง';
@@ -248,11 +274,13 @@ export const SecureDocumentAccess: React.FC = () => {
             </p>
             {tokenInfo && (
               <p className="text-center">
-                ลิงก์นี้จะหมดอายุในวันที่ {tokenInfo.expiresAt ? new Date(tokenInfo.expiresAt).toLocaleDateString('th-TH', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                }) : '-'}
+                {(() => {
+                  try {
+                    const d = new Date(tokenInfo.expiresAt);
+                    if (isNaN(d.getTime())) return null;
+                    return `ลิงก์นี้จะหมดอายุในวันที่ ${d.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}`;
+                  } catch { return null; }
+                })()}
               </p>
             )}
           </div>
