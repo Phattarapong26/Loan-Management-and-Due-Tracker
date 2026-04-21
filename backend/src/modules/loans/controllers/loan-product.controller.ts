@@ -64,12 +64,30 @@ export class LoanProductController {
 
       const productData = { ...cleanBody, createdBy: userId };
 
+      request.log.info({ productData }, '[LoanProduct] Creating product with data');
+
       const product = await this.service.createProduct(productData);
 
       return ResponseUtil.success(reply, product, 201);
     } catch (error: any) {
-      request.log.error({ err: error, body: request.body }, 'Failed to create loan product');
-      return ResponseUtil.error(reply, error.message || 'Failed to create loan product', 400);
+      const prismaCode = error?.code;
+      const prismaMetaTarget = error?.meta?.target;
+
+      request.log.error(
+        { err: error, prismaCode, prismaMetaTarget, body: request.body },
+        '[LoanProduct] Failed to create loan product'
+      );
+
+      let userMessage = error?.message || 'Failed to create loan product';
+      if (prismaCode === 'P2002') {
+        userMessage = `ข้อมูลซ้ำ: ${prismaMetaTarget?.join(', ') || 'productCode'} มีอยู่ในระบบแล้ว`;
+      } else if (prismaCode === 'P2006' || prismaCode === 'P2007') {
+        userMessage = `ค่าข้อมูลไม่ถูกต้อง: ${error?.message}`;
+      } else if (prismaCode === 'P2011') {
+        userMessage = `ข้อมูลจำเป็นขาดหาย: ${prismaMetaTarget?.join(', ')}`;
+      }
+
+      return ResponseUtil.error(reply, userMessage, 400);
     }
   };
 

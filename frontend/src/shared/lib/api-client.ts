@@ -25,6 +25,7 @@ interface ApiResponse<T> {
     data: T | null;
     error: {
         message: string;
+        technicalMessage?: string;
         status: number;
         code?: string;
         details?: any;
@@ -471,6 +472,7 @@ class ApiClient {
                                 data: null,
                                 error: {
                                     message: this.getUserFriendlyMessage(response.status, data.error?.message || data.message),
+                                    technicalMessage: data.error?.technicalMessage || data.error?.message || data.message,
                                     status: response.status,
                                     code: data.error?.code,
                                     details: data.error?.details,

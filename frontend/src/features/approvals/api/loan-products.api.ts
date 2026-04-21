@@ -134,7 +134,12 @@ export const loanProductsApi = {
 
   create: async (data: CreateLoanProductInput): Promise<LoanProduct> => {
     const response = await apiClient.post<LoanProduct>('/api/loan-products', data);
-    if (response.error) throw new Error(response.error.message);
+    if (response.error) {
+      console.error('[LoanProduct] Create error full response:', response.error);
+      // Use technicalMessage if available for better debugging, fallback to message
+      const msg = (response.error as any).technicalMessage || response.error.message;
+      throw new Error(msg);
+    }
     if (!response.data) throw new Error('Failed to create product');
     return response.data;
   },
