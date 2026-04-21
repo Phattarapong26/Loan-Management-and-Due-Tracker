@@ -167,115 +167,33 @@ export class DisbursementService {
      * Decrypt customer sensitive data
      */
     private decryptCustomerData(customer: any): any {
-        console.log('[Disbursement Service] Starting decryption for customer:', {
-            customerId: customer.id,
-            hasThaiId: !!customer.thaiId,
-            hasTaxId: !!customer.taxId,
-            thaiIdLength: customer.thaiId?.length,
-            taxIdLength: customer.taxId?.length,
-            taxIdSample: customer.taxId?.substring(0, 30),
-        });
-
         try {
-            let decryptedThaiId = null;
-            let decryptedTaxId = null;
+            let decryptedThaiId = customer.thaiId ?? null;
+            let decryptedTaxId = customer.taxId ?? null;
 
-            // Try to decrypt thaiId
             if (customer.thaiId) {
                 try {
                     decryptedThaiId = EncryptionUtil.decrypt(customer.thaiId);
-                    console.log('[Disbursement Service] ThaiId decrypted successfully:', {
-                        originalLength: customer.thaiId.length,
-                        decryptedLength: decryptedThaiId?.length,
-                        last4Digits: decryptedThaiId?.slice(-4),
-                    });
-                } catch (error: any) {
-                    console.error('[Disbursement Service] Failed to decrypt thaiId:', {
-                        error: error.message,
-                        willUsePlainText: true,
-                    });
-                    // If decryption fails, it might already be plain text
+                } catch {
+                    // plain text or unsupported format — use as-is
                     decryptedThaiId = customer.thaiId;
                 }
             }
 
-            // Try to decrypt taxId (might be plain text or encrypted)
             if (customer.taxId) {
-                try {
-                    // Check if it looks like encrypted data
-                    // crypto-js format: salt:iv:ciphertext (contains colons)
-                    // OR base64-like and long
-                    const hasColons = customer.taxId.includes(':');
-                    const looksLikeBase64 = customer.taxId.length > 50 && /^[A-Za-z0-9+/=]+$/.test(customer.taxId);
-                    const looksEncrypted = hasColons || looksLikeBase64;
-                    
-                    console.log('[Disbursement Service] TaxId analysis:', {
-                        length: customer.taxId.length,
-                        hasColons,
-                        looksLikeBase64,
-                        looksEncrypted,
-                        sample: customer.taxId.substring(0, 30),
-                    });
-                    
-                    if (looksEncrypted) {
-                        try {
-                            decryptedTaxId = EncryptionUtil.decrypt(customer.taxId);
-                            console.log('[Disbursement Service] TaxId decrypted successfully:', {
-                                originalLength: customer.taxId.length,
-                                decryptedLength: decryptedTaxId?.length,
-                                decryptedValue: decryptedTaxId,
-                                last4Digits: decryptedTaxId?.replace(/\D/g, '').slice(-4),
-                            });
-                        } catch (decryptError: any) {
-                            console.error('[Disbursement Service] TaxId decryption failed:', {
-                                error: decryptError.message,
-                                willUsePlainText: true,
-                            });
-                            // Decryption failed, use as-is
-                            decryptedTaxId = customer.taxId;
-                        }
-                    } else {
-                        // Already plain text or short string
+                const hasColons = customer.taxId.includes(':');
+                const looksEncrypted = hasColons || (customer.taxId.length > 50);
+                if (looksEncrypted) {
+                    try {
+                        decryptedTaxId = EncryptionUtil.decrypt(customer.taxId);
+                    } catch {
                         decryptedTaxId = customer.taxId;
-                        console.log('[Disbursement Service] TaxId is plain text:', {
-                            length: decryptedTaxId?.length,
-                            value: decryptedTaxId,
-                            digitsOnly: decryptedTaxId?.replace(/\D/g, ''),
-                            last4Digits: decryptedTaxId?.replace(/\D/g, '').slice(-4),
-                        });
                     }
-                } catch (error: any) {
-                    console.error('[Disbursement Service] TaxId processing error:', {
-                        error: error.message,
-                        willUsePlainText: true,
-                    });
-                    // If any error, use as-is
-                    decryptedTaxId = customer.taxId;
                 }
             }
 
-            const result = {
-                ...customer,
-                thaiId: decryptedThaiId,
-                taxId: decryptedTaxId,
-            };
-
-            console.log('[Disbursement Service] Decryption complete:', {
-                customerId: customer.id,
-                hasDecryptedThaiId: !!result.thaiId,
-                hasDecryptedTaxId: !!result.taxId,
-                thaiIdLast4: result.thaiId?.replace(/\D/g, '').slice(-4),
-                taxIdLast4: result.taxId?.replace(/\D/g, '').slice(-4),
-                taxIdFull: result.taxId,
-            });
-
-            return result;
-        } catch (error: any) {
-            console.error('[Disbursement Service] Error in decryptCustomerData:', {
-                error: error.message,
-                stack: error.stack,
-            });
-            // Return original data if decryption fails
+            return { ...customer, thaiId: decryptedThaiId, taxId: decryptedTaxId };
+        } catch {
             return customer;
         }
     }
@@ -302,43 +220,15 @@ export class DisbursementService {
 
         const result = await this.disbursementRepository.list(params);
 
-        console.log('[Disbursement Service] List disbursements - before decryption:', {
-            count: result.disbursements.length,
-            firstDisbursement: result.disbursements[0] ? {
-                id: result.disbursements[0].id,
-                hasLoan: !!(result.disbursements[0] as any).loan,
-                hasCustomer: !!((result.disbursements[0] as any).loan?.customer),
-                customerThaiIdSample: ((result.disbursements[0] as any).loan?.customer?.thaiId?.substring(0, 30)),
-            } : null,
-        });
-
         // Decrypt sensitive customer data for all disbursements
         const disbursementsWithDecryptedData = result.disbursements.map((d: any) => {
             if (d.loan && d.loan.customer) {
-                const decryptedCustomer = this.decryptCustomerData(d.loan.customer);
-                return {
-                    ...d,
-                    loan: {
-                        ...d.loan,
-                        customer: decryptedCustomer,
-                    },
-                };
+                return { ...d, loan: { ...d.loan, customer: this.decryptCustomerData(d.loan.customer) } };
             }
             return d;
         });
 
-        console.log('[Disbursement Service] List disbursements - after decryption:', {
-            count: disbursementsWithDecryptedData.length,
-            firstDisbursement: disbursementsWithDecryptedData[0] ? {
-                id: disbursementsWithDecryptedData[0].id,
-                customerThaiIdSample: disbursementsWithDecryptedData[0].loan?.customer?.thaiId?.substring(0, 10),
-            } : null,
-        });
-
-        return {
-            disbursements: disbursementsWithDecryptedData,
-            total: result.total,
-        };
+        return { disbursements: disbursementsWithDecryptedData, total: result.total };
     }
 
     /**
@@ -529,8 +419,6 @@ export class DisbursementService {
             );
         }
 
-        console.log('[Approve Disbursement] All validations passed, approving...');
-
         const approved = await this.disbursementRepository.approve(id, userId, input.notes);
 
         // 🔔 Send in-app notification to Loan Officer
@@ -652,10 +540,27 @@ export class DisbursementService {
         const principal = Number(loan.principal);
         const remainingAmount = principal - totalDisbursed;
 
-        await this.loanRepository.updateDisbursementTracking(disbursement.loanId, {
+        // Retry on serialization conflict (Postgres error 40001)
+        const retryUpdate = async (fn: () => Promise<void>, retries = 3): Promise<void> => {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    await fn();
+                    return;
+                } catch (err: any) {
+                    const isSerializationError = err?.code === 'P2034' || err?.message?.includes('serialize') || err?.message?.includes('40001');
+                    if (isSerializationError && i < retries - 1) {
+                        await new Promise(r => setTimeout(r, 100 * (i + 1)));
+                        continue;
+                    }
+                    throw err;
+                }
+            }
+        };
+
+        await retryUpdate(() => this.loanRepository.updateDisbursementTracking(disbursement.loanId, {
             totalDisbursed,
             remainingAmount,
-        });
+        }));
 
         // ✅ Convert reserved budget to disbursed
         if (loan.loanProductId) {
@@ -691,7 +596,7 @@ export class DisbursementService {
 
         // Update loan status to DISBURSED if first disbursement
         if (loan.status === 'APPROVED') {
-            await this.loanRepository.updateStatus(disbursement.loanId, 'DISBURSED');
+            await retryUpdate(() => this.loanRepository.updateStatus(disbursement.loanId, 'DISBURSED'));
         }
 
         // ✅ Recalculate payment schedule (will use firstPaymentDate and paymentDay from loan)
@@ -733,7 +638,6 @@ export class DisbursementService {
                 // Decrypt and get last 4 digits
                 const decryptedId = EncryptionUtil.decrypt(encryptedThaiId);
                 pdfPassword = decryptedId.slice(-4);
-                console.log('✅ Using Thai ID last 4 digits for PDF password');
             } else if (taxId) {
                 // taxId is plain text; do NOT decrypt
                 const digitsOnly = String(taxId).replace(/\D/g, '');
@@ -741,12 +645,10 @@ export class DisbursementService {
                     throw new Error('Customer taxId has insufficient digits for PDF password');
                 }
                 pdfPassword = digitsOnly.slice(-4);
-                console.log('✅ Thai ID missing; using Tax ID last 4 digits for PDF password');
             } else {
                 throw new Error('Customer has no thaiId or taxId for PDF password');
             }
 
-            console.log('🔄 Generating PDF document...');
             // 2. Generate PDF
             const pdfBuffer = await pdfService.generateDisbursementAdvice({
                 disbursement: updated,
@@ -754,25 +656,13 @@ export class DisbursementService {
                 customer: disbursement.loan.customer,
                 branch: disbursement.loan.branch,
             });
-            console.log('✅ PDF generated successfully, size:', pdfBuffer.length, 'bytes');
 
-            console.log('🔄 Encrypting PDF...');
             // 3. Encrypt PDF
             const encryptedPDF = await pdfService.encryptPDF(pdfBuffer, pdfPassword);
-            console.log('✅ PDF encrypted successfully');
 
-            console.log('🔄 Saving PDF to storage...');
             // 4. Save PDF
             const filename = `disbursement-${updated.disbursementNo}-${Date.now()}.pdf`;
             pdfUrl = await pdfService.savePDF(encryptedPDF, filename);
-            console.log('✅ PDF saved successfully:', pdfUrl);
-
-            console.log('✅ Disbursement PDF generation completed:', {
-                disbursementId: updated.id,
-                disbursementNo: updated.disbursementNo,
-                pdfUrl,
-                hasPassword: !!pdfPassword,
-            });
 
             // Store PDF URL in loan's productConfig with success status
             if (pdfUrl) {
@@ -784,16 +674,10 @@ export class DisbursementService {
                     disbursementPdfError: null,
                     disbursementPdfRetryCount: 0,
                 });
-                console.log('✅ Disbursement PDF URL stored in loan config with success status');
             }
         } catch (pdfError: any) {
-            console.error('❌ Failed to generate/send PDF:', {
-                error: pdfError.message,
-                stack: pdfError.stack,
-                disbursementId: updated.id,
-            });
+            logger.error({ err: pdfError, disbursementId: updated.id }, 'Failed to generate disbursement PDF');
             
-            // Update status to 'failed' with error message
             const currentConfig = loan.productConfig as any || {};
             const retryCount = (currentConfig.disbursementPdfRetryCount || 0) + 1;
             
@@ -803,17 +687,11 @@ export class DisbursementService {
                 disbursementPdfError: pdfError.message,
                 disbursementPdfRetryCount: retryCount,
             });
-            
-            console.log('⚠️ PDF status updated to failed, retry count:', retryCount);
-            // Don't fail the disbursement, but log the error prominently
         }
 
         // Send LINE notification (with or without PDF)
         try {
-            console.log('🔄 Sending LINE notification...');
             if (pdfUrl && pdfPassword) {
-                console.log('📤 Sending notification WITH PDF');
-                // Send notification with PDF
                 await loanStatusNotification.notifyLoanDisbursedWithPDF(
                     disbursement.loanId,
                     Number(disbursement.amount),
@@ -821,24 +699,15 @@ export class DisbursementService {
                     pdfUrl,
                     pdfPassword
                 );
-                console.log('✅ LINE notification with PDF sent successfully');
             } else {
-                console.log('📤 Sending notification WITHOUT PDF (fallback)');
-                // Send basic notification without PDF
                 await loanStatusNotification.notifyLoanDisbursed(
                     disbursement.loanId,
                     Number(disbursement.amount),
                     referenceNo!
                 );
-                console.log('✅ LINE notification sent successfully');
             }
         } catch (notificationError: any) {
-            console.error('❌ Failed to send LINE notification:', {
-                error: notificationError.message,
-                stack: notificationError.stack,
-                disbursementId: updated.id,
-            });
-            // Don't fail the disbursement
+            logger.error({ err: notificationError, disbursementId: updated.id }, 'Failed to send LINE notification');
         }
 
         return updated;
@@ -963,50 +832,20 @@ export class DisbursementService {
     }
 
     async regenerateContractPdfForLoan(loanId: string, userId: string, branchId?: string) {
-        console.log('[Disbursement Service] Starting PDF regeneration:', {
-            loanId,
-            userId,
-            branchId
-        });
-
         const loan = await this.disbursementRepository.findLoanWithRelations(loanId);
 
         if (!loan) {
-            console.log('[Disbursement Service] Loan not found:', loanId);
             throw new Error('Loan not found');
         }
 
-        console.log('[Disbursement Service] Loan found:', {
-            id: loan.id,
-            status: loan.status,
-            branchId: loan.branchId,
-            customerName: loan.customer?.businessName
-        });
-
         if (branchId && loan.branchId !== branchId) {
-            console.log('[Disbursement Service] Branch mismatch:', {
-                loanBranchId: loan.branchId,
-                userBranchId: branchId
-            });
             throw new Error('Loan not found');
         }
 
         const latestDisbursement = await this.disbursementRepository.findLatestDisbursedByLoanId(loanId);
 
-        console.log('[Disbursement Service] Disbursement search result:', {
-            found: !!latestDisbursement,
-            disbursementId: latestDisbursement?.id,
-            status: latestDisbursement?.status,
-            disbursedAt: latestDisbursement?.disbursedAt
-        });
-
         // If no DISBURSED record, try any disbursement record (APPROVED, PENDING)
         const effectiveDisbursement = latestDisbursement || await this.disbursementRepository.findAnyDisbursementByLoanId(loanId);
-
-        if (!effectiveDisbursement) {
-            // No disbursement record at all — create a synthetic one from loan data
-            console.log('[Disbursement Service] No disbursement record found, using synthetic from loan data');
-        }
 
         // Build effective disbursement — use real record or synthetic from loan data
         const disbursementForPdf = effectiveDisbursement || {
@@ -1040,22 +879,14 @@ export class DisbursementService {
                     const decryptedId = EncryptionUtil.decrypt(encryptedThaiId);
                     pdfPassword = decryptedId.slice(-4);
                 } catch {
-                    // thaiId is plain text (seed data / not encrypted)
                     const digitsOnly = String(encryptedThaiId).replace(/\D/g, '');
                     pdfPassword = digitsOnly.length >= 4 ? digitsOnly.slice(-4) : '0000';
-                    console.warn('[Disbursement Service] thaiId decrypt failed, using plain text fallback');
                 }
             } else if (taxId) {
                 const digitsOnly = String(taxId).replace(/\D/g, '');
-                if (digitsOnly.length >= 4) {
-                    pdfPassword = digitsOnly.slice(-4);
-                } else {
-                    pdfPassword = '0000'; // fallback
-                }
+                pdfPassword = digitsOnly.length >= 4 ? digitsOnly.slice(-4) : '0000';
             } else {
-                // No ID available — use last 4 of loan ID as fallback password
                 pdfPassword = loanId.replace(/-/g, '').slice(-4);
-                console.warn('[Disbursement Service] No thaiId/taxId found, using fallback PDF password');
             }
 
             const pdfBuffer = await pdfService.generateDisbursementAdvice({

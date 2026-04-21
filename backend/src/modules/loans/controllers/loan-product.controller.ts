@@ -57,15 +57,18 @@ export class LoanProductController {
         return ResponseUtil.unauthorized(reply, 'User not authenticated');
       }
 
-      const productData = {
-        ...(request.body as any),
-        createdBy: userId,
-      };
+      // Sanitize: remove unknown fields that Prisma doesn't accept
+      const body = request.body as any;
+      const { id, createdAt, updatedAt, interestRateTiers, loans, penaltyRules,
+              customerActiveProducts, product_budgets, ...cleanBody } = body;
+
+      const productData = { ...cleanBody, createdBy: userId };
 
       const product = await this.service.createProduct(productData);
 
       return ResponseUtil.success(reply, product, 201);
     } catch (error: any) {
+      request.log.error({ err: error, body: request.body }, 'Failed to create loan product');
       return ResponseUtil.error(reply, error.message || 'Failed to create loan product', 400);
     }
   };
