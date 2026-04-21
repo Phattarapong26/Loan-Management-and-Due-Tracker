@@ -39,12 +39,24 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import * as dotenv from 'dotenv';
 
-// Inline encryption — must match EncryptionUtil (AES-256-GCM, format: iv:authTag:encrypted)
-const _rawKey = process.env.ENCRYPTION_KEY ?? '498872ed4febe35d11e53c4d523415087ad1a6b2f0e67bdf73dade1266d31409';
+// Load .env from backend root
+dotenv.config();
+
+// AES-256-GCM encryption — MUST use the same ENCRYPTION_KEY as production
+// Run seed with: ENCRYPTION_KEY=<your-key> npx ts-node seed-complete-system-2025.ts
+const _rawKey = process.env.ENCRYPTION_KEY;
+if (!_rawKey) {
+  console.error('❌ ENCRYPTION_KEY environment variable is required to run this seed.');
+  console.error('   Set it to the same value as your production backend.');
+  console.error('   Example: ENCRYPTION_KEY=<64-char-hex> npx ts-node prisma/seed-complete-system-2025.ts');
+  process.exit(1);
+}
 const _encKey = /^[0-9a-fA-F]{64}$/.test(_rawKey)
   ? Buffer.from(_rawKey, 'hex')
   : Buffer.from(_rawKey.padEnd(32, '0').slice(0, 32), 'utf-8');
+
 const SeedEncrypt = {
   encrypt(text: string): string {
     const iv = crypto.randomBytes(16);
@@ -156,6 +168,26 @@ const BRANCH_DATA = [
 async function seedCompleteSystem2025() {
   console.log('🌱 Starting Complete System Seed 2025-2026 (FULLY FIXED)…\n');
 
+  // ══════════════════════════════════════════════════════════════
+  // STEP 0: CLEANUP — ลบข้อมูลเก่าก่อน seed ใหม่ (cascade order)
+  // ══════════════════════════════════════════════════════════════
+  console.log('🧹 Step 0: Cleaning up existing seed data…');
+  await prisma.collectionAction.deleteMany({});
+  await prisma.paymentReceipt.deleteMany({});
+  await prisma.payment.deleteMany({});
+  await prisma.paymentSchedule.deleteMany({});
+  await prisma.budget_consumption.deleteMany({});
+  await prisma.transaction.deleteMany({});
+  await prisma.loanDisbursement.deleteMany({});
+  await prisma.loan.deleteMany({});
+  await prisma.customer.deleteMany({});
+  await prisma.product_budgets.deleteMany({});
+  await prisma.penaltyRule.deleteMany({});
+  // ลบ CUSTOMER users ด้วย (LINE-linked users ที่ผูกกับ customer เก่า)
+  await prisma.user.deleteMany({ where: { role: { in: ['MANAGER', 'OFFICER', 'CUSTOMER'] } } });
+  await prisma.branch.deleteMany({});
+  console.log('  ✓ Cleanup done\n');
+
   // [FIX-9] ใช้ UTC dates ตลอด
   const PROJECT_START = utcDate(2025, 1, 1);
   const CURRENT_DATE  = utcDate(2026, 3, 10);
@@ -232,7 +264,11 @@ async function seedCompleteSystem2025() {
 
   const createdProducts: any[] = [];
   for (const pd of productsData) {
-    const p = await prisma.loanProduct.create({ data: pd });
+    const p = await prisma.loanProduct.upsert({
+      where: { productCode: pd.productCode },
+      update: pd,
+      create: pd,
+    });
     createdProducts.push(p);
     console.log(`  ✓ ${p.productCode} — ${p.productName}`);
   }

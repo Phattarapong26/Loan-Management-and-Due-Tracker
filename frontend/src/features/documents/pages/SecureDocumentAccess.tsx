@@ -30,23 +30,23 @@ export const SecureDocumentAccess: React.FC = () => {
   }, [token]);
 
   const getApiBaseUrl = () => {
+    // Priority 1: explicit VITE_BACKEND_URL (set in Railway/production env)
+    const backendUrl = import.meta.env.VITE_BACKEND_URL as string | undefined;
+    if (backendUrl && !backendUrl.includes('localhost') && !backendUrl.includes('127.0.0.1')) {
+      return backendUrl.replace(/\/+$/, '');
+    }
+    // Priority 2: VITE_API_BASE_URL
     const configured = import.meta.env.VITE_API_BASE_URL as string | undefined;
-    // Use explicitly configured API base URL (Railway backend service).
     if (configured && !configured.includes('localhost') && !configured.includes('127.0.0.1')) {
       return configured.replace(/\/+$/, '');
     }
-    // In LINE browser, window.location.origin is the frontend URL
-    // Try to derive backend URL from frontend URL pattern
-    // e.g. frontend-production-xxxx.up.railway.app → backend-production-xxxx.up.railway.app
-    const origin = window.location.origin;
-    if (origin.includes('frontend-production')) {
-      // Try VITE_BACKEND_URL as fallback
-      const backendUrl = import.meta.env.VITE_BACKEND_URL as string | undefined;
-      if (backendUrl && !backendUrl.includes('localhost')) {
-        return backendUrl.replace(/\/+$/, '');
-      }
+    // Priority 3: VITE_API_URL
+    const apiUrl = import.meta.env.VITE_API_URL as string | undefined;
+    if (apiUrl && !apiUrl.includes('localhost') && !apiUrl.includes('127.0.0.1')) {
+      return apiUrl.replace(/\/+$/, '');
     }
-    return origin;
+    // Fallback: window.location.origin (works in normal browser, may be frontend URL in LINE browser)
+    return window.location.origin;
   };
 
   const apiFetch = async <T,>(path: string, init?: RequestInit): Promise<T> => {

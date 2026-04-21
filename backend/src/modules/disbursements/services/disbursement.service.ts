@@ -635,9 +635,15 @@ export class DisbursementService {
             const taxId = disbursement.loan.customer.taxId;
 
             if (encryptedThaiId) {
-                // Decrypt and get last 4 digits
-                const decryptedId = EncryptionUtil.decrypt(encryptedThaiId);
-                pdfPassword = decryptedId.slice(-4);
+                // Decrypt and get last 4 digits — fallback to raw digits if key mismatch
+                try {
+                    const decryptedId = EncryptionUtil.decrypt(encryptedThaiId);
+                    pdfPassword = decryptedId.slice(-4);
+                } catch {
+                    const digitsOnly = String(encryptedThaiId).replace(/\D/g, '');
+                    pdfPassword = digitsOnly.length >= 4 ? digitsOnly.slice(-4) : '0000';
+                    logger.warn({ customerId: disbursement.loan.customer.id }, '[DisbursementService] thaiId decrypt failed, using digit fallback for PDF password');
+                }
             } else if (taxId) {
                 // taxId is plain text; do NOT decrypt
                 const digitsOnly = String(taxId).replace(/\D/g, '');
