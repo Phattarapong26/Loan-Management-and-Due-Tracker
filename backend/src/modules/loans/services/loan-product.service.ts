@@ -137,6 +137,8 @@ export class LoanProductService {
     // Create product with tiers
     const createData: any = {
       ...productData,
+      ...(productData.projectStartDate && { projectStartDate: new Date(productData.projectStartDate) }),
+      ...(productData.projectEndDate && { projectEndDate: new Date(productData.projectEndDate) }),
     };
 
     // Add year-based tiers if interestRateType is TIERED
@@ -192,6 +194,8 @@ export class LoanProductService {
 
     const updateData: any = {
       ...productData,
+      ...(productData.projectStartDate && { projectStartDate: new Date(productData.projectStartDate) }),
+      ...(productData.projectEndDate && { projectEndDate: new Date(productData.projectEndDate) }),
     };
 
     // Handle year-based tiers update
