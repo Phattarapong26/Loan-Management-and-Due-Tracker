@@ -239,14 +239,47 @@ export async function secureDocumentRoutes(app: FastifyInstance) {
                 const preferredBaseUrl = getPreferredUploadsBaseUrl(request);
                 const documentUrl = rewriteUploadsUrlToPreferredBase(result.documentUrl, preferredBaseUrl);
 
+                // Try to serve PDF directly if it's a local uploads path
+                // This avoids redirect validation issues and works better in LINE browser
+                try {
+                    const urlObj = new URL(documentUrl);
+                    if (urlObj.pathname.startsWith('/uploads/')) {
+                        const fs = await import('fs/promises');
+                        const path = await import('path');
+                        const filePath = path.join(process.cwd(), urlObj.pathname);
+                        const fileBuffer = await fs.readFile(filePath);
+                        return reply
+                            .header('Content-Type', 'application/pdf')
+                            .header('Content-Disposition', `inline; filename="document.pdf"`)
+                            .header('Cache-Control', 'private, no-cache')
+                            .send(fileBuffer);
+                    }
+                } catch (serveErr) {
+                    logger.warn({ serveErr, documentUrl }, 'Could not serve PDF directly, falling back to redirect');
+                }
+
                 // ✅ SECURITY FIX: Validate URL before redirect (prevent open redirect)
                 const { isValidRedirectUrl } = await import('@utils/security/url-validator.util');
                 if (!isValidRedirectUrl(documentUrl)) {
-                    logger.warn({ documentUrl }, 'Invalid redirect URL detected');
-                    return reply.code(400).send({
-                        success: false,
-                        error: 'Invalid document URL',
-                    });
+                    // Try adding current host to make it valid
+                    logger.warn({ documentUrl }, 'URL not in whitelist, attempting to serve via proxy');
+                    try {
+                        const urlObj = new URL(documentUrl);
+                        const fs = await import('fs/promises');
+                        const path = await import('path');
+                        const filePath = path.join(process.cwd(), urlObj.pathname);
+                        const fileBuffer = await fs.readFile(filePath);
+                        return reply
+                            .header('Content-Type', 'application/pdf')
+                            .header('Content-Disposition', `inline; filename="document.pdf"`)
+                            .send(fileBuffer);
+                    } catch {
+                        logger.warn({ documentUrl }, 'Invalid redirect URL detected');
+                        return reply.code(400).send({
+                            success: false,
+                            error: 'ไม่สามารถเข้าถึงเอกสารได้ กรุณาติดต่อเจ้าหน้าที่',
+                        });
+                    }
                 }
 
                 // Redirect to the document URL

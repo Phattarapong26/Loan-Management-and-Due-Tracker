@@ -248,11 +248,11 @@ export const SecureDocumentAccess: React.FC = () => {
             </p>
             {tokenInfo && (
               <p className="text-center">
-                ลิงก์นี้จะหมดอายุในวันที่ {new Date(tokenInfo.expiresAt).toLocaleDateString('th-TH', {
+                ลิงก์นี้จะหมดอายุในวันที่ {tokenInfo.expiresAt ? new Date(tokenInfo.expiresAt).toLocaleDateString('th-TH', {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',
-                })}
+                }) : '-'}
               </p>
             )}
           </div>
