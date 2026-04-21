@@ -499,39 +499,7 @@ export function LoanProductDialog({ open, onOpenChange, product, onSuccess }: Lo
     setLoading(true);
 
     try {
-      // Prepare data for submission
-      const { interestTiers, ...submitData } = formData;
-      // backend payload typed loosely to allow adding yearInterestTiers
-      const backendPayload: Partial<CreateLoanProductInput & { yearInterestTiers?: Record<string, unknown>[] }> = { ...submitData };
-
-      // Transform interestTiers for backend
-      if (formData.interestRateType === 'TIERED' && formData.interestTiers && formData.interestTiers.length > 0) {
-        backendPayload.yearInterestTiers = formData.interestTiers.map(tier => ({
-          tierType: tier.type,
-          startYear: tier.startYear,
-          endYear: tier.endYear === 'END' ? 'END' : String(tier.endYear),
-          rate: tier.rate,
-          formula: tier.formula,
-          minRate: tier.minRate,
-          maxRate: tier.maxRate,
-        }));
-      }
-
-      if (product) {
-        await loanProductsApi.update(product.id, backendPayload as CreateLoanProductInput);
-        toast({
-          title: 'สำเร็จ',
-          description: 'อัปเดตข้อมูลสินเชื่อเรียบร้อยแล้ว',
-        });
-      } else {
-        await loanProductsApi.create(backendPayload as CreateLoanProductInput);
-        toast({
-          title: 'สำเร็จ',
-          description: 'เพิ่มสินเชื่อใหม่เรียบร้อยแล้ว',
-        });
-      }
-
-      // --- Manual Validation Before Submit ---
+      // --- Validate Before Submit ---
       const errors: string[] = [];
 
       // Validate Financials
@@ -571,6 +539,38 @@ export function LoanProductDialog({ open, onOpenChange, product, onSuccess }: Lo
         return;
       }
       // ---------------------------------------
+
+      // Prepare data for submission
+      const { interestTiers, ...submitData } = formData;
+      // backend payload typed loosely to allow adding yearInterestTiers
+      const backendPayload: Partial<CreateLoanProductInput & { yearInterestTiers?: Record<string, unknown>[] }> = { ...submitData };
+
+      // Transform interestTiers for backend
+      if (formData.interestRateType === 'TIERED' && formData.interestTiers && formData.interestTiers.length > 0) {
+        backendPayload.yearInterestTiers = formData.interestTiers.map(tier => ({
+          tierType: tier.type,
+          startYear: tier.startYear,
+          endYear: tier.endYear === 'END' ? 'END' : String(tier.endYear),
+          rate: tier.rate,
+          formula: tier.formula,
+          minRate: tier.minRate,
+          maxRate: tier.maxRate,
+        }));
+      }
+
+      if (product) {
+        await loanProductsApi.update(product.id, backendPayload as CreateLoanProductInput);
+        toast({
+          title: 'สำเร็จ',
+          description: 'อัปเดตข้อมูลสินเชื่อเรียบร้อยแล้ว',
+        });
+      } else {
+        await loanProductsApi.create(backendPayload as CreateLoanProductInput);
+        toast({
+          title: 'สำเร็จ',
+          description: 'เพิ่มสินเชื่อใหม่เรียบร้อยแล้ว',
+        });
+      }
 
       onSuccess();
     } catch (error: unknown) {
