@@ -190,6 +190,25 @@ const TierCard = ({ tier, index, onUpdate, onRemove, isLast }: TierCardProps) =>
   );
 };
 
+/** สร้างรหัสสินเชื่ออัตโนมัติ เช่น SME-001, SME-002 */
+async function generateProductCode(): Promise<string> {
+  try {
+    const { apiClient } = await import('@/shared/lib/api-client');
+    const res = await apiClient.get<{ data?: { data?: { productCode: string }[] }; productCode?: string }[]>('/api/loan-products');
+    const items: { productCode: string }[] =
+      (res as any)?.data?.data ?? (res as any)?.data ?? (Array.isArray(res) ? res : []);
+    const codes = items
+      .map((p: { productCode: string }) => p.productCode)
+      .filter((c: string) => /^SME-\d+$/.test(c))
+      .map((c: string) => parseInt(c.replace('SME-', ''), 10))
+      .filter((n: number) => !isNaN(n));
+    const next = codes.length > 0 ? Math.max(...codes) + 1 : 1;
+    return `SME-${String(next).padStart(3, '0')}`;
+  } catch {
+    return `SME-${String(Math.floor(Math.random() * 900) + 100)}`;
+  }
+}
+
 export function LoanProductDialog({ open, onOpenChange, product, onSuccess }: LoanProductDialogProps) {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -469,27 +488,30 @@ export function LoanProductDialog({ open, onOpenChange, product, onSuccess }: Lo
         displayOrder: product.displayOrder,
       });
     } else {
-      setFormData({
-        productCode: '',
-        productName: '',
-        productNameEn: '',
-        description: '',
-        purpose: [],
-        eligibility: [],
-        targetBusiness: [],
-        maxLoanAmount: 0,
-        interestRateType: 'FIXED',
-        interestTiers: [],
-        loanType: 'LONG_TERM',
-        maxTermMonths: 120,
-        governmentSubsidy: false,
-        collateralRequired: true,
-        guaranteeOptions: [],
-        benefits: [],
-        feeWaivers: [],
-        status: 'ACTIVE',
-        isPopular: false,
-        displayOrder: 0,
+      // สร้างใหม่ — generate productCode อัตโนมัติ
+      generateProductCode().then(code => {
+        setFormData({
+          productCode: code,
+          productName: '',
+          productNameEn: '',
+          description: '',
+          purpose: [],
+          eligibility: [],
+          targetBusiness: [],
+          maxLoanAmount: 0,
+          interestRateType: 'FIXED',
+          interestTiers: [],
+          loanType: 'LONG_TERM',
+          maxTermMonths: 120,
+          governmentSubsidy: false,
+          collateralRequired: true,
+          guaranteeOptions: [],
+          benefits: [],
+          feeWaivers: [],
+          status: 'ACTIVE',
+          isPopular: false,
+          displayOrder: 0,
+        });
       });
     }
   }, [product]);
@@ -615,12 +637,24 @@ export function LoanProductDialog({ open, onOpenChange, product, onSuccess }: Lo
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="productCode">รหัสสินเชื่อ *</Label>
-                  <Input
-                    id="productCode"
-                    value={formData.productCode}
-                    onChange={(e) => setFormData({ ...formData, productCode: e.target.value })}
-                    required
-                  />
+                  <div className="relative">
+                    <Input
+                      id="productCode"
+                      value={formData.productCode}
+                      onChange={(e) => setFormData({ ...formData, productCode: e.target.value })}
+                      readOnly={!product}
+                      className={!product ? 'bg-muted text-muted-foreground pr-16' : ''}
+                      required
+                    />
+                    {!product && (
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">
+                        auto
+                      </span>
+                    )}
+                  </div>
+                  {!product && (
+                    <p className="text-xs text-muted-foreground mt-1">สร้างอัตโนมัติ</p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="productName">ชื่อสินเชื่อ (ไทย) *</Label>
