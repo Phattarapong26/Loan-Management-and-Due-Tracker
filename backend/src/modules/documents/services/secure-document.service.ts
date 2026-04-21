@@ -13,6 +13,7 @@ import { env } from '@config/env.config';
 import { logger } from '@utils/common/logger.util';
 import crypto from 'crypto';
 import fs from 'fs/promises';
+import { prisma } from '@config/database.config';
 
 export interface SecureDocumentToken {
     token: string;
@@ -249,9 +250,16 @@ export class SecureDocumentService {
                         const { NextPaymentInvoiceService } = await import('@invoices/services/next-payment-invoice.service');
                         const invoiceService = new NextPaymentInvoiceService();
 
+                        // Resolve admin user ID for FK constraint
+                        const adminUser = await prisma.user.findFirst({
+                            where: { role: 'ADMIN', status: 'ACTIVE' },
+                            select: { id: true },
+                        });
+                        const systemUserId = adminUser?.id || 'SYSTEM';
+
                         const invoiceData = await invoiceService.generateNextPaymentInvoice(
                             schedule.loanId,
-                            'SYSTEM'
+                            systemUserId
                         );
 
                         // Fetch the created invoice

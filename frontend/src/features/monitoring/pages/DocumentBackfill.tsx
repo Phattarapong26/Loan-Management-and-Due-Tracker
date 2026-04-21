@@ -56,7 +56,7 @@ const DocumentBackfill: React.FC = () => {
     });
 
     const runTaskMutation = useMutation({
-        mutationFn: (task: 'receipts' | 'contracts') => documentBackfillApi.runTask(task),
+        mutationFn: (task: 'receipts' | 'contracts' | 'invoices') => documentBackfillApi.runTask(task),
         onMutate: (task) => setRunningTask(task),
         onSuccess: (_data, task) => {
             toast({ title: `เริ่ม Backfill ${taskLabel(task)} แล้ว`, description: 'กำลังทำงานใน background' });
@@ -119,8 +119,8 @@ const DocumentBackfill: React.FC = () => {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold">Document Backfill Monitor</h1>
-                        <p className="text-muted-foreground text-sm mt-1">
+                        <h1 className="text-2xl font-bold text-white">Document Backfill Monitor</h1>
+                        <p className="text-white text-sm mt-1">
                             ติดตามและจัดการการสร้างเอกสารย้อนหลัง
                         </p>
                     </div>

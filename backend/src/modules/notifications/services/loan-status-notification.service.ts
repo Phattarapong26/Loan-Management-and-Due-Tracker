@@ -456,7 +456,7 @@ export class LoanStatusNotificationService {
         amount: number,
         referenceNo: string,
         _pdfUrl: string,
-        password: string
+        _password: string
     ): Promise<any> {
         // Generate secure token for password-protected access
         const { SecureDocumentService } = await import('@documents/services/secure-document.service');
@@ -556,18 +556,11 @@ export class LoanStatusNotificationService {
                                     contents: [
                                         {
                                             type: 'text',
-                                            text: `🔒 รหัสเปิดไฟล์: ${password}`,
+                                            text: '🔒 ใช้เลขบัตรประชาชน 4 ตัวท้ายเพื่อเปิดไฟล์',
                                             size: 'sm',
                                             color: '#FF6B00',
                                             weight: 'bold',
                                             wrap: true,
-                                        },
-                                        {
-                                            type: 'text',
-                                            text: 'กรุณาเก็บรหัสนี้ไว้เป็นความลับ',
-                                            size: 'xxs',
-                                            color: COLORS.TEXT_SECONDARY,
-                                            margin: 'sm',
                                         },
                                     ],
                                     backgroundColor: '#FFF3E0',

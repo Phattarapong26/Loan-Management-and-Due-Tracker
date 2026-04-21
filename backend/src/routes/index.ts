@@ -2247,12 +2247,36 @@ export async function registerRoutes(app: FastifyInstance) {
         loanProductController.list
     );
 
+    app.post(
+        '/api/loan-products',
+        {
+            preHandler: [authenticate, authorize('ADMIN')],
+        },
+        loanProductController.create
+    );
+
     app.get<{ Params: { id: string } }>(
         '/api/loan-products/:id',
         {
             preHandler: [authenticate, authorize('ADMIN', 'MANAGER', 'OFFICER')],
         },
         loanProductController.getById
+    );
+
+    app.patch<{ Params: { id: string } }>(
+        '/api/loan-products/:id',
+        {
+            preHandler: [authenticate, authorize('ADMIN')],
+        },
+        loanProductController.update
+    );
+
+    app.delete<{ Params: { id: string } }>(
+        '/api/loan-products/:id',
+        {
+            preHandler: [authenticate, authorize('ADMIN')],
+        },
+        loanProductController.delete
     );
 
     // Interest Rate routes

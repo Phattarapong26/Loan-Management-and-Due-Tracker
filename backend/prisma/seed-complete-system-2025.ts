@@ -419,8 +419,8 @@ async function seedCompleteSystem2025() {
    * เพื่อให้ firstPaymentDate ≤ CURRENT_DATE และมีงวดที่ครบกำหนดจริง
    */
   const customerTemplates = [
-    // Good payers (60%)
-    ...Array(12).fill(null).map((_, i) => ({
+    // Good payers (70%)
+    ...Array(14).fill(null).map((_, i) => ({
       businessName: `บริษัท ธุรกิจดี ${i + 1} จำกัด`,
       businessType: ['WHOLESALE', 'RETAIL', 'SERVICE', 'MANUFACTURING'][i % 4],
       industry_code: ['4610', '5610', '6201', '2511'][i % 4],
@@ -445,19 +445,19 @@ async function seedCompleteSystem2025() {
       applicationMonth: randomBetween(3, 12),
       riskLevel: 'MEDIUM',
     })),
-    // NPL (15%) — applicationMonth max 12 เพื่อให้มีงวด overdue จริง
-    ...Array(3).fill(null).map((_, i) => ({
-      businessName: `บริษัท มีปัญหา ${i + 1} จำกัด`,
-      businessType: ['SERVICE', 'MANUFACTURING', 'RETAIL'][i % 3],
-      industry_code: ['6201', '2511', '5610'][i % 3],
-      business_size: ['SMALL', 'MEDIUM'][i % 2],
-      annualRevenue: randomBetween(2_000_000, 12_000_000),
-      scenario: ['NPL_EARLY', 'NPL_GRADUAL', 'NPL_SUDDEN'][i % 3],
-      loanAmount: randomBetween(1_500_000, 6_000_000),
-      termMonths: [36, 48, 60][i % 3],
-      applicationMonth: randomBetween(3, 12),
+    // NPL (5%) — 1 รายการ
+    {
+      businessName: `บริษัท มีปัญหา 1 จำกัด`,
+      businessType: 'SERVICE',
+      industry_code: '6201',
+      business_size: 'SMALL',
+      annualRevenue: randomBetween(2_000_000, 8_000_000),
+      scenario: 'NPL_GRADUAL',
+      loanAmount: randomBetween(1_500_000, 4_000_000),
+      termMonths: 36,
+      applicationMonth: randomBetween(3, 10),
       riskLevel: 'HIGH',
-    })),
+    },
   ];
 
   const createdCustomers: any[] = [];
