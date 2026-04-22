@@ -455,21 +455,21 @@ async function seedCompleteSystem2025() {
    * เพื่อให้ firstPaymentDate ≤ CURRENT_DATE และมีงวดที่ครบกำหนดจริง
    */
   const customerTemplates = [
-    // Good payers (70%)
-    ...Array(14).fill(null).map((_, i) => ({
+    // Good payers (75%) — 15 ราย
+    ...Array(15).fill(null).map((_, i) => ({
       businessName: `บริษัท ธุรกิจดี ${i + 1} จำกัด`,
       businessType: ['WHOLESALE', 'RETAIL', 'SERVICE', 'MANUFACTURING'][i % 4],
       industry_code: ['4610', '5610', '6201', '2511'][i % 4],
       business_size: ['SMALL', 'MEDIUM', 'LARGE'][i % 3],
       annualRevenue: randomBetween(5_000_000, 50_000_000),
-      scenario: Math.random() < 0.3 ? 'EARLY_PAYER' : 'GOOD_PAYER',
+      scenario: Math.random() < 0.25 ? 'EARLY_PAYER' : 'GOOD_PAYER',
       loanAmount: randomBetween(1_000_000, 10_000_000),
       termMonths: [24, 36, 48, 60][i % 4],
-      applicationMonth: randomBetween(0, 12),
+      applicationMonth: randomBetween(3, 12), // เริ่มไม่เร็วเกินไป
       riskLevel: 'LOW',
     })),
-    // Late payers (25%)
-    ...Array(5).fill(null).map((_, i) => ({
+    // Late payers (20%) — 4 ราย
+    ...Array(4).fill(null).map((_, i) => ({
       businessName: `ห้างหุ้นส่วน ช้าจ่าย ${i + 1}`,
       businessType: ['WHOLESALE', 'RETAIL'][i % 2],
       industry_code: ['4610', '5610'][i % 2],
@@ -478,10 +478,10 @@ async function seedCompleteSystem2025() {
       scenario: 'LATE_PAYER',
       loanAmount: randomBetween(800_000, 5_000_000),
       termMonths: [36, 48][i % 2],
-      applicationMonth: randomBetween(3, 12),
+      applicationMonth: randomBetween(6, 12), // เริ่มไม่นานเกินไป
       riskLevel: 'MEDIUM',
     })),
-    // NPL (5%) — 1 รายการ
+    // NPL (5%) — 1 ราย เริ่มช้า applicationMonth สูง
     {
       businessName: `บริษัท มีปัญหา 1 จำกัด`,
       businessType: 'SERVICE',

@@ -113,6 +113,7 @@ export default function Branches() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isCodeManuallyEdited, setIsCodeManuallyEdited] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
   const { page, pageSize, setPage, setPageSize, getPaginationParams } = usePagination();
 
@@ -198,6 +199,7 @@ export default function Branches() {
         confirmText: 'เสร็จสิ้น',
       });
       setIsAddDialogOpen(false);
+      setIsCodeManuallyEdited(false);
       setFormData({ name: '', code: '', address: '', phone: '', province: '', district: '', subdistrict: '', postalCode: '', managerName: '' });
     },
     onError: (error: unknown) => {
@@ -304,6 +306,17 @@ export default function Branches() {
     return matchesSearch && matchesStatus;
   });
 
+  const generateBranchCode = () => {
+    const allCodes = ((branchesData?.branches as BackendBranch[]) || [])
+      .map((b) => b.code || '')
+      .filter((c) => /^BR-C\d+$/.test(c));
+    const maxNum = allCodes.reduce((max, code) => {
+      const num = parseInt(code.replace('BR-C', ''), 10);
+      return num > max ? num : max;
+    }, 0);
+    return `BR-C${String(maxNum + 1).padStart(3, '0')}`;
+  };
+
   const handleAddBranch = async () => {
     if (!formData.name || !formData.code) {
       alertDialog.error({
@@ -395,9 +408,15 @@ export default function Branches() {
           <h1 className="text-2xl font-bold text-white">จัดการสาขา</h1>
           <p className="text-white">จัดการข้อมูลสาขาทั้งหมด</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+          setIsAddDialogOpen(open);
+          if (!open) setIsCodeManuallyEdited(false);
+        }}>
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={() => {
+              setIsCodeManuallyEdited(false);
+              setFormData(prev => ({ ...prev, code: generateBranchCode() }));
+            }}>
               <Plus className="h-4 w-4 mr-2" />
               เพิ่มสาขา
             </Button>
@@ -418,10 +437,18 @@ export default function Branches() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>รหัสสาขา *</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>รหัสสาขา *</Label>
+                    {!isCodeManuallyEdited && (
+                      <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">อัตโนมัติ</span>
+                    )}
+                  </div>
                   <Input
                     value={formData.code}
-                    onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                    onChange={(e) => {
+                      setIsCodeManuallyEdited(true);
+                      setFormData({ ...formData, code: e.target.value.toUpperCase() });
+                    }}
                     placeholder="BR-C001"
                     maxLength={10}
                   />
