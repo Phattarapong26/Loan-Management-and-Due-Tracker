@@ -96,11 +96,11 @@ export function LineAuditDialog({
     queryFn: async () => {
       if (userId) {
         const result = await lineAuditApi.getUserLineStatus(userId);
-        if (result.error) throw result.error;
+        if (result.error) throw new Error(result.error.message ?? String(result.error));
         return result.data as LineStatus;
       } else if (customerId) {
         const result = await lineAuditApi.getCustomerLineStatus(customerId);
-        if (result.error) throw result.error;
+        if (result.error) throw new Error(result.error.message ?? String(result.error));
         return result.data as LineStatus;
       }
       throw new Error('No user or customer ID provided');
@@ -120,14 +120,14 @@ export function LineAuditDialog({
           reason: disconnectReason,
           forceDisconnect,
         });
-        if (result.error) throw result.error;
+        if (result.error) throw new Error(result.error.message ?? String(result.error));
         return result.data;
       } else if (customerId) {
         const result = await lineAuditApi.disconnectCustomerLineAccount(customerId, {
           reason: disconnectReason,
           forceDisconnect,
         });
-        if (result.error) throw result.error;
+        if (result.error) throw new Error(result.error.message ?? String(result.error));
         return result.data;
       }
       throw new Error('No user or customer ID provided');

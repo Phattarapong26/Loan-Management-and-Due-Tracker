@@ -22,7 +22,7 @@ export default function ForgotPassword() {
 
         try {
             const result = await authApi.forgotPassword(email);
-            if (result.error) throw result.error;
+            if (result.error) throw new Error(result.error.message ?? String(result.error));
             setIsSent(true);
             toast.success('ลิงก์รีเซ็ตรหัสผ่านถูกส่งไปยังอีเมลของคุณแล้ว');
         } catch (error: unknown) {

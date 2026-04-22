@@ -10,7 +10,7 @@ export function useNotifications(params?: ListNotificationsParams) {
         queryKey: ['notifications', params],
         queryFn: async () => {
             const result = await notificationsApi.list(params);
-            if (result.error) throw result.error;
+            if (result.error) throw new Error(result.error.message ?? String(result.error));
             return result.data;
         },
         // Refresh every minute
@@ -21,7 +21,7 @@ export function useNotifications(params?: ListNotificationsParams) {
         queryKey: ['notifications', 'unread-count'],
         queryFn: async () => {
             const result = await notificationsApi.getUnreadCount();
-            if (result.error) throw result.error;
+            if (result.error) throw new Error(result.error.message ?? String(result.error));
             return result.data;
         },
         // Refresh every minute
@@ -31,7 +31,7 @@ export function useNotifications(params?: ListNotificationsParams) {
     const markAsReadMutation = useMutation({
         mutationFn: async (id: string) => {
             const result = await notificationsApi.markAsRead(id);
-            if (result.error) throw result.error;
+            if (result.error) throw new Error(result.error.message ?? String(result.error));
             return result;
         },
         onSuccess: () => {
@@ -43,7 +43,7 @@ export function useNotifications(params?: ListNotificationsParams) {
     const markAllAsReadMutation = useMutation({
         mutationFn: async () => {
             const result = await notificationsApi.markAllAsRead();
-            if (result.error) throw result.error;
+            if (result.error) throw new Error(result.error.message ?? String(result.error));
             return result;
         },
         onSuccess: () => {
@@ -56,7 +56,7 @@ export function useNotifications(params?: ListNotificationsParams) {
     const deleteMutation = useMutation({
         mutationFn: async (id: string) => {
             const result = await notificationsApi.delete(id);
-            if (result.error) throw result.error;
+            if (result.error) throw new Error(result.error.message ?? String(result.error));
             return result;
         },
         onSuccess: () => {

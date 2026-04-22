@@ -164,7 +164,7 @@ export default function Loans() {
         status: statusFilter !== 'all' ? statusFilter.toUpperCase().replace('_', '_') : undefined,
         branchId: isAdmin && branchFilter !== 'all' ? branchFilter : undefined,
       });
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
   });
@@ -176,7 +176,7 @@ export default function Loans() {
       const result = await loansApi.getStatistics({
         branchId: isAdmin && branchFilter !== 'all' ? branchFilter : undefined,
       });
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
   });
@@ -186,7 +186,7 @@ export default function Loans() {
     queryKey: ['branches', 'all'],
     queryFn: async () => {
       const result = await branchesApi.getAll();
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     enabled: isAdmin,
@@ -201,7 +201,7 @@ export default function Loans() {
     queryKey: ['customers', 'all'],
     queryFn: async () => {
       const result = await customersApi.list({ page: 1, limit: 1000 });
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
   });
@@ -245,7 +245,7 @@ export default function Loans() {
     queryFn: async () => {
       if (!selectedLoanId) return null;
       const result = await loansApi.getById(selectedLoanId);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     enabled: !!selectedLoanId && isViewDialogOpen,
@@ -275,7 +275,7 @@ export default function Loans() {
   const createLoanMutation = useMutation({
     mutationFn: async (data: Partial<ApiLoan> & { annualRevenue: number; annualCogs: number; annualOpex: number }) => {
       const result = await loansApi.create(data);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: () => {
@@ -363,7 +363,7 @@ export default function Loans() {
   const approveLoanMutation = useMutation({
     mutationFn: async ({ loanId, notes }: { loanId: string; notes?: string }) => {
       const result = await loansApi.approve(loanId, { notes });
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: async (_approvedLoan, variables) => {
@@ -422,7 +422,7 @@ export default function Loans() {
   const rejectLoanMutation = useMutation({
     mutationFn: async ({ loanId, reason }: { loanId: string; reason: string }) => {
       const result = await loansApi.reject(loanId, { reason });
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: () => {

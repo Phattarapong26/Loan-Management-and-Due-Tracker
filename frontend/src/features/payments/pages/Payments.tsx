@@ -96,7 +96,7 @@ export default function Payments() {
     queryKey: ['branches', 'all'],
     queryFn: async () => {
       const result = await branchesApi.getAll();
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     enabled: isAdmin,
@@ -125,7 +125,7 @@ export default function Payments() {
         status: statusQuery,
         branchId: isAdmin && branchFilter !== 'all' ? branchFilter : undefined,
       });
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
   });
@@ -147,7 +147,7 @@ export default function Payments() {
         status: statusQuery,
         branchId: isAdmin && branchFilter !== 'all' ? branchFilter : undefined,
       });
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
   });
@@ -205,7 +205,7 @@ export default function Payments() {
   const recordPaymentMutation = useMutation({
     mutationFn: async (data: any) => {
       const result = await paymentsApi.create(data);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: () => {

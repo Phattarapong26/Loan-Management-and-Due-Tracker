@@ -146,7 +146,7 @@ export default function UsersPage() {
         search: searchTerm || undefined,
         branchId: isAdmin && branchFilter !== 'all' ? branchFilter : undefined,
       });
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
   });
@@ -156,7 +156,7 @@ export default function UsersPage() {
     queryKey: ['branches', 'all'],
     queryFn: async () => {
       const result = await branchesApi.getAll();
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
   });
@@ -175,7 +175,7 @@ export default function UsersPage() {
         ...data,
         role: backendRole,
       });
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: () => {
@@ -209,7 +209,7 @@ export default function UsersPage() {
       };
 
       const result = await usersApi.update(selectedUser!.id, updatePayload);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: () => {
@@ -238,7 +238,7 @@ export default function UsersPage() {
         temporaryPassword: !newPassword && !sendResetLink,
         sendResetLink: sendResetLink
       });
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: (data: { message: string }) => {
@@ -264,7 +264,7 @@ export default function UsersPage() {
   const toggleStatusMutation = useMutation({
     mutationFn: async (userId: string) => {
       const result = await usersApi.toggleStatus(userId);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: () => {

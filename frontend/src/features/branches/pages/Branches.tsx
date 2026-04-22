@@ -134,7 +134,7 @@ export default function Branches() {
     queryFn: async () => {
       if (!formData.province || !formData.district) return [];
       const result = await thaiAddressApi.getSubdistricts(formData.province, formData.district);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     enabled: !!formData.province && !!formData.district,
@@ -159,7 +159,7 @@ export default function Branches() {
         status: statusFilter !== 'all' ? statusFilter.toUpperCase() : undefined,
         search: searchTerm || undefined,
       });
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
   });
@@ -187,7 +187,7 @@ export default function Branches() {
         postalCode: data.postalCode ? String(data.postalCode) : undefined,
       };
       const result = await branchesApi.create(payload);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: () => {
@@ -214,7 +214,7 @@ export default function Branches() {
   const updateBranchMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
       const result = await branchesApi.update(id, data);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: () => {
@@ -241,7 +241,7 @@ export default function Branches() {
   const toggleStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: 'active' | 'inactive' }) => {
       const result = await branchesApi.update(id, { status: status === 'active' ? 'ACTIVE' : 'INACTIVE' });
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: (_, variables) => {

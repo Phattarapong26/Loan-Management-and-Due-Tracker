@@ -39,7 +39,7 @@ export function AddressFormFields({
     queryKey: ['provinces'],
     queryFn: async () => {
       const result = await thaiAddressApi.getProvinces();
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
   });
@@ -50,7 +50,7 @@ export function AddressFormFields({
     queryFn: async () => {
       if (!province) return [];
       const result = await thaiAddressApi.getDistricts(province);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     enabled: !!province,
@@ -62,7 +62,7 @@ export function AddressFormFields({
     queryFn: async () => {
       if (!province || !district) return [];
       const result = await thaiAddressApi.getSubdistricts(province, district);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     enabled: !!province && !!district,

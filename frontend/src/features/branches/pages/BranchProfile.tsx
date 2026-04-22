@@ -167,7 +167,7 @@ export default function BranchProfile() {
     queryFn: async () => {
       if (!id) throw new Error('Branch ID is required');
       const result = await branchesApi.getWithStats(id);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     enabled: !!id,
@@ -190,7 +190,7 @@ export default function BranchProfile() {
     queryFn: async () => {
       if (!id) throw new Error('Branch ID is required');
       const result = await branchesApi.getEmployees(id);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     enabled: !!id && (canViewAllBranches || canViewOwnBranch),
@@ -208,7 +208,7 @@ export default function BranchProfile() {
       }
       
       const result = await customersApi.list(filters);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     enabled: !!id,
@@ -226,7 +226,7 @@ export default function BranchProfile() {
       }
       
       const result = await loansApi.list(filters);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     enabled: !!id,
@@ -245,7 +245,7 @@ export default function BranchProfile() {
         params.officerId = String(user?.id || '');
       }
       const result = await loansApi.getStatistics(params);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     enabled: !!id,

@@ -40,7 +40,7 @@ export function PaymentHistoryDialog({
     queryFn: async () => {
       if (!loan?.id) return null;
       const result = await paymentsApi.getLoanHistory(loan.id);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     enabled: !!loan?.id && open,
@@ -51,7 +51,7 @@ export function PaymentHistoryDialog({
     queryFn: async () => {
       if (!loan?.id) return null;
       const result = await receiptsApi.getLoanReceipts(loan.id);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     enabled: !!loan?.id && open,

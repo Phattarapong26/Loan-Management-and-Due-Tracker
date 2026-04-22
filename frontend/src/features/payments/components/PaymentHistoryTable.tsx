@@ -318,7 +318,7 @@ export function PaymentHistoryTable({ payments, isLoading, receiptsByPaymentId }
 
                               const result = await receiptsApi.getReceiptPdfUrl(receipt.receiptId);
                               if (result.error || !result.data?.pdfUrl) {
-                                throw result.error || new Error('ไม่พบลิงก์ใบเสร็จ');
+                                throw new Error((result.error as any)?.message ?? 'ไม่พบลิงก์ใบเสร็จ');
                               }
                               window.open(result.data.pdfUrl, '_blank', 'noopener,noreferrer');
                             } catch (error: any) {

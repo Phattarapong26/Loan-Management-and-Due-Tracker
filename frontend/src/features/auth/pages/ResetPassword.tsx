@@ -61,7 +61,7 @@ export default function ResetPassword() {
                 password,
             });
 
-            if (result.error) throw result.error;
+            if (result.error) throw new Error(result.error.message ?? String(result.error));
 
             setIsSuccess(true);
             toast.success('รีเซ็ตรหัสผ่านสำเร็จแล้ว');

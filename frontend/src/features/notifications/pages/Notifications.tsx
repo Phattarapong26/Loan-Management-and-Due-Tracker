@@ -88,7 +88,7 @@ export default function Notifications() {
         read: filter === 'unread' ? false : undefined,
         type: filter !== 'all' && filter !== 'unread' ? filter.toUpperCase() : undefined,
       });
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     staleTime: 30 * 1000, // 30 seconds - notifications should be relatively fresh
@@ -99,7 +99,7 @@ export default function Notifications() {
   const markAsReadMutation = useMutation({
     mutationFn: async (id: string) => {
       const result = await notificationsApi.markAsRead(id);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: () => {
@@ -112,7 +112,7 @@ export default function Notifications() {
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
       const result = await notificationsApi.markAllAsRead();
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: () => {
@@ -125,7 +125,7 @@ export default function Notifications() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const result = await notificationsApi.delete(id);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: () => {

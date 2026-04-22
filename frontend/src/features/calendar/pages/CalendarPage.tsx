@@ -140,7 +140,7 @@ export default function CalendarPage() {
     queryKey: ['branches', 'all'],
     queryFn: async () => {
       const result = await branchesApi.getAll();
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     enabled: isAdmin,
@@ -159,7 +159,7 @@ export default function CalendarPage() {
         limit: 1000,
         branchId: isAdmin && branchFilter !== 'all' ? branchFilter : undefined,
       });
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
   });
@@ -188,7 +188,7 @@ export default function CalendarPage() {
       }
       
       const result = await usersApi.list(params);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       
       // Filter out Admin users if current user is not Admin
       if (currentRole !== 'admin' && result.data?.users) {
@@ -223,7 +223,7 @@ export default function CalendarPage() {
         priority: data.priority ? String(data.priority) : undefined,
       };
       const result = await calendarApi.create(payload);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: () => {
@@ -252,7 +252,7 @@ export default function CalendarPage() {
   const updateEventMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: { title: string; startDate: string; eventType?: string; description?: string } }) => {
       const result = await calendarApi.update(id, data);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: () => {
@@ -269,7 +269,7 @@ export default function CalendarPage() {
   const deleteEventMutation = useMutation({
     mutationFn: async (id: string) => {
       const result = await calendarApi.delete(id);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: () => {

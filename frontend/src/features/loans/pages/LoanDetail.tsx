@@ -129,7 +129,7 @@ export default function LoanDetail() {
     queryFn: async () => {
       if (!id) throw new Error('Loan ID is required');
       const result = await loansApi.getById(id);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     enabled: !!id,
@@ -141,7 +141,7 @@ export default function LoanDetail() {
     queryFn: async () => {
       if (!id) throw new Error('Loan ID is required');
       const result = await loansApi.getPaymentSchedule(id);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data as unknown as { schedules: PaymentSchedule[]; total: number; loan: { id: string; customerId: string; customerName: string; outstandingBalance: string } };
     },
     enabled: !!id,
@@ -158,7 +158,7 @@ export default function LoanDetail() {
     queryFn: async () => {
       if (!id) throw new Error('Loan ID is required');
       const result = await paymentsApi.getLoanHistory(id);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     enabled: !!id,
@@ -168,7 +168,7 @@ export default function LoanDetail() {
   const recordPaymentMutation = useMutation({
     mutationFn: async (data: Partial<Payment>) => {
       const result = await paymentsApi.create(data);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: () => {

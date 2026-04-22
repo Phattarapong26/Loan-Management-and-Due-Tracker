@@ -97,7 +97,7 @@ export default function CollectionsReminders() {
     queryKey: ["branches", "all"],
     queryFn: async () => {
       const result = await branchesApi.getAll();
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     enabled: isAdmin,
@@ -112,11 +112,11 @@ export default function CollectionsReminders() {
     queryFn: async () => {
       if (rollBranchId !== "all") {
         const result = await branchesApi.getEmployees(rollBranchId);
-        if (result.error) throw result.error;
+        if (result.error) throw new Error(result.error.message ?? String(result.error));
         return result.data || [];
       }
       const result = await usersApi.list({ page: 1, limit: 200, role: "OFFICER", status: "ACTIVE" });
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data?.users || [];
     },
     enabled: isAdmin,

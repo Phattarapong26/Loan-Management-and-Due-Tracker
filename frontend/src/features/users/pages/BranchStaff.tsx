@@ -96,7 +96,7 @@ export default function BranchStaff() {
         password: tempPassword,
       });
       
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return { ...result.data, tempPassword };
     },
     onSuccess: (data) => {
@@ -120,7 +120,7 @@ export default function BranchStaff() {
   const updateStaffMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: { firstName?: string; lastName?: string; phoneNumber?: string; role?: string } }) => {
       const result = await usersApi.update(id, data);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: () => {
@@ -144,7 +144,7 @@ export default function BranchStaff() {
   const toggleStatusMutation = useMutation({
     mutationFn: async (userId: string) => {
       const result = await usersApi.toggleStatus(userId);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: () => {
@@ -174,7 +174,7 @@ export default function BranchStaff() {
         temporaryPassword: true,
       });
       
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return { data: result.data, tempPassword };
     },
     onSuccess: (data: { tempPassword: string }) => {

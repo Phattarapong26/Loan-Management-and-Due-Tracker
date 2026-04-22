@@ -33,6 +33,16 @@ interface ApiResponse<T> {
     } | null;
 }
 
+/**
+ * Throw a proper Error from ApiResponse.error so catch blocks get error.message
+ * Usage: throwIfError(result) instead of: if (result.error) throw result.error
+ */
+export function throwIfError<T>(result: ApiResponse<T>): asserts result is { data: T; error: null } {
+    if (result.error) {
+        throw new Error(result.error.message || 'เกิดข้อผิดพลาด');
+    }
+}
+
 class ApiClient {
     private baseUrl: string;
     private refreshTokenPromise: Promise<string | null> | null = null;

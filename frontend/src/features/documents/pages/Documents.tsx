@@ -175,7 +175,7 @@ export default function Documents() {
     queryKey: ['branches', 'all'],
     queryFn: async () => {
       const result = await branchesApi.getAll();
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     enabled: isAdmin,

@@ -205,7 +205,7 @@ export default function Customers() {
     queryFn: async () => {
       const result = await branchesApi.getAll();
       if (result.error) {
-        throw result.error;
+        throw new Error((result.error as any)?.message ?? String(result.error));
       }
       return (result.data || []) as Branch[];
     },
@@ -268,7 +268,7 @@ export default function Customers() {
             totalPages: 1
           };
         }
-        throw result.error;
+        throw new Error((result.error as any)?.message ?? String(result.error));
       }
       return result.data;
     },
@@ -286,7 +286,7 @@ export default function Customers() {
   const createMutation = useMutation({
     mutationFn: async (data: CustomerFormData) => {
       const result = await customersApi.create(data);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: () => {
@@ -330,7 +330,7 @@ export default function Customers() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: CustomerFormData }) => {
       const result = await customersApi.update(id, data);
-      if (result.error) throw result.error;
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
     },
     onSuccess: () => {
