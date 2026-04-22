@@ -384,7 +384,70 @@ export async function backfillInvoices(): Promise<BackfillTaskResult> {
 
         for (const schedule of batch) {
             try {
-                await invoiceService.saveInvoice(schedule.id, adminUser.id);
+                const result = await invoiceService.saveInvoice(schedule.id, adminUser.id);
+
+                // Generate PDF and store pdfUrl in invoiceData
+                try {
+                    const { PDFGenerationService } = await import('@documents/services/pdf-generation.service');
+                    const pdfService = new PDFGenerationService();
+                    const invoiceData = result.data as any;
+
+                    // Build InvoiceData for PDF
+                    const pdfInput = {
+                        accountNo: invoiceData.invoiceNumber || result.invoiceNumber,
+                        loanType: invoiceData.loanType || 'สินเชื่อ SME',
+                        installmentNo: invoiceData.nextPayment?.installmentNo || 1,
+                        totalInstallments: invoiceData.nextPayment?.totalInstallments || 1,
+                        billingDate: new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }),
+                        dueDate: invoiceData.nextPayment?.dueDate
+                            ? new Date(invoiceData.nextPayment.dueDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })
+                            : '-',
+                        customer: {
+                            name: invoiceData.customer?.businessName || '-',
+                            address: invoiceData.customer?.address || '-',
+                            city: '-',
+                            phone: invoiceData.customer?.phone || '-',
+                            email: invoiceData.customer?.email || '-',
+                        },
+                        breakdown: {
+                            principal: invoiceData.nextPayment?.principalAmount || 0,
+                            interest: invoiceData.nextPayment?.interestAmount || 0,
+                            fees: 0,
+                            total: invoiceData.nextPayment?.totalAmount || 0,
+                        },
+                        summary: {
+                            remainingBalance: invoiceData.loanSummary?.remainingPrincipal || 0,
+                            interestRate: `${invoiceData.loanSummary?.interestRate || 0}% p.a.`,
+                            paidInstallments: 0,
+                            overdueAmount: 0,
+                        },
+                        loan: {
+                            id: invoiceData.loanId || '',
+                            startDate: '-',
+                            maturityDate: '-',
+                            monthlyPayment: invoiceData.nextPayment?.totalAmount || 0,
+                        },
+                    };
+
+                    const pdfPath = await pdfService.generateInvoicePDF(pdfInput as any, schedule.id);
+                    const filename = `invoice-${result.invoiceNumber}-${Date.now()}.pdf`;
+                    const pdfUrl = await pdfService.saveInvoicePDF(pdfPath, filename);
+
+                    // Update invoice with pdfUrl
+                    await prisma.nextPaymentInvoice.update({
+                        where: { id: result.invoiceId },
+                        data: { invoiceData: { ...(invoiceData as any), pdfUrl } as any },
+                    });
+
+                    // Cleanup temp file
+                    const fs = await import('fs/promises');
+                    await fs.unlink(pdfPath).catch(() => {});
+
+                    logger.debug({ scheduleId: schedule.id, pdfUrl }, 'Task D: invoice PDF generated');
+                } catch (pdfErr) {
+                    logger.warn({ err: pdfErr, scheduleId: schedule.id }, 'Task D: invoice created but PDF generation failed');
+                }
+
                 created++;
                 logger.debug({ scheduleId: schedule.id }, 'Task D: invoice created');
             } catch (err) {
