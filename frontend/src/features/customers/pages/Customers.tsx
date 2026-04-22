@@ -365,9 +365,10 @@ export default function Customers() {
 
   // Map backend customers to frontend format
   const customers: Customer[] = customersData?.customers?.map((c: BackendCustomer) => {
-    // Only count ACTIVE and DISBURSED loans (exclude PENDING_APPROVAL, REJECTED, CLOSED, DEFAULTED, NPL)
+    // นับ loan ที่ยังมียอดค้างอยู่ (ไม่รวม CLOSED, REJECTED, CANCELLED)
     const activeLoans = c.loans?.filter((loan: Loan) =>
-      loan.status === 'ACTIVE' || loan.status === 'DISBURSED'
+      loan.status === 'ACTIVE' || loan.status === 'DISBURSED' || 
+      loan.status === 'NPL' || loan.status === 'DEFAULTED' || loan.status === 'APPROVED'
     ) || [];
 
     return {

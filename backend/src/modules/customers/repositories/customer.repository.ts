@@ -277,7 +277,7 @@ export class CustomerRepository {
                         orderBy: { createdAt: 'desc' },
                         where: { 
                             status: { 
-                                in: ['ACTIVE', 'PENDING_APPROVAL', 'APPROVED', 'DISBURSED'] 
+                                in: ['ACTIVE', 'PENDING_APPROVAL', 'APPROVED', 'DISBURSED', 'NPL', 'DEFAULTED'] 
                             } 
                         },
                     },
