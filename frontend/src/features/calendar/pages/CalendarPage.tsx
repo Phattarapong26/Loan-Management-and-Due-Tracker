@@ -302,9 +302,12 @@ export default function CalendarPage() {
     const startDate = editForm.time
       ? `${editForm.date}T${editForm.time}:00+07:00`
       : `${editForm.date}T00:00:00+07:00`;
+    // Map frontend type → backend enum, fallback to uppercase if already backend format
+    const rawType = editForm.type || 'meeting';
+    const mappedType = eventTypeMap[rawType] || rawType.toUpperCase() || 'OTHER';
     await updateEventMutation.mutateAsync({
       id: editingEvent.id,
-      data: { title: editForm.title, startDate, eventType: eventTypeMap[editForm.type] || 'OTHER', description: editForm.description || undefined },
+      data: { title: editForm.title, startDate, eventType: mappedType, description: editForm.description || undefined },
     });
   };
 
