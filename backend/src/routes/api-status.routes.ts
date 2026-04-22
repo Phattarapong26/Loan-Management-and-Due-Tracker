@@ -91,13 +91,6 @@ export async function apiStatusRoutes(fastify: FastifyInstance) {
                 { method: 'GET', url: '/api/reports/officer-performance', category: 'Reports' },
                 
                 // Expenses
-                { method: 'GET', url: '/api/expenses', category: 'Expenses' },
-                { method: 'POST', url: '/api/expenses', category: 'Expenses' },
-                { method: 'GET', url: '/api/expenses/:id', category: 'Expenses' },
-                { method: 'PATCH', url: '/api/expenses/:id', category: 'Expenses' },
-                { method: 'POST', url: '/api/expenses/:id/approve', category: 'Expenses' },
-                { method: 'POST', url: '/api/expenses/:id/reject', category: 'Expenses' },
-                { method: 'POST', url: '/api/expenses/:id/reimburse', category: 'Expenses' },
                 
                 // Disbursements
                 { method: 'GET', url: '/api/disbursements', category: 'Disbursements' },
