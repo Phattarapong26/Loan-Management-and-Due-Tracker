@@ -2502,7 +2502,7 @@ export class LineWebhookService {
 
                         return [{
                             type: 'flex',
-                            altText: `ใบแจ้งหนี้รวม ${overdueSchedules.length} งวด — ${fmt(grandTotal)} บาท`,
+                            altText: `ใบแจ้งหนี้รวม ${overdueSchedules.length} งวด รวม ${fmt(grandTotal)} บาท`,
                             contents: {
                                 type: 'bubble',
                                 header: {
