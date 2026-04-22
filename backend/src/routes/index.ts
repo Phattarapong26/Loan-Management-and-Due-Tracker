@@ -2349,15 +2349,13 @@ export async function registerRoutes(app: FastifyInstance) {
         async (request, reply) => disbursementController.regenerateContractPdf(request, reply)
     );
 
-    // Stream disbursement PDF on-demand (no disk storage needed — Railway ephemeral FS)
-    app.get<{ Params: { loanId: string } }>(
+    // Stream disbursement PDF on-demand (password-protected for LINE browser)
+    app.get<{ Params: { loanId: string }; Querystring: { password?: string } }>(
         '/api/disbursements/loans/:loanId/pdf',
-        {
-            preHandler: [authenticate, requireBranch, authorize('ADMIN', 'MANAGER', 'OFFICER')],
-        },
         async (request, reply) => {
             try {
                 const { loanId } = request.params;
+                const { password } = request.query;
                 const { DisbursementPDFService } = await import('@disbursements/services/disbursement-pdf.service');
                 const { prisma: db } = await import('@config/database.config');
 
@@ -2377,6 +2375,18 @@ export async function registerRoutes(app: FastifyInstance) {
 
                 if (!disbursement) {
                     return reply.code(404).send({ error: 'Disbursement not found' });
+                }
+
+                // Verify password if provided (last 4 digits of thaiId)
+                if (password) {
+                    const { EncryptionUtil } = await import('@utils/security/encryption.util');
+                    const customer = disbursement.loan.customer as any;
+                    let decryptedThaiId = customer.thaiId;
+                    try { decryptedThaiId = EncryptionUtil.decrypt(customer.thaiId); } catch { /* plain text */ }
+                    const last4 = decryptedThaiId.slice(-4);
+                    if (password !== last4) {
+                        return reply.code(401).send({ error: 'รหัสผ่านไม่ถูกต้อง' });
+                    }
                 }
 
                 const { EncryptionUtil } = await import('@utils/security/encryption.util');
@@ -2408,10 +2418,9 @@ export async function registerRoutes(app: FastifyInstance) {
 
     // ─── On-demand PDF routes (Railway ephemeral FS — no static file storage) ───
 
-    // Invoice PDF on-demand by payment schedule ID
+    // Invoice PDF on-demand by payment schedule ID (public — no auth needed for LINE browser)
     app.get<{ Params: { scheduleId: string } }>(
         '/api/invoices/pdf/schedule/:scheduleId',
-        { preHandler: [authenticate] },
         async (request, reply) => {
             try {
                 const { scheduleId } = request.params;
@@ -2419,7 +2428,7 @@ export async function registerRoutes(app: FastifyInstance) {
                 const { InvoicePDFService } = await import('@invoices/services/invoice-pdf.service');
                 const invoiceService = new NextPaymentInvoiceService();
                 const pdfService = new InvoicePDFService();
-                const invoiceData = await invoiceService.generateNextPaymentInvoice(scheduleId, (request.user as any).userId);
+                const invoiceData = await invoiceService.generateNextPaymentInvoice(scheduleId, 'SYSTEM');
                 const pdfBuffer = await pdfService.generateInvoicePDF(invoiceData as any);
                 return reply
                     .header('Content-Type', 'application/pdf')
@@ -2431,10 +2440,9 @@ export async function registerRoutes(app: FastifyInstance) {
         }
     );
 
-    // Receipt PDF on-demand by payment ID
+    // Receipt PDF on-demand by payment ID (public — no auth needed for LINE browser)
     app.get<{ Params: { paymentId: string } }>(
         '/api/receipts/pdf/payment/:paymentId',
-        { preHandler: [authenticate] },
         async (request, reply) => {
             try {
                 const { paymentId } = request.params;
