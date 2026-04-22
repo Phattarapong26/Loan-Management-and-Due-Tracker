@@ -24,7 +24,7 @@ export default function Profile() {
     firstName: user?.name?.split(' ')[0] || '',
     lastName: user?.name?.split(' ').slice(1).join(' ') || '',
     email: user?.email || '',
-    phoneNumber: '',
+    phoneNumber: user?.phoneNumber || '',
   });
 
   const updateAvatarMutation = useMutation<User | null, Error, { avatar?: string }>({

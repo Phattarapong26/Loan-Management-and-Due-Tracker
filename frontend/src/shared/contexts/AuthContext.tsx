@@ -43,6 +43,7 @@ const mapBackendUserToFrontend = (backendUser: any): User => {
     branchName: backendUser.branchName || backendUser.branch?.name || undefined, // Support both direct branchName and nested branch.name
     isActive: backendUser.status === 'ACTIVE',
     createdAt: backendUser.createdAt || new Date().toISOString(),
+    phoneNumber: backendUser.phoneNumber || undefined,
   };
 };
 
