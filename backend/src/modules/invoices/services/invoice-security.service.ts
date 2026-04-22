@@ -34,9 +34,18 @@ export class InvoiceSecurityService {
                 return false;
             }
 
+            // Decrypt thaiId before comparing
+            let storedThaiId = customer.thaiId;
+            try {
+                const { EncryptionUtil } = await import('@utils/security/encryption.util');
+                storedThaiId = EncryptionUtil.decrypt(customer.thaiId);
+            } catch {
+                // plain text fallback
+            }
+
             // เปรียบเทียบเลขบัตรประชาชน (ลบช่องว่างและขีดออก)
             const cleanInputId = this.cleanNationalId(nationalId);
-            const cleanStoredId = this.cleanNationalId(customer.thaiId);
+            const cleanStoredId = this.cleanNationalId(storedThaiId);
 
             const isValid = cleanInputId === cleanStoredId;
 
