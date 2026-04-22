@@ -176,7 +176,7 @@ export class CalendarEventRepository {
         startDate: Date;
         endDate: Date | null;
         allDay: boolean;
-        eventType: EventType;
+        event_type: EventType;
         category: EventCategory | null;
         loanId: string | null;
         customerId: string | null;

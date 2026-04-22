@@ -711,7 +711,7 @@ export class CalendarEventService {
         if (input.startDate) updateData.startDate = new Date(input.startDate);
         if (input.endDate !== undefined) updateData.endDate = input.endDate ? new Date(input.endDate) : null;
         if (input.allDay !== undefined) updateData.allDay = input.allDay;
-        if (input.eventType) updateData.eventType = input.eventType;
+        if (input.eventType) updateData.event_type = input.eventType;
         if (input.category !== undefined) updateData.category = input.category;
         if (input.loanId !== undefined) updateData.loanId = input.loanId;
         if (input.customerId !== undefined) updateData.customerId = input.customerId;
