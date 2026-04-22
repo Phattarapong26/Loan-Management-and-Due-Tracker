@@ -2464,6 +2464,118 @@ export async function registerRoutes(app: FastifyInstance) {
         }
     );
 
+    // Overdue invoice PDF — all overdue schedules with penalty (public for LINE browser)
+    app.get<{ Params: { loanId: string } }>(
+        '/api/invoices/pdf/overdue/:loanId',
+        async (request, reply) => {
+            try {
+                const { loanId } = request.params;
+                const { prisma: db } = await import('@config/database.config');
+                const today = new Date();
+                const PENALTY_RATE_DAILY = 0.03 / 365;
+
+                const [loan, schedules] = await Promise.all([
+                    db.loan.findUnique({
+                        where: { id: loanId },
+                        include: {
+                            customer: { select: { businessName: true, phone: true, email: true } },
+                            branch: { select: { name: true } },
+                            loanProduct: { select: { productName: true } },
+                        },
+                    }),
+                    db.paymentSchedule.findMany({
+                        where: { loanId, status: { in: ['OVERDUE', 'PARTIAL'] } },
+                        orderBy: { paymentDate: 'asc' },
+                    }),
+                ]);
+
+                if (!loan || schedules.length === 0) {
+                    return reply.code(404).send({ error: 'No overdue schedules found' });
+                }
+
+                const fmt = (n: number) => n.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+                const fmtDate = (d: Date) => new Date(d).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
+
+                const schedulesWithPenalty = schedules.map(sc => {
+                    const days = Math.max(0, Math.floor((today.getTime() - new Date(sc.paymentDate).getTime()) / 86400000));
+                    const penalty = Number(sc.totalPayment) * PENALTY_RATE_DAILY * days;
+                    return { ...sc, daysOverdue: days, penalty, totalWithPenalty: Number(sc.totalPayment) + penalty };
+                });
+
+                const totalPrincipal = schedulesWithPenalty.reduce((s, sc) => s + Number(sc.totalPayment), 0);
+                const totalPenalty = schedulesWithPenalty.reduce((s, sc) => s + sc.penalty, 0);
+                const grandTotal = totalPrincipal + totalPenalty;
+
+                const { resolvePdfLogoFilePath } = await import('@utils/common/public-assets.util');
+                const { filePath: logoPath } = await resolvePdfLogoFilePath({ callerFileUrl: import.meta.url });
+                let logoBase64 = '';
+                if (logoPath) {
+                    try {
+                        const buf = await (await import('fs/promises')).readFile(logoPath);
+                        if (buf.length > 0) logoBase64 = `data:image/png;base64,${buf.toString('base64')}`;
+                    } catch { /* no logo */ }
+                }
+
+                const rowsHtml = schedulesWithPenalty.map((sc, i) => `
+                    <tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'}">
+                        <td style="padding:8px;border:1px solid #e5e7eb;text-align:center">${sc.paymentNumber}</td>
+                        <td style="padding:8px;border:1px solid #e5e7eb">${fmtDate(sc.paymentDate)}</td>
+                        <td style="padding:8px;border:1px solid #e5e7eb;text-align:right">${fmt(Number(sc.totalPayment))}</td>
+                        <td style="padding:8px;border:1px solid #e5e7eb;text-align:center;color:#ef4444">${sc.daysOverdue} วัน</td>
+                        <td style="padding:8px;border:1px solid #e5e7eb;text-align:right;color:#ef4444">${fmt(sc.penalty)}</td>
+                        <td style="padding:8px;border:1px solid #e5e7eb;text-align:right;font-weight:bold">${fmt(sc.totalWithPenalty)}</td>
+                    </tr>`).join('');
+
+                const html = `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">
+                <style>body{font-family:Tahoma,sans-serif;padding:20px;color:#333}
+                table{width:100%;border-collapse:collapse}th{background:#ef4444;color:#fff;padding:10px;border:1px solid #e5e7eb}
+                .total-row{background:#fef2f2;font-weight:bold}</style></head><body>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:3px solid #ef4444;padding-bottom:15px">
+                    ${logoBase64 ? `<img src="${logoBase64}" style="height:50px">` : '<div style="font-size:20px;font-weight:bold;color:#ef4444">SME D BANK</div>'}
+                    <div style="text-align:right"><div style="font-size:22px;font-weight:bold">ใบแจ้งหนี้งวดค้างชำระ</div>
+                    <div style="color:#666;font-size:12px">วันที่ออก: ${fmtDate(today)}</div></div>
+                </div>
+                <div style="background:#f9fafb;padding:15px;border-radius:8px;margin-bottom:20px">
+                    <strong>${loan.customer.businessName}</strong><br>
+                    สินเชื่อ: ${loan.loanProduct?.productName || '-'} | เลขที่สัญญา: ${loan.contract_number || loan.id.substring(0, 8)}<br>
+                    โทร: ${loan.customer.phone || '-'} | อีเมล: ${loan.customer.email || '-'}
+                </div>
+                <table><thead><tr>
+                    <th>งวดที่</th><th>ครบกำหนด</th><th>ยอดงวด (บาท)</th><th>ค้างชำระ</th><th>ดอกเบี้ยปรับ (บาท)</th><th>รวม (บาท)</th>
+                </tr></thead><tbody>${rowsHtml}
+                <tr class="total-row">
+                    <td colspan="2" style="padding:10px;border:1px solid #e5e7eb;text-align:center">รวมทั้งหมด (${schedulesWithPenalty.length} งวด)</td>
+                    <td style="padding:10px;border:1px solid #e5e7eb;text-align:right">${fmt(totalPrincipal)}</td>
+                    <td style="padding:10px;border:1px solid #e5e7eb"></td>
+                    <td style="padding:10px;border:1px solid #e5e7eb;text-align:right;color:#ef4444">${fmt(totalPenalty)}</td>
+                    <td style="padding:10px;border:1px solid #e5e7eb;text-align:right;font-size:16px;color:#ef4444">${fmt(grandTotal)}</td>
+                </tr></tbody></table>
+                <div style="margin-top:20px;padding:15px;background:#fef2f2;border-radius:8px;text-align:center">
+                    <div style="font-size:18px;font-weight:bold;color:#ef4444">ยอดรวมที่ต้องชำระ: ${fmt(grandTotal)} บาท</div>
+                    <div style="font-size:11px;color:#666;margin-top:5px">กรุณาชำระภายใน 7 วัน เพื่อหลีกเลี่ยงดอกเบี้ยปรับเพิ่มเติม</div>
+                </div>
+                <div style="margin-top:30px;font-size:10px;color:#999;border-top:1px solid #e5e7eb;padding-top:10px">
+                    พิมพ์เมื่อ: ${new Date().toLocaleString('th-TH')} | ธนาคารพัฒนาวิสาหกิจขนาดกลางและขนาดย่อมแห่งประเทศไทย
+                </div></body></html>`;
+
+                const puppeteer = await import('puppeteer');
+                const browser = await puppeteer.default.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'] });
+                const page = await browser.newPage();
+                await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
+                const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' } });
+                await page.close();
+                await browser.close();
+
+                return reply
+                    .header('Content-Type', 'application/pdf')
+                    .header('Content-Disposition', `inline; filename="overdue-invoice-${loanId}.pdf"`)
+                    .send(pdfBuffer);
+            } catch (err: any) {
+                return reply.code(500).send({ error: err.message });
+            }
+        }
+    );
+
     // Register modular routes
     await app.register(principalCalculatorRoutes, { prefix: '/api' });
     await app.register(nextPaymentInvoiceRoutes, { prefix: '/api' });
