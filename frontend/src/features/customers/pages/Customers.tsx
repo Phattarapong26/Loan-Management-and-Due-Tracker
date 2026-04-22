@@ -181,6 +181,7 @@ export default function Customers() {
         businessType: '',
         address: '',
         branchId: user?.branchId || '',
+        officerId: '',
       });
     }
   };
@@ -364,7 +365,7 @@ export default function Customers() {
   });
 
   // Map backend customers to frontend format
-  const customers: Customer[] = customersData?.customers?.map((c: BackendCustomer) => {
+  const customers: Customer[] = (customersData?.customers as BackendCustomer[] | undefined)?.map((c: BackendCustomer) => {
     // นับ loan ที่ยังมียอดค้างอยู่ (ไม่รวม CLOSED, REJECTED, CANCELLED)
     const activeLoans = c.loans?.filter((loan: Loan) =>
       loan.status === 'ACTIVE' || loan.status === 'DISBURSED' || 
@@ -603,7 +604,8 @@ export default function Customers() {
       email: customer.email || '',
       businessType: customer.businessType || '',
       address: '',
-      branchId: user?.branchId || '', // Keep user's branch for edit
+      branchId: user?.branchId || '',
+      officerId: '',
     });
     setIsAddDialogOpen(true);
   }, [user?.branchId]);
@@ -813,7 +815,7 @@ export default function Customers() {
                   )}
 
                   {/* Officer selector for ADMIN and MANAGER */}
-                  {(currentRole === 'admin' || currentRole === 'branch_manager') && formData.branchId && (
+                  {(currentRole === 'admin' || (currentRole as string) === 'branch_manager') && formData.branchId && (
                     <div className="grid gap-2 pt-2 border-t">
                       <Label className="text-sm">เจ้าหน้าที่รับผิดชอบ *</Label>
                       <Select
