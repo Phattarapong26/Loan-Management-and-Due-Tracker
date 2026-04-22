@@ -49,26 +49,34 @@ export default function OverpaymentCalculator() {
         ? `${apiBase.replace(/\/$/, '')}/api/public/overpayment-context?t=${encodeURIComponent(token)}`
         : null;
 
-      fetch(sameOriginUrl)
-        .then(async (res) => {
-          if (res.status === 404 && crossOriginUrl) {
-            // Some environments (tunneled static hosting) don't proxy /api -> backend
-            const res2 = await fetch(crossOriginUrl);
-            const json2 = await res2.json().catch(() => null);
-            if (!res2.ok || !json2?.success) {
-              throw new Error(json2?.error || 'Failed to load loan context');
-            }
-            return json2.data as LoanData;
-          }
+      // In LINE browser, same-origin = frontend URL, not backend
+      // Always try crossOriginUrl first if available, fallback to same-origin
+      const primaryUrl = crossOriginUrl || sameOriginUrl;
+      const fallbackUrl = crossOriginUrl ? sameOriginUrl : null;
 
-          const json = await res.json().catch(() => null);
-          if (!res.ok || !json?.success) {
-            throw new Error(json?.error || 'Failed to load loan context');
-          }
-          return json.data as LoanData;
+      const tryFetch = async (url: string): Promise<LoanData> => {
+        const res = await fetch(url);
+        const json = await res.json().catch(() => null);
+        if (!res.ok || !json?.success) {
+          throw new Error(json?.error || `HTTP ${res.status}`);
+        }
+        return json.data as LoanData;
+      };
+
+      tryFetch(primaryUrl)
+        .catch(async (err) => {
+          console.warn('[Overpayment] Primary URL failed:', err.message, '— trying fallback');
+          if (fallbackUrl) return tryFetch(fallbackUrl);
+          throw err;
         })
-        .then((data) => setLoanData(data))
-        .catch(() => setLoanData(null));
+        .then((data) => {
+          console.log('[Overpayment] Loan data loaded');
+          setLoanData(data);
+        })
+        .catch((err) => {
+          console.error('[Overpayment] All URLs failed:', err.message);
+          setLoanData(null);
+        });
       return;
     }
 

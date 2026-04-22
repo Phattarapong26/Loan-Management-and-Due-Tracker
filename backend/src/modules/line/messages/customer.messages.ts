@@ -681,7 +681,8 @@ export class CustomerMessages {
                                             apiBase = '';
                                         }
 
-                                        const safeUrl1 = env.FRONTEND_URL?.startsWith('http') ? env.FRONTEND_URL : `https://${env.FRONTEND_URL}`;
+                                        const rawFrontend = env.FRONTEND_URL || '';
+                                        const safeUrl1 = rawFrontend.startsWith('http') ? rawFrontend : `https://${rawFrontend}`;
                                         return `${safeUrl1}/overpayment-calculator?t=${encodeURIComponent(token)}${
                                             apiBase ? `&apiBase=${encodeURIComponent(apiBase)}` : ''
                                         }`;
