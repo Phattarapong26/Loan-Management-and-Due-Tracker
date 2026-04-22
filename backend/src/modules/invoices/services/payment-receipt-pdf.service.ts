@@ -418,26 +418,26 @@ export class PaymentReceiptPDFService {
     }
 
     /**
-     * Save PDF to local storage
+     * Save PDF to local storage and return on-demand URL
      */
-    async savePDF(pdfBuffer: Buffer, filename: string): Promise<string> {
+    async savePDF(pdfBuffer: Buffer, filename: string, paymentId?: string): Promise<string> {
         try {
             const fs = await import('fs/promises');
             const path = await import('path');
 
-            // Create uploads directory if it doesn't exist
             const uploadsDir = path.join(process.cwd(), 'uploads', 'receipts');
             await fs.mkdir(uploadsDir, { recursive: true });
-
-            // Save file
             const filePath = path.join(uploadsDir, filename);
             await fs.writeFile(filePath, pdfBuffer);
 
             const baseUrl = (env.BACKEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
-            const pdfUrl = `${baseUrl}/uploads/receipts/${filename}`;
-            
-            console.log('✅ Generated PDF URL:', pdfUrl);
-            return pdfUrl;
+
+            // If paymentId provided, use on-demand route (survives redeploy)
+            if (paymentId) {
+                return `${baseUrl}/api/receipts/pdf/payment/${paymentId}`;
+            }
+
+            return `${baseUrl}/uploads/receipts/${filename}`;
         } catch (error) {
             logger.error({ error, filename }, 'Error saving receipt PDF');
             throw error;

@@ -107,24 +107,22 @@ export class PDFGenerationService {
     /**
      * Save invoice PDF and return public URL
      */
-    async saveInvoicePDF(pdfPath: string, filename: string): Promise<string> {
+    async saveInvoicePDF(pdfPath: string, filename: string, scheduleId?: string): Promise<string> {
         try {
-            // Read the PDF file
             const pdfBuffer = await fs.readFile(pdfPath);
-
-            // Create uploads directory if it doesn't exist
             const uploadsDir = path.join(process.cwd(), 'uploads', 'invoices');
             await fs.mkdir(uploadsDir, { recursive: true });
-
-            // Save file to permanent location
             const permanentPath = path.join(uploadsDir, filename);
             await fs.writeFile(permanentPath, pdfBuffer);
 
             const baseUrl = (env.BACKEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
-            const pdfUrl = `${baseUrl}/uploads/invoices/${filename}`;
 
-            logger.info({ filename, pdfUrl }, 'Invoice PDF saved successfully');
-            return pdfUrl;
+            // Use on-demand route if scheduleId available (survives Railway redeploy)
+            if (scheduleId) {
+                return `${baseUrl}/api/invoices/pdf/schedule/${scheduleId}`;
+            }
+
+            return `${baseUrl}/uploads/invoices/${filename}`;
         } catch (error) {
             logger.error({ error, filename }, 'Error saving invoice PDF');
             throw error;

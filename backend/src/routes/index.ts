@@ -2406,6 +2406,56 @@ export async function registerRoutes(app: FastifyInstance) {
     app.post('/api/webhooks/payment', paymentWebhookController.handlePaymentWebhook);
     app.post('/api/webhooks/slip-upload', paymentWebhookController.handleSlipUpload);
 
+    // ─── On-demand PDF routes (Railway ephemeral FS — no static file storage) ───
+
+    // Invoice PDF on-demand by payment schedule ID
+    app.get<{ Params: { scheduleId: string } }>(
+        '/api/invoices/pdf/schedule/:scheduleId',
+        { preHandler: [authenticate] },
+        async (request, reply) => {
+            try {
+                const { scheduleId } = request.params;
+                const { NextPaymentInvoiceService } = await import('@invoices/services/next-payment-invoice.service');
+                const { InvoicePDFService } = await import('@invoices/services/invoice-pdf.service');
+                const invoiceService = new NextPaymentInvoiceService();
+                const pdfService = new InvoicePDFService();
+                const invoiceData = await invoiceService.generateNextPaymentInvoice(scheduleId, (request.user as any).userId);
+                const pdfBuffer = await pdfService.generateInvoicePDF(invoiceData as any);
+                return reply
+                    .header('Content-Type', 'application/pdf')
+                    .header('Content-Disposition', `inline; filename="invoice-${scheduleId}.pdf"`)
+                    .send(pdfBuffer);
+            } catch (err: any) {
+                return reply.code(500).send({ error: err.message });
+            }
+        }
+    );
+
+    // Receipt PDF on-demand by payment ID
+    app.get<{ Params: { paymentId: string } }>(
+        '/api/receipts/pdf/payment/:paymentId',
+        { preHandler: [authenticate] },
+        async (request, reply) => {
+            try {
+                const { paymentId } = request.params;
+                const { prisma: db } = await import('@config/database.config');
+                const receipt = await db.paymentReceipt.findFirst({
+                    where: { paymentId },
+                    select: { id: true, receiptData: true },
+                });
+                if (!receipt) return reply.code(404).send({ error: 'Receipt not found' });
+                const { paymentReceiptPDFService } = await import('@invoices/services/payment-receipt-pdf.service');
+                const pdfBuffer = await paymentReceiptPDFService.generatePaymentReceiptPDF(receipt.receiptData as any);
+                return reply
+                    .header('Content-Type', 'application/pdf')
+                    .header('Content-Disposition', `inline; filename="receipt-${paymentId}.pdf"`)
+                    .send(pdfBuffer);
+            } catch (err: any) {
+                return reply.code(500).send({ error: err.message });
+            }
+        }
+    );
+
     // Register modular routes
     await app.register(principalCalculatorRoutes, { prefix: '/api' });
     await app.register(nextPaymentInvoiceRoutes, { prefix: '/api' });

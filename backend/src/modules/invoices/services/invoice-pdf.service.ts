@@ -630,26 +630,29 @@ export class InvoicePDFService {
     }
 
     /**
-     * Save PDF to local storage
+     * Save PDF to local storage and return on-demand URL
+     * Note: Railway uses ephemeral FS — URL points to on-demand generation endpoint
      */
-    async savePDF(pdfBuffer: Buffer, filename: string): Promise<string> {
+    async savePDF(pdfBuffer: Buffer, filename: string, scheduleId?: string): Promise<string> {
         try {
             const fs = await import('fs/promises');
             const path = await import('path');
 
-            // Create uploads directory if it doesn't exist
+            // Save to temp location (may not persist on Railway)
             const uploadsDir = path.join(process.cwd(), 'uploads', 'invoices');
             await fs.mkdir(uploadsDir, { recursive: true });
-
-            // Save file
             const filePath = path.join(uploadsDir, filename);
             await fs.writeFile(filePath, pdfBuffer);
 
             const baseUrl = (env.BACKEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
-            const pdfUrl = `${baseUrl}/uploads/invoices/${filename}`;
-            
-            console.log('✅ Generated PDF URL:', pdfUrl);
-            return pdfUrl;
+
+            // If scheduleId provided, use on-demand route (survives redeploy)
+            if (scheduleId) {
+                return `${baseUrl}/api/invoices/pdf/schedule/${scheduleId}`;
+            }
+
+            // Fallback: static URL (may 404 after redeploy)
+            return `${baseUrl}/uploads/invoices/${filename}`;
         } catch (error) {
             logger.error({ error, filename }, 'Error saving invoice PDF');
             throw error;
