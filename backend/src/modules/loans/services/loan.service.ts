@@ -585,13 +585,6 @@ export class LoanService {
         // This prevents stale overdueDays/nextPayment fields from showing wrong status after payments or migrations.
         const now = new Date();
         const msPerDay = 1000 * 60 * 60 * 24;
-        const calcMonthlyPayment = (principal: number, monthlyRate: number, months: number) => {
-            if (months <= 0) return 0;
-            if (monthlyRate === 0) return principal / months;
-            const numerator = principal * monthlyRate * Math.pow(1 + monthlyRate, months);
-            const denominator = Math.pow(1 + monthlyRate, months) - 1;
-            return denominator === 0 ? principal : numerator / denominator;
-        };
 
         const loansWithDerived = await Promise.all(
             (result?.loans || []).map(async (loan: any) => {
@@ -617,11 +610,8 @@ export class LoanService {
                             ? Math.max(0, Math.floor((now.getTime() - pending.paymentDate.getTime()) / msPerDay))
                             : 0;
 
-                    const remainingMonths = Math.max(1, Number(loan.termMonths || 1) - (pending.paymentNumber - 1));
-                    const monthlyPayment = calcMonthlyPayment(outstanding, monthlyRate, remainingMonths);
-                    const interestAmount = outstanding * monthlyRate;
-                    const principalAmount = Math.min(Math.max(0, monthlyPayment - interestAmount), outstanding);
-                    const totalPayment = Math.max(0, interestAmount + principalAmount);
+                    // ใช้ totalPayment จาก payment schedule โดยตรง ไม่คำนวณใหม่
+                    const totalPayment = Number(pending.totalPayment || 0);
 
 	                    return {
 	                        ...loan,
