@@ -50,8 +50,8 @@ import {
   Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { disbursementsApi } from '@/features/expenses/api/disbursements.api';
-import { Disbursement } from '@/features/expenses/api/disbursements.api';
+import { disbursementsApi } from '@/features/disbursements/api/disbursements.api';
+import { Disbursement } from '@/features/disbursements/api/disbursements.api';
 import { branchesApi, Branch } from '@/shared/lib/api-endpoints';
 import { UserAvatar } from '@/shared/components/ui/user-avatar';
 import { TransactionExecuteDialog } from '@/features/transactions/components/TransactionExecuteDialog';

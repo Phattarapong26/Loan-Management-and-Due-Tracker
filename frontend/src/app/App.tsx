@@ -21,7 +21,7 @@ import Reports from "@/features/reports/pages/Reports";
 import { LoanProducts } from "@/features/approvals/pages/LoanProducts";
 import CollectionsReminders from "@/features/collections/pages/CollectionsReminders";
 import DebtManagementResults from "@/features/collections/pages/DebtManagementResults";
-import Disbursements from "@/features/expenses/pages/Disbursements";
+import Disbursements from "@/features/disbursements/pages/Disbursements";
 import Transactions from "@/features/transactions/pages/Transactions";
 import Branches from "@/features/branches/pages/Branches";
 import BranchProfile from "@/features/branches/pages/BranchProfile";

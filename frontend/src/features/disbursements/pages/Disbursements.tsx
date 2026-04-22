@@ -1138,7 +1138,7 @@ export default function Disbursements() {
                                   {/* Show download button if PDF exists */}
                                   {d.loan?.productConfig?.disbursementPdfUrl && (
                                     <DropdownMenuItem 
-                                      onClick={() => window.open(d.loan.productConfig.disbursementPdfUrl, '_blank')}
+                                      onClick={() => window.open(String(d.loan.productConfig.disbursementPdfUrl), '_blank')}
                                     >
                                       <Download className="h-4 w-4 mr-2" />
                                       ดาวน์โหลด PDF

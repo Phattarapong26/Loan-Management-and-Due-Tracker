@@ -24,7 +24,6 @@ import { DebtManagementController } from '@collections/controllers/debt-manageme
 import { filterOptionsController } from '@collections/controllers/filter-options.controller';
 import { DashboardController } from '@reports/controllers/dashboard.controller';
 import { ReportController } from '@reports/controllers/report.controller';
-import { ExpenseController } from '@expenses/controllers/expense.controller';
 import { NotificationController } from '@notifications/controllers/notification.controller';
 import { CalendarEventController } from '@calendar/controllers/calendar-event.controller';
 import { LoanProductController } from '@loans/controllers/loan-product.controller';
@@ -166,19 +165,6 @@ import {
 } from '@collections/models/contact-log.model';
 
 import {
-    createExpenseSchema,
-    updateExpenseSchema,
-    listExpensesQuerySchema,
-    approveExpenseSchema,
-    rejectExpenseSchema,
-    CreateExpenseInput,
-    UpdateExpenseInput,
-    ListExpensesQuery,
-    ApproveExpenseInput,
-    RejectExpenseInput,
-} from '@expenses/models/expense.model';
-
-import {
     createDisbursementSchema,
     updateDisbursementSchema,
     listDisbursementsQuerySchema,
@@ -244,7 +230,6 @@ export async function registerRoutes(app: FastifyInstance) {
     const debtManagementController = new DebtManagementController();
     const dashboardController = new DashboardController();
     const reportController = new ReportController();
-    const expenseController = new ExpenseController();
     const notificationController = new NotificationController();
     const calendarEventController = new CalendarEventController();
     const loanProductController = new LoanProductController();
@@ -2041,80 +2026,6 @@ export async function registerRoutes(app: FastifyInstance) {
     );
 
 
-
-    // Expense routes
-    app.post<{ Body: CreateExpenseInput }>(
-        '/api/expenses',
-        {
-            preHandler: [
-                authenticate,
-                requireBranch,
-                authorize('ADMIN', 'MANAGER', 'OFFICER'),
-                validateBody(createExpenseSchema),
-            ],
-        },
-        expenseController.create
-    );
-
-    app.get<{ Querystring: ListExpensesQuery }>(
-        '/api/expenses',
-        {
-            preHandler: [
-                authenticate,
-                requireBranch,
-                authorize('ADMIN', 'MANAGER', 'OFFICER'),
-                validateQuery(listExpensesQuerySchema),
-            ],
-        },
-        expenseController.list
-    );
-
-    app.get<{ Params: { id: string } }>(
-        '/api/expenses/:id',
-        {
-            preHandler: [authenticate, requireBranch, authorize('ADMIN', 'MANAGER', 'OFFICER')],
-        },
-        expenseController.getById
-    );
-
-    app.patch<{ Params: { id: string }; Body: UpdateExpenseInput }>(
-        '/api/expenses/:id',
-        {
-            preHandler: [
-                authenticate,
-                requireBranch,
-                authorize('ADMIN', 'MANAGER', 'OFFICER'),
-                validateBody(updateExpenseSchema),
-            ],
-        },
-        expenseController.update
-    );
-
-    app.post<{ Params: { id: string }; Body: ApproveExpenseInput }>(
-        '/api/expenses/:id/approve',
-        {
-            preHandler: [
-                authenticate,
-                requireBranch,
-                authorize('ADMIN', 'MANAGER'),
-                validateBody(approveExpenseSchema),
-            ],
-        },
-        expenseController.approve
-    );
-
-    app.post<{ Params: { id: string }; Body: RejectExpenseInput }>(
-        '/api/expenses/:id/reject',
-        {
-            preHandler: [
-                authenticate,
-                requireBranch,
-                authorize('ADMIN', 'MANAGER'),
-                validateBody(rejectExpenseSchema),
-            ],
-        },
-        expenseController.reject
-    );
 
     // Notification routes
     app.post<{ Body: CreateNotificationInput }>(
