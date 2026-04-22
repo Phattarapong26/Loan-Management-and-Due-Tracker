@@ -120,7 +120,7 @@ export async function resolvePdfLogoFilePath(
     }
 
     // Strict default: use public/logo.png instead of backend/assets/images/logo.png
-    const candidateRelatives = ['public/logo.png'];
+    const candidateRelatives = ['public/logo.png', 'assets/images/logo.png'];
 
     for (const candidateRelative of candidateRelatives) {
         // eslint-disable-next-line no-await-in-loop
