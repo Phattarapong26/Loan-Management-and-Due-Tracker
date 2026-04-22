@@ -2508,7 +2508,7 @@ export class LineWebhookService {
                                 header: {
                                     type: 'box', layout: 'vertical', backgroundColor: '#FF4444', paddingAll: '15px',
                                     contents: [
-                                        { type: 'text', text: '📋 ใบแจ้งหนี้รวมทุกงวดค้าง', weight: 'bold', size: 'lg', color: '#FFFFFF' },
+                                        { type: 'text', text: 'ใบแจ้งหนี้รวมทุกงวดค้าง', weight: 'bold', size: 'lg', color: '#FFFFFF' },
                                         { type: 'text', text: `${overdueSchedules.length} งวด`, size: 'sm', color: '#FFFFFF', margin: 'xs' },
                                     ],
                                 },
@@ -2528,7 +2528,7 @@ export class LineWebhookService {
                                             { type: 'text', text: 'ยอดรวมทั้งหมด:', size: 'lg', weight: 'bold', flex: 1 },
                                             { type: 'text', text: `${fmt(grandTotal)} ฿`, size: 'lg', weight: 'bold', color: '#FF4444', flex: 2, align: 'end' },
                                         ]},
-                                        { type: 'text', text: '🔒 กดปุ่มด้านล่างเพื่อเปิดใบแจ้งหนี้\nใช้ 4 ตัวท้ายบัตรประชาชน', size: 'xs', color: '#999', wrap: true, margin: 'md' },
+                                        { type: 'text', text: 'กดปุ่มด้านล่างเพื่อเปิดใบแจ้งหนี้ ใช้ 4 ตัวท้ายบัตรประชาชน', size: 'xs', color: '#999', wrap: true, margin: 'md' },
                                     ],
                                 },
                                 footer: {
