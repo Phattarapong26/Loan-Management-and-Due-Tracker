@@ -2491,13 +2491,13 @@ export class LineWebhookService {
                         const grandTotal = totalPrincipal + totalPenalty;
                         const fmt = (n: number) => Math.round(n).toLocaleString('th-TH');
 
-                        // Generate invoice for first overdue schedule
-                        // ใช้ on-demand PDF route ที่แสดงทุกงวดค้างพร้อมดอกเบี้ยปรับ
-                        const backendUrl = (process.env.BACKEND_URL || 'https://backend-production-cf04.up.railway.app').replace(/\/+$/, '');
-                        const pdfUrl = `${backendUrl}/api/invoices/pdf/overdue/${loanId}`;
+                        // สร้าง secure token เหมือน PDF อื่นๆ — ต้องใช้ 4 ตัวท้ายบัตรประชาชนเพื่อเปิด
+                        const { SecureDocumentService } = await import('@documents/services/secure-document.service');
+                        const svc = new SecureDocumentService();
+                        const token = await svc.generateSecureToken('invoice_overdue', loanId, customerId);
+                        const secureUrl = await svc.getSecureDocumentUrl(token);
 
-                        return [{ type: 'text', text: `ใบแจ้งหนี้รวม ${overdueSchedules.length} งวด\nยอดงวด: ${fmt(totalPrincipal)} บาท\nดอกเบี้ยปรับ: ${fmt(totalPenalty)} บาท\nรวมทั้งหมด: ${fmt(grandTotal)} บาท\n\nกดลิงก์เพื่อดาวน์โหลด PDF:\n${pdfUrl}` }];
-                    } catch (err) {
+                        return [{ type: 'text', text: `ใบแจ้งหนี้รวม ${overdueSchedules.length} งวด\nยอดงวด: ${fmt(totalPrincipal)} บาท\nดอกเบี้ยปรับ: ${fmt(totalPenalty)} บาท\nรวมทั้งหมด: ${fmt(grandTotal)} บาท\n\nกดลิงก์เพื่อเปิดใบแจ้งหนี้:\n${secureUrl}\n\n(ใช้ 4 ตัวท้ายบัตรประชาชนเพื่อเปิด)` }];                    } catch (err) {
                         logger.error({ err }, 'Error generating all overdue invoice');
                         return [{ type: 'text', text: '❌ เกิดข้อผิดพลาด กรุณาลองใหม่' }];
                     }

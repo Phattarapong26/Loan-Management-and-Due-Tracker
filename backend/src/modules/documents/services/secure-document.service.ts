@@ -17,7 +17,7 @@ import { prisma } from '@config/database.config';
 
 export interface SecureDocumentToken {
     token: string;
-    documentType: 'invoice' | 'receipt' | 'contract';
+    documentType: 'invoice' | 'receipt' | 'contract' | 'invoice_overdue';
     documentId: string;
     customerId: string;
     expiresAt: Date;
@@ -34,7 +34,7 @@ export class SecureDocumentService {
      * Token expires in 7 days
      */
     async generateSecureToken(
-        documentType: 'invoice' | 'receipt' | 'contract',
+        documentType: 'invoice' | 'receipt' | 'contract' | 'invoice_overdue',
         documentId: string,
         customerId: string
     ): Promise<string> {
@@ -163,13 +163,13 @@ export class SecureDocumentService {
     private async getDocumentUrl(documentType: string, documentId: string): Promise<string> {
             switch (documentType) {
                 case 'invoice':
-                    // For invoice, generate and return PDF URL
                     return await this.getInvoicePDFUrl(documentId);
+                case 'invoice_overdue':
+                    // documentId = loanId — generate overdue PDF with all schedules + penalty
+                    return await this.getOverdueInvoicePDFUrl(documentId);
                 case 'receipt':
-                    // For receipt, generate and return PDF URL
                     return await this.getReceiptPDFUrl(documentId);
                 case 'contract':
-                    // For contract, generate and return PDF URL
                     return await this.getContractPDFUrl(documentId);
                 default:
                     const baseUrl = env.FRONTEND_URL || 'http://localhost:5173';
@@ -217,6 +217,15 @@ export class SecureDocumentService {
     /**
      * Get invoice PDF URL
      */
+    /**
+     * Get overdue invoice PDF URL — all overdue schedules with penalty
+     * documentId = loanId
+     */
+    private async getOverdueInvoicePDFUrl(loanId: string): Promise<string> {
+        const baseUrl = (env.BACKEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+        return `${baseUrl}/api/invoices/pdf/overdue/${loanId}`;
+    }
+
     /**
          * Get invoice PDF URL
          */
