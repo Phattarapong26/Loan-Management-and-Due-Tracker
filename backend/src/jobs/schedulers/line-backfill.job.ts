@@ -434,7 +434,7 @@ export async function backfillInvoices(): Promise<BackfillTaskResult> {
                     const pdfUrl = await pdfService.saveInvoicePDF(pdfPath, filename);
 
                     // Update invoice with pdfUrl
-                    await prisma.nextPaymentInvoice.update({
+                    await prisma.invoice.update({
                         where: { id: result.invoiceId },
                         data: { invoiceData: { ...(invoiceData as any), pdfUrl } as any },
                     });
