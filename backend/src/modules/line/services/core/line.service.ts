@@ -20,7 +20,7 @@ export class LineService {
         try {
             // Validate message size before sending (LINE limit ~5KB per message)
             const msgJson = JSON.stringify(messages);
-            if (msgJson.length > 5000) {
+            if (msgJson.length > 4800) {
                 console.warn(`[LINE] Reply message too large: ${msgJson.length} bytes — truncating to text fallback`);
                 messages = [{ type: 'text', text: '⚠️ ข้อมูลมีขนาดใหญ่เกินไป กรุณาลองใหม่อีกครั้ง' } as any];
             }

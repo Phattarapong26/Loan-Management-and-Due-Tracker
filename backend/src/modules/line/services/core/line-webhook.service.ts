@@ -2438,7 +2438,7 @@ export class LineWebhookService {
                         });
                         if (overdueSchedules.length === 0) return [{ type: 'text', text: '✅ ไม่มีงวดค้างชำระ' }];
 
-                        const fmt = (n: number) => n.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+                        const fmt = (n: number) => Math.round(n).toLocaleString('th-TH');
                         const fmtDate = (d: Date) => new Date(d).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
 
                         // คำนวณดอกเบี้ยปรับแต่ละงวด (3% ต่อปีของยอดค้าง)
@@ -2567,7 +2567,7 @@ export class LineWebhookService {
                             return s + Number(sc.totalPayment) * PENALTY_RATE_DAILY * days;
                         }, 0);
                         const grandTotal = totalPrincipal + totalPenalty;
-                        const fmt = (n: number) => n.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+                        const fmt = (n: number) => Math.round(n).toLocaleString('th-TH');
 
                         // Generate invoice for first overdue schedule
                         const { NextPaymentInvoiceService } = await import('@invoices/services/next-payment-invoice.service');
