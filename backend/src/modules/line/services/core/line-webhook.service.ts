@@ -2434,7 +2434,7 @@ export class LineWebhookService {
                         const overdueSchedules = await prisma.paymentSchedule.findMany({
                             where: { loanId, status: { in: ['OVERDUE', 'PARTIAL'] } },
                             orderBy: { paymentDate: 'asc' },
-                            take: 4, // max 4 งวด + 1 summary = 5 bubbles (LINE safe limit)
+                            take: 3, // max 3 งวด + 1 summary = 4 bubbles (~4KB)
                         });
                         if (overdueSchedules.length === 0) return [{ type: 'text', text: '✅ ไม่มีงวดค้างชำระ' }];
 

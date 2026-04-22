@@ -18,14 +18,26 @@ export class LineService {
     // Send reply message
     async replyMessage(replyToken: string, messages: LineMessage[]): Promise<boolean> {
         try {
+            // Validate message size before sending (LINE limit ~5KB per message)
+            const msgJson = JSON.stringify(messages);
+            if (msgJson.length > 5000) {
+                console.warn(`[LINE] Reply message too large: ${msgJson.length} bytes — truncating to text fallback`);
+                messages = [{ type: 'text', text: '⚠️ ข้อมูลมีขนาดใหญ่เกินไป กรุณาลองใหม่อีกครั้ง' } as any];
+            }
             await axios.post(
                 `${LINE_MESSAGING_API}/message/reply`,
                 { replyToken, messages },
                 { headers: { Authorization: `Bearer ${this.accessToken}` } }
             );
             return true;
-        } catch (error) {
-            console.error('LINE Reply Error:', error);
+        } catch (error: any) {
+            const details = error.response?.data?.details;
+            console.error('[LINE] Reply Error:', {
+                status: error.response?.status,
+                message: error.response?.data?.message,
+                details: details ? JSON.stringify(details) : undefined,
+                msgSize: JSON.stringify(messages).length,
+            });
             return false;
         }
     }
