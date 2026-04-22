@@ -666,9 +666,13 @@ export class DisbursementService {
             // 3. Encrypt PDF
             const encryptedPDF = await pdfService.encryptPDF(pdfBuffer, pdfPassword);
 
-            // 4. Save PDF
+            // 4. Save PDF (temp) then use on-demand URL
             const filename = `disbursement-${updated.disbursementNo}-${Date.now()}.pdf`;
-            pdfUrl = await pdfService.savePDF(encryptedPDF, filename);
+            await pdfService.savePDF(encryptedPDF, filename);
+
+            // Use on-demand route URL instead of static file path (Railway ephemeral FS)
+            const baseUrl = (process.env.BACKEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+            pdfUrl = `${baseUrl}/api/disbursements/loans/${disbursement.loanId}/pdf`;
 
             // Store PDF URL in loan's productConfig with success status
             if (pdfUrl) {
@@ -904,7 +908,10 @@ export class DisbursementService {
 
             const encryptedPDF = await pdfService.encryptPDF(pdfBuffer, pdfPassword);
             const filename = `disbursement-${disbursementForPdf.disbursementNo}-${Date.now()}.pdf`;
-            const pdfUrl = await pdfService.savePDF(encryptedPDF, filename);
+            await pdfService.savePDF(encryptedPDF, filename);
+            // Use on-demand route URL (Railway ephemeral FS — static files don't persist)
+            const baseUrl = (process.env.BACKEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+            const pdfUrl = `${baseUrl}/api/disbursements/loans/${loanId}/pdf`;
 
             // Update with success status
             await this.disbursementRepository.updateLoanProductConfig(loanId, {

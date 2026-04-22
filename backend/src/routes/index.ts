@@ -2349,6 +2349,59 @@ export async function registerRoutes(app: FastifyInstance) {
         async (request, reply) => disbursementController.regenerateContractPdf(request, reply)
     );
 
+    // Stream disbursement PDF on-demand (no disk storage needed — Railway ephemeral FS)
+    app.get<{ Params: { loanId: string } }>(
+        '/api/disbursements/loans/:loanId/pdf',
+        {
+            preHandler: [authenticate, requireBranch, authorize('ADMIN', 'MANAGER', 'OFFICER')],
+        },
+        async (request, reply) => {
+            try {
+                const { loanId } = request.params;
+                const { DisbursementPDFService } = await import('@disbursements/services/disbursement-pdf.service');
+                const { prisma: db } = await import('@config/database.config');
+
+                const disbursement = await db.loanDisbursement.findFirst({
+                    where: { loanId },
+                    include: {
+                        loan: {
+                            include: {
+                                customer: true,
+                                branch: true,
+                                loanProduct: true,
+                            },
+                        },
+                    },
+                    orderBy: { createdAt: 'desc' },
+                });
+
+                if (!disbursement) {
+                    return reply.code(404).send({ error: 'Disbursement not found' });
+                }
+
+                const { EncryptionUtil } = await import('@utils/security/encryption.util');
+                const customer = disbursement.loan.customer as any;
+                let decryptedThaiId = customer.thaiId;
+                try { decryptedThaiId = EncryptionUtil.decrypt(customer.thaiId); } catch { /* plain text */ }
+
+                const pdfService = new DisbursementPDFService();
+                const pdfBuffer = await pdfService.generateDisbursementAdvice({
+                    disbursement: disbursement as any,
+                    loan: disbursement.loan as any,
+                    customer: { ...customer, thaiId: decryptedThaiId },
+                    branch: disbursement.loan.branch as any,
+                });
+
+                return reply
+                    .header('Content-Type', 'application/pdf')
+                    .header('Content-Disposition', `inline; filename="disbursement-${loanId}.pdf"`)
+                    .send(pdfBuffer);
+            } catch (err: any) {
+                return reply.code(500).send({ error: err.message });
+            }
+        }
+    );
+
     // Payment Webhook routes (external payment providers)
     app.post('/api/webhooks/payment', paymentWebhookController.handlePaymentWebhook);
     app.post('/api/webhooks/slip-upload', paymentWebhookController.handleSlipUpload);
