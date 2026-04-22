@@ -241,6 +241,16 @@ export class DatabaseQueryService {
                 return null;
             }
 
+            // Get next unpaid schedule for accurate nextPaymentDate and amount
+            const nextSchedule = await prisma.paymentSchedule.findFirst({
+                where: {
+                    loanId: loan.id,
+                    status: { in: ['UNPAID', 'OVERDUE', 'PARTIAL'] },
+                },
+                orderBy: { paymentDate: 'asc' },
+                select: { paymentDate: true, totalPayment: true, status: true },
+            });
+
             // Calculate accrued interest
             const interestRate = Number(loan.interestRate) / 100 / 12; // Monthly rate
             const outstandingBalance = Number(loan.outstandingBalance);
@@ -258,8 +268,8 @@ export class DatabaseQueryService {
                 accruedInterest,
                 fees,
                 totalAmountDue: outstandingBalance + accruedInterest + fees,
-                nextPaymentDate: loan.nextPaymentDate,
-                nextPaymentAmount: loan.nextPaymentAmount ? Number(loan.nextPaymentAmount) : null,
+                nextPaymentDate: nextSchedule?.paymentDate ?? loan.nextPaymentDate,
+                nextPaymentAmount: nextSchedule ? Number(nextSchedule.totalPayment) : (loan.nextPaymentAmount ? Number(loan.nextPaymentAmount) : null),
                 status: loan.status,
             };
         } catch (error) {
