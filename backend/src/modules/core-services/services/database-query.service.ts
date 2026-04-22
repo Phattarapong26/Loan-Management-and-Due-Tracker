@@ -199,26 +199,39 @@ export class DatabaseQueryService {
      */
     async getLoanBalance(userId: string): Promise<LoanBalance | null> {
         try {
-            // Find customer by userId (direct link)
-            const customer = await prisma.customer.findFirst({
+            // Find user with customers relation (for LINE-linked users)
+            const user = await prisma.user.findFirst({
                 where: { 
-                    userId: userId 
+                    OR: [
+                        { id: userId },
+                        { lineUserId: userId },
+                    ]
                 },
                 include: {
-                    loans: {
-                        where: {
-                            status: {
-                                in: ['APPROVED', 'DISBURSED', 'ACTIVE'],
+                    customers: {
+                        include: {
+                            loans: {
+                                where: {
+                                    status: {
+                                        in: ['APPROVED', 'DISBURSED', 'ACTIVE', 'NPL', 'DEFAULTED'],
+                                    },
+                                },
+                                orderBy: {
+                                    createdAt: 'desc',
+                                },
+                                take: 1,
                             },
-                        },
-                        orderBy: {
-                            createdAt: 'desc',
                         },
                         take: 1,
                     },
                 },
             });
 
+            if (!user || !user.customers || user.customers.length === 0) {
+                return null;
+            }
+
+            const customer = user.customers[0];
             if (!customer || !customer.loans || customer.loans.length === 0) {
                 return null;
             }
@@ -406,7 +419,7 @@ export class DatabaseQueryService {
                             loans: {
                                 where: {
                                     status: {
-                                        in: ['APPROVED', 'DISBURSED', 'ACTIVE'],
+                                        in: ['APPROVED', 'DISBURSED', 'ACTIVE', 'NPL', 'DEFAULTED'],
                                     },
                                 },
                             },
@@ -477,7 +490,7 @@ export class DatabaseQueryService {
                     where: {
                         officerId: userId,
                         status: {
-                            in: ['APPROVED', 'DISBURSED', 'ACTIVE'],
+                            in: ['APPROVED', 'DISBURSED', 'ACTIVE', 'NPL', 'DEFAULTED'],
                         },
                         nextPaymentDate: {
                             gte: todayStart,
@@ -609,7 +622,7 @@ export class DatabaseQueryService {
                     where: {
                         branchId,
                         status: {
-                            in: ['APPROVED', 'DISBURSED', 'ACTIVE'],
+                            in: ['APPROVED', 'DISBURSED', 'ACTIVE', 'NPL', 'DEFAULTED'],
                         },
                     },
                 });
@@ -636,7 +649,7 @@ export class DatabaseQueryService {
                     where: {
                         branchId,
                         status: {
-                            in: ['APPROVED', 'DISBURSED', 'ACTIVE'],
+                            in: ['APPROVED', 'DISBURSED', 'ACTIVE', 'NPL', 'DEFAULTED'],
                         },
                     },
                     _sum: {
@@ -775,7 +788,7 @@ export class DatabaseQueryService {
                 const totalLoans = await prisma.loan.count({
                     where: {
                         status: {
-                            in: ['APPROVED', 'DISBURSED', 'ACTIVE'],
+                            in: ['APPROVED', 'DISBURSED', 'ACTIVE', 'NPL', 'DEFAULTED'],
                         },
                     },
                 });
@@ -800,7 +813,7 @@ export class DatabaseQueryService {
                 const outstandingResult = await prisma.loan.aggregate({
                     where: {
                         status: {
-                            in: ['APPROVED', 'DISBURSED', 'ACTIVE'],
+                            in: ['APPROVED', 'DISBURSED', 'ACTIVE', 'NPL', 'DEFAULTED'],
                         },
                     },
                     _sum: {
@@ -905,7 +918,7 @@ export class DatabaseQueryService {
                 where: {
                     officerId: userId,
                     status: {
-                        in: ['APPROVED', 'DISBURSED', 'ACTIVE'],
+                        in: ['APPROVED', 'DISBURSED', 'ACTIVE', 'NPL', 'DEFAULTED'],
                     },
                     OR: [
                         {
