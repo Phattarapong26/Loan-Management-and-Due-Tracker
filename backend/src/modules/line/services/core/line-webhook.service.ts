@@ -2500,46 +2500,7 @@ export class LineWebhookService {
                         const token = await svc.generateSecureToken('invoice', invoiceData.invoiceId, customerId);
                         const url = await svc.getSecureDocumentUrl(token);
 
-                        return [{
-                            type: 'flex',
-                            altText: `ใบแจ้งหนี้รวม ${overdueSchedules.length} งวด รวม ${fmt(grandTotal)} บาท`,
-                            contents: {
-                                type: 'bubble',
-                                header: {
-                                    type: 'box', layout: 'vertical', backgroundColor: '#FF4444', paddingAll: '15px',
-                                    contents: [
-                                        { type: 'text', text: 'ใบแจ้งหนี้รวมทุกงวดค้าง', weight: 'bold', size: 'lg', color: '#FFFFFF' },
-                                        { type: 'text', text: `${overdueSchedules.length} งวด`, size: 'sm', color: '#FFFFFF', margin: 'xs' },
-                                    ],
-                                },
-                                body: {
-                                    type: 'box', layout: 'vertical', paddingAll: '15px', spacing: 'md',
-                                    contents: [
-                                        { type: 'box', layout: 'horizontal', contents: [
-                                            { type: 'text', text: 'ยอดงวดรวม:', size: 'sm', color: '#666', flex: 1 },
-                                            { type: 'text', text: `${fmt(totalPrincipal)} ฿`, size: 'sm', flex: 2, align: 'end' },
-                                        ]},
-                                        { type: 'box', layout: 'horizontal', contents: [
-                                            { type: 'text', text: 'ดอกเบี้ยปรับรวม:', size: 'sm', color: '#FF4444', flex: 1 },
-                                            { type: 'text', text: `${fmt(totalPenalty)} ฿`, size: 'sm', color: '#FF4444', flex: 2, align: 'end' },
-                                        ]},
-                                        { type: 'separator' },
-                                        { type: 'box', layout: 'horizontal', contents: [
-                                            { type: 'text', text: 'ยอดรวมทั้งหมด:', size: 'lg', weight: 'bold', flex: 1 },
-                                            { type: 'text', text: `${fmt(grandTotal)} ฿`, size: 'lg', weight: 'bold', color: '#FF4444', flex: 2, align: 'end' },
-                                        ]},
-                                        { type: 'text', text: 'กดปุ่มด้านล่างเพื่อเปิดใบแจ้งหนี้ ใช้ 4 ตัวท้ายบัตรประชาชน', size: 'xs', color: '#999', wrap: true, margin: 'md' },
-                                    ],
-                                },
-                                footer: {
-                                    type: 'box', layout: 'vertical', paddingAll: '12px',
-                                    contents: [{
-                                        type: 'button', style: 'primary', color: '#FF4444',
-                                        action: { type: 'uri', label: 'เปิดใบแจ้งหนี้', uri: url },
-                                    }],
-                                },
-                            },
-                        }];
+                        return [{ type: 'text', text: `ใบแจ้งหนี้รวม ${overdueSchedules.length} งวด\nยอดงวด: ${fmt(totalPrincipal)} บาท\nดอกเบี้ยปรับ: ${fmt(totalPenalty)} บาท\nรวมทั้งหมด: ${fmt(grandTotal)} บาท\n\nกดลิงก์เพื่อเปิดใบแจ้งหนี้:\n${url}\n\n(ใช้ 4 ตัวท้ายบัตรประชาชนเพื่อเปิด)` }];
                     } catch (err) {
                         logger.error({ err }, 'Error generating all overdue invoice');
                         return [{ type: 'text', text: '❌ เกิดข้อผิดพลาด กรุณาลองใหม่' }];
