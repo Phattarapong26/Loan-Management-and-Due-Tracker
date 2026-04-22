@@ -2430,29 +2430,119 @@ export class LineWebhookService {
                     const customerId = params.get('customer_id');
                     if (!loanId || !customerId) return [{ type: 'text', text: '❌ ข้อมูลไม่ครบถ้วน' }];
                     try {
+                        const today = new Date();
                         const overdueSchedules = await prisma.paymentSchedule.findMany({
                             where: { loanId, status: { in: ['OVERDUE', 'PARTIAL'] } },
                             orderBy: { paymentDate: 'asc' },
-                            take: 5,
+                            take: 9, // LINE carousel max 10 bubbles
                         });
                         if (overdueSchedules.length === 0) return [{ type: 'text', text: '✅ ไม่มีงวดค้างชำระ' }];
-                        const totalOverdue = overdueSchedules.reduce((s, sc) => s + Number(sc.totalPayment), 0);
-                        const { SecureDocumentService } = await import('@documents/services/secure-document.service');
-                        const svc = new SecureDocumentService();
-                        // สร้าง invoice สำหรับงวดค้างแรก
-                        const { NextPaymentInvoiceService } = await import('@invoices/services/next-payment-invoice.service');
-                        const invoiceService = new NextPaymentInvoiceService();
-                        const invoiceData = await invoiceService.generateNextPaymentInvoice(loanId, user.id);
-                        const token = await svc.generateSecureToken('invoice', invoiceData.invoiceId, customerId);
-                        const url = await svc.getSecureDocumentUrl(token);
-                        const scheduleList = overdueSchedules.map((sc, i) => {
-                            const date = new Date(sc.paymentDate).toLocaleDateString('th-TH', { month: 'short', day: 'numeric', year: 'numeric' });
-                            const amt = Number(sc.totalPayment).toLocaleString('th-TH', { minimumFractionDigits: 2 });
-                            return `${i + 1}. ${date} — ${amt} บาท`;
-                        }).join('\n');
+
+                        const fmt = (n: number) => n.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+                        const fmtDate = (d: Date) => new Date(d).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+
+                        // คำนวณดอกเบี้ยปรับแต่ละงวด (3% ต่อปีของยอดค้าง)
+                        const PENALTY_RATE_DAILY = 0.03 / 365;
+                        const schedulesWithPenalty = overdueSchedules.map(sc => {
+                            const daysOverdue = Math.max(0, Math.floor((today.getTime() - new Date(sc.paymentDate).getTime()) / 86400000));
+                            const penalty = Number(sc.totalPayment) * PENALTY_RATE_DAILY * daysOverdue;
+                            const total = Number(sc.totalPayment) + penalty;
+                            return { ...sc, daysOverdue, penalty, totalWithPenalty: total };
+                        });
+
+                        const grandTotal = schedulesWithPenalty.reduce((s, sc) => s + sc.totalWithPenalty, 0);
+
+                        // Bubble สำหรับแต่ละงวด
+                        const bubbles = schedulesWithPenalty.map((sc, i) => ({
+                            type: 'bubble',
+                            size: 'kilo',
+                            header: {
+                                type: 'box', layout: 'vertical', backgroundColor: '#FF4444', paddingAll: '10px',
+                                contents: [{ type: 'text', text: `งวดที่ ${sc.paymentNumber} — ค้าง ${sc.daysOverdue} วัน`, size: 'sm', color: '#FFFFFF', weight: 'bold' }],
+                            },
+                            body: {
+                                type: 'box', layout: 'vertical', paddingAll: '10px', spacing: 'sm',
+                                contents: [
+                                    { type: 'box', layout: 'horizontal', contents: [
+                                        { type: 'text', text: 'ครบกำหนด:', size: 'xs', color: '#666', flex: 1 },
+                                        { type: 'text', text: fmtDate(sc.paymentDate), size: 'xs', weight: 'bold', flex: 2, align: 'end' },
+                                    ]},
+                                    { type: 'box', layout: 'horizontal', contents: [
+                                        { type: 'text', text: 'ยอดงวด:', size: 'xs', color: '#666', flex: 1 },
+                                        { type: 'text', text: `${fmt(Number(sc.totalPayment))} ฿`, size: 'xs', flex: 2, align: 'end' },
+                                    ]},
+                                    { type: 'box', layout: 'horizontal', contents: [
+                                        { type: 'text', text: 'ดอกเบี้ยปรับ:', size: 'xs', color: '#FF4444', flex: 1 },
+                                        { type: 'text', text: `${fmt(sc.penalty)} ฿`, size: 'xs', color: '#FF4444', flex: 2, align: 'end' },
+                                    ]},
+                                    { type: 'separator' },
+                                    { type: 'box', layout: 'horizontal', contents: [
+                                        { type: 'text', text: 'รวม:', size: 'sm', weight: 'bold', flex: 1 },
+                                        { type: 'text', text: `${fmt(sc.totalWithPenalty)} ฿`, size: 'sm', weight: 'bold', color: '#FF4444', flex: 2, align: 'end' },
+                                    ]},
+                                ],
+                            },
+                            footer: {
+                                type: 'box', layout: 'vertical', paddingAll: '8px',
+                                contents: [{
+                                    type: 'button', height: 'sm', style: 'primary', color: '#00B900',
+                                    action: {
+                                        type: 'postback',
+                                        label: '📄 ขอใบแจ้งหนี้งวดนี้',
+                                        data: `action=request_invoice&schedule_id=${sc.id}&customer_id=${customerId}`,
+                                        displayText: `ขอใบแจ้งหนี้งวดที่ ${sc.paymentNumber}`,
+                                    },
+                                }],
+                            },
+                        }));
+
+                        // Bubble สรุปรวม + ชำระทั้งหมด
+                        const summaryBubble = {
+                            type: 'bubble',
+                            size: 'kilo',
+                            header: {
+                                type: 'box', layout: 'vertical', backgroundColor: '#1DB446', paddingAll: '10px',
+                                contents: [{ type: 'text', text: `💰 รวม ${schedulesWithPenalty.length} งวด`, size: 'sm', color: '#FFFFFF', weight: 'bold' }],
+                            },
+                            body: {
+                                type: 'box', layout: 'vertical', paddingAll: '10px', spacing: 'sm',
+                                contents: [
+                                    { type: 'box', layout: 'horizontal', contents: [
+                                        { type: 'text', text: 'ยอดงวดรวม:', size: 'xs', color: '#666', flex: 1 },
+                                        { type: 'text', text: `${fmt(schedulesWithPenalty.reduce((s, sc) => s + Number(sc.totalPayment), 0))} ฿`, size: 'xs', flex: 2, align: 'end' },
+                                    ]},
+                                    { type: 'box', layout: 'horizontal', contents: [
+                                        { type: 'text', text: 'ดอกเบี้ยปรับรวม:', size: 'xs', color: '#FF4444', flex: 1 },
+                                        { type: 'text', text: `${fmt(schedulesWithPenalty.reduce((s, sc) => s + sc.penalty, 0))} ฿`, size: 'xs', color: '#FF4444', flex: 2, align: 'end' },
+                                    ]},
+                                    { type: 'separator' },
+                                    { type: 'box', layout: 'horizontal', contents: [
+                                        { type: 'text', text: 'ยอดรวมทั้งหมด:', size: 'md', weight: 'bold', flex: 1 },
+                                        { type: 'text', text: `${fmt(grandTotal)} ฿`, size: 'md', weight: 'bold', color: '#FF4444', flex: 2, align: 'end' },
+                                    ]},
+                                ],
+                            },
+                            footer: {
+                                type: 'box', layout: 'vertical', paddingAll: '8px',
+                                contents: [{
+                                    type: 'button', height: 'sm', style: 'primary', color: '#FF4444',
+                                    action: {
+                                        type: 'postback',
+                                        label: '📋 ใบแจ้งหนี้รวมทุกงวด',
+                                        data: `action=request_invoice_all_overdue&loan_id=${loanId}&customer_id=${customerId}`,
+                                        displayText: 'ขอใบแจ้งหนี้รวมทุกงวดค้าง',
+                                    },
+                                }],
+                            },
+                        };
+
                         return [{
-                            type: 'text',
-                            text: `📋 งวดค้างชำระ (${overdueSchedules.length} งวด)\n\n${scheduleList}\n\n💰 รวมทั้งหมด: ${totalOverdue.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท\n\n📄 ใบแจ้งหนี้งวดแรก:\n🔗 ${url}\n\n🔒 ใช้ 4 ตัวท้ายบัตรประชาชนเพื่อเปิด`,
+                            type: 'flex',
+                            altText: `งวดค้างชำระ ${schedulesWithPenalty.length} งวด รวม ${fmt(grandTotal)} บาท`,
+                            contents: {
+                                type: 'carousel',
+                                contents: [...bubbles, summaryBubble],
+                            },
                         }];
                     } catch (err) {
                         logger.error({ err }, 'Error generating overdue invoices');
@@ -2460,7 +2550,85 @@ export class LineWebhookService {
                     }
                 }
                 return [{ type: 'text', text: 'คำสั่งนี้สำหรับลูกค้าเท่านั้น' }];
-                
+
+            case 'request_invoice_all_overdue':
+                if (this.isCustomerRole(user.role)) {
+                    const loanId = params.get('loan_id');
+                    const customerId = params.get('customer_id');
+                    if (!loanId || !customerId) return [{ type: 'text', text: '❌ ข้อมูลไม่ครบถ้วน' }];
+                    try {
+                        const today = new Date();
+                        const PENALTY_RATE_DAILY = 0.03 / 365;
+                        const overdueSchedules = await prisma.paymentSchedule.findMany({
+                            where: { loanId, status: { in: ['OVERDUE', 'PARTIAL'] } },
+                            orderBy: { paymentDate: 'asc' },
+                        });
+                        if (overdueSchedules.length === 0) return [{ type: 'text', text: '✅ ไม่มีงวดค้างชำระ' }];
+
+                        const totalPrincipal = overdueSchedules.reduce((s, sc) => s + Number(sc.totalPayment), 0);
+                        const totalPenalty = overdueSchedules.reduce((s, sc) => {
+                            const days = Math.max(0, Math.floor((today.getTime() - new Date(sc.paymentDate).getTime()) / 86400000));
+                            return s + Number(sc.totalPayment) * PENALTY_RATE_DAILY * days;
+                        }, 0);
+                        const grandTotal = totalPrincipal + totalPenalty;
+                        const fmt = (n: number) => n.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+
+                        // Generate invoice for first overdue schedule
+                        const { NextPaymentInvoiceService } = await import('@invoices/services/next-payment-invoice.service');
+                        const invoiceService = new NextPaymentInvoiceService();
+                        const invoiceData = await invoiceService.generateNextPaymentInvoice(loanId, user.id);
+                        const { SecureDocumentService } = await import('@documents/services/secure-document.service');
+                        const svc = new SecureDocumentService();
+                        const token = await svc.generateSecureToken('invoice', invoiceData.invoiceId, customerId);
+                        const url = await svc.getSecureDocumentUrl(token);
+
+                        return [{
+                            type: 'flex',
+                            altText: `ใบแจ้งหนี้รวม ${overdueSchedules.length} งวด — ${fmt(grandTotal)} บาท`,
+                            contents: {
+                                type: 'bubble',
+                                header: {
+                                    type: 'box', layout: 'vertical', backgroundColor: '#FF4444', paddingAll: '15px',
+                                    contents: [
+                                        { type: 'text', text: '📋 ใบแจ้งหนี้รวมทุกงวดค้าง', weight: 'bold', size: 'lg', color: '#FFFFFF' },
+                                        { type: 'text', text: `${overdueSchedules.length} งวด`, size: 'sm', color: '#FFFFFF', margin: 'xs' },
+                                    ],
+                                },
+                                body: {
+                                    type: 'box', layout: 'vertical', paddingAll: '15px', spacing: 'md',
+                                    contents: [
+                                        { type: 'box', layout: 'horizontal', contents: [
+                                            { type: 'text', text: 'ยอดงวดรวม:', size: 'sm', color: '#666', flex: 1 },
+                                            { type: 'text', text: `${fmt(totalPrincipal)} ฿`, size: 'sm', flex: 2, align: 'end' },
+                                        ]},
+                                        { type: 'box', layout: 'horizontal', contents: [
+                                            { type: 'text', text: 'ดอกเบี้ยปรับรวม:', size: 'sm', color: '#FF4444', flex: 1 },
+                                            { type: 'text', text: `${fmt(totalPenalty)} ฿`, size: 'sm', color: '#FF4444', flex: 2, align: 'end' },
+                                        ]},
+                                        { type: 'separator' },
+                                        { type: 'box', layout: 'horizontal', contents: [
+                                            { type: 'text', text: 'ยอดรวมทั้งหมด:', size: 'lg', weight: 'bold', flex: 1 },
+                                            { type: 'text', text: `${fmt(grandTotal)} ฿`, size: 'lg', weight: 'bold', color: '#FF4444', flex: 2, align: 'end' },
+                                        ]},
+                                        { type: 'text', text: '🔒 กดปุ่มด้านล่างเพื่อเปิดใบแจ้งหนี้\nใช้ 4 ตัวท้ายบัตรประชาชน', size: 'xs', color: '#999', wrap: true, margin: 'md' },
+                                    ],
+                                },
+                                footer: {
+                                    type: 'box', layout: 'vertical', paddingAll: '12px',
+                                    contents: [{
+                                        type: 'button', style: 'primary', color: '#FF4444',
+                                        action: { type: 'uri', label: '📄 เปิดใบแจ้งหนี้', uri: url },
+                                    }],
+                                },
+                            },
+                        }];
+                    } catch (err) {
+                        logger.error({ err }, 'Error generating all overdue invoice');
+                        return [{ type: 'text', text: '❌ เกิดข้อผิดพลาด กรุณาลองใหม่' }];
+                    }
+                }
+                return [{ type: 'text', text: 'คำสั่งนี้สำหรับลูกค้าเท่านั้น' }];
+
             case 'schedule':
                 if (this.isCustomerRole(user.role)) {
                     const loanId = params.get('loan_id');
