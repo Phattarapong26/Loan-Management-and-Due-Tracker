@@ -2434,7 +2434,7 @@ export class LineWebhookService {
                         const overdueSchedules = await prisma.paymentSchedule.findMany({
                             where: { loanId, status: { in: ['OVERDUE', 'PARTIAL'] } },
                             orderBy: { paymentDate: 'asc' },
-                            take: 9, // LINE carousel max 10 bubbles
+                            take: 4, // max 4 งวด + 1 summary = 5 bubbles (LINE safe limit)
                         });
                         if (overdueSchedules.length === 0) return [{ type: 'text', text: '✅ ไม่มีงวดค้างชำระ' }];
 
@@ -2457,40 +2457,36 @@ export class LineWebhookService {
                             type: 'bubble',
                             size: 'kilo',
                             header: {
-                                type: 'box', layout: 'vertical', backgroundColor: '#FF4444', paddingAll: '10px',
-                                contents: [{ type: 'text', text: `งวดที่ ${sc.paymentNumber} — ค้าง ${sc.daysOverdue} วัน`, size: 'sm', color: '#FFFFFF', weight: 'bold' }],
+                                type: 'box', layout: 'vertical', backgroundColor: '#FF4444', paddingAll: '8px',
+                                contents: [{ type: 'text', text: `งวด ${sc.paymentNumber} ค้าง ${sc.daysOverdue}ว`, size: 'xs', color: '#FFFFFF', weight: 'bold' }],
                             },
                             body: {
-                                type: 'box', layout: 'vertical', paddingAll: '10px', spacing: 'sm',
+                                type: 'box', layout: 'vertical', paddingAll: '8px', spacing: 'xs',
                                 contents: [
                                     { type: 'box', layout: 'horizontal', contents: [
-                                        { type: 'text', text: 'ครบกำหนด:', size: 'xs', color: '#666', flex: 1 },
-                                        { type: 'text', text: fmtDate(sc.paymentDate), size: 'xs', weight: 'bold', flex: 2, align: 'end' },
+                                        { type: 'text', text: fmtDate(sc.paymentDate), size: 'xs', color: '#666', flex: 3 },
+                                        { type: 'text', text: `${fmt(Number(sc.totalPayment))}฿`, size: 'xs', flex: 3, align: 'end' },
                                     ]},
                                     { type: 'box', layout: 'horizontal', contents: [
-                                        { type: 'text', text: 'ยอดงวด:', size: 'xs', color: '#666', flex: 1 },
-                                        { type: 'text', text: `${fmt(Number(sc.totalPayment))} ฿`, size: 'xs', flex: 2, align: 'end' },
-                                    ]},
-                                    { type: 'box', layout: 'horizontal', contents: [
-                                        { type: 'text', text: 'ดอกเบี้ยปรับ:', size: 'xs', color: '#FF4444', flex: 1 },
-                                        { type: 'text', text: `${fmt(sc.penalty)} ฿`, size: 'xs', color: '#FF4444', flex: 2, align: 'end' },
+                                        { type: 'text', text: 'ปรับ:', size: 'xs', color: '#FF4444', flex: 1 },
+                                        { type: 'text', text: `${fmt(sc.penalty)}฿`, size: 'xs', color: '#FF4444', flex: 3, align: 'end' },
                                     ]},
                                     { type: 'separator' },
                                     { type: 'box', layout: 'horizontal', contents: [
                                         { type: 'text', text: 'รวม:', size: 'sm', weight: 'bold', flex: 1 },
-                                        { type: 'text', text: `${fmt(sc.totalWithPenalty)} ฿`, size: 'sm', weight: 'bold', color: '#FF4444', flex: 2, align: 'end' },
+                                        { type: 'text', text: `${fmt(sc.totalWithPenalty)}฿`, size: 'sm', weight: 'bold', color: '#FF4444', flex: 3, align: 'end' },
                                     ]},
                                 ],
                             },
                             footer: {
-                                type: 'box', layout: 'vertical', paddingAll: '8px',
+                                type: 'box', layout: 'vertical', paddingAll: '6px',
                                 contents: [{
                                     type: 'button', height: 'sm', style: 'primary', color: '#00B900',
                                     action: {
                                         type: 'postback',
-                                        label: '📄 ขอใบแจ้งหนี้งวดนี้',
+                                        label: '📄 ใบแจ้งหนี้',
                                         data: `action=request_invoice&schedule_id=${sc.id}&customer_id=${customerId}`,
-                                        displayText: `ขอใบแจ้งหนี้งวดที่ ${sc.paymentNumber}`,
+                                        displayText: `ใบแจ้งหนี้งวด ${sc.paymentNumber}`,
                                     },
                                 }],
                             },
@@ -2501,36 +2497,36 @@ export class LineWebhookService {
                             type: 'bubble',
                             size: 'kilo',
                             header: {
-                                type: 'box', layout: 'vertical', backgroundColor: '#1DB446', paddingAll: '10px',
-                                contents: [{ type: 'text', text: `💰 รวม ${schedulesWithPenalty.length} งวด`, size: 'sm', color: '#FFFFFF', weight: 'bold' }],
+                                type: 'box', layout: 'vertical', backgroundColor: '#1DB446', paddingAll: '8px',
+                                contents: [{ type: 'text', text: `💰 รวม ${schedulesWithPenalty.length} งวด`, size: 'xs', color: '#FFFFFF', weight: 'bold' }],
                             },
                             body: {
-                                type: 'box', layout: 'vertical', paddingAll: '10px', spacing: 'sm',
+                                type: 'box', layout: 'vertical', paddingAll: '8px', spacing: 'xs',
                                 contents: [
                                     { type: 'box', layout: 'horizontal', contents: [
-                                        { type: 'text', text: 'ยอดงวดรวม:', size: 'xs', color: '#666', flex: 1 },
-                                        { type: 'text', text: `${fmt(schedulesWithPenalty.reduce((s, sc) => s + Number(sc.totalPayment), 0))} ฿`, size: 'xs', flex: 2, align: 'end' },
+                                        { type: 'text', text: 'ยอดรวม:', size: 'xs', color: '#666', flex: 1 },
+                                        { type: 'text', text: `${fmt(schedulesWithPenalty.reduce((s, sc) => s + Number(sc.totalPayment), 0))}฿`, size: 'xs', flex: 2, align: 'end' },
                                     ]},
                                     { type: 'box', layout: 'horizontal', contents: [
-                                        { type: 'text', text: 'ดอกเบี้ยปรับรวม:', size: 'xs', color: '#FF4444', flex: 1 },
-                                        { type: 'text', text: `${fmt(schedulesWithPenalty.reduce((s, sc) => s + sc.penalty, 0))} ฿`, size: 'xs', color: '#FF4444', flex: 2, align: 'end' },
+                                        { type: 'text', text: 'ปรับรวม:', size: 'xs', color: '#FF4444', flex: 1 },
+                                        { type: 'text', text: `${fmt(schedulesWithPenalty.reduce((s, sc) => s + sc.penalty, 0))}฿`, size: 'xs', color: '#FF4444', flex: 2, align: 'end' },
                                     ]},
                                     { type: 'separator' },
                                     { type: 'box', layout: 'horizontal', contents: [
-                                        { type: 'text', text: 'ยอดรวมทั้งหมด:', size: 'md', weight: 'bold', flex: 1 },
-                                        { type: 'text', text: `${fmt(grandTotal)} ฿`, size: 'md', weight: 'bold', color: '#FF4444', flex: 2, align: 'end' },
+                                        { type: 'text', text: 'รวมทั้งหมด:', size: 'sm', weight: 'bold', flex: 1 },
+                                        { type: 'text', text: `${fmt(grandTotal)}฿`, size: 'sm', weight: 'bold', color: '#FF4444', flex: 2, align: 'end' },
                                     ]},
                                 ],
                             },
                             footer: {
-                                type: 'box', layout: 'vertical', paddingAll: '8px',
+                                type: 'box', layout: 'vertical', paddingAll: '6px',
                                 contents: [{
                                     type: 'button', height: 'sm', style: 'primary', color: '#FF4444',
                                     action: {
                                         type: 'postback',
-                                        label: '📋 ใบแจ้งหนี้รวมทุกงวด',
+                                        label: '📋 ใบแจ้งหนี้รวม',
                                         data: `action=request_invoice_all_overdue&loan_id=${loanId}&customer_id=${customerId}`,
-                                        displayText: 'ขอใบแจ้งหนี้รวมทุกงวดค้าง',
+                                        displayText: 'ใบแจ้งหนี้รวมทุกงวดค้าง',
                                     },
                                 }],
                             },
