@@ -57,16 +57,23 @@ export async function documentBackfillRoutes(app: FastifyInstance): Promise<void
                     return !url || url === '';
                 }).length;
 
-                // Invoices: payment schedules with no next-payment invoice record
+                // Invoices: payment schedules ที่ถึงกำหนดแล้วหรือใกล้ถึงกำหนด (ไม่นับงวด FUTURE ที่ยังไม่ถึง)
+                const invoiceCutoff = new Date();
+                invoiceCutoff.setDate(invoiceCutoff.getDate() + 30); // นับล่วงหน้า 30 วัน
+
                 const totalSchedules = await prisma.paymentSchedule.count({
                     where: {
                         loan: { status: { in: ['ACTIVE', 'DISBURSED', 'DEFAULTED', 'NPL'] } },
+                        paymentDate: { lte: invoiceCutoff },
+                        status: { in: ['UNPAID', 'OVERDUE', 'PARTIAL', 'PAID'] },
                     },
                 });
 
                 const schedulesWithInvoice = await prisma.paymentSchedule.count({
                     where: {
                         loan: { status: { in: ['ACTIVE', 'DISBURSED', 'DEFAULTED', 'NPL'] } },
+                        paymentDate: { lte: invoiceCutoff },
+                        status: { in: ['UNPAID', 'OVERDUE', 'PARTIAL', 'PAID'] },
                         nextPaymentInvoices: { some: {} },
                     },
                 });

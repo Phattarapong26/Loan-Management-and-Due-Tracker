@@ -51,6 +51,10 @@ export function useAlertDialog() {
     setIsOpen(false);
   }, []);
 
+  const confirm = useCallback((options: AlertOptions) => {
+    showAlert('warning', { showCancel: true, ...options });
+  }, [showAlert]);
+
   const AlertDialog = useCallback(() => (
     <AlertDialogCustom
       open={isOpen}
@@ -66,6 +70,7 @@ export function useAlertDialog() {
     warning,
     info,
     loading,
+    confirm,
     close,
     AlertDialog,
   };

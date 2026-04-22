@@ -93,7 +93,7 @@ export function LoanProducts(): JSX.Element {
 
       // The budget data is directly in response.data (not response.data.data)
       const budgetData = response.data || {};
-      
+
       setBudgets(budgetData);
       setBudgetsLoaded(true);
     } catch (err: unknown) {
@@ -192,160 +192,160 @@ export function LoanProducts(): JSX.Element {
   return (
     <DashboardLayout breadcrumbs={[{ label: 'Home' }, { label: 'ผลิตภัณฑ์สินเชื่อ' }]}>
       <div className="p-6 space-y-6">
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl text-white font-bold">จัดการผลิตภัณฑ์สินเชื่อ</h1>
-            <p className="text-white">จัดการข้อมูลสินเชื่อสำหรับ SME</p>
-          </div>
-          <Button onClick={handleCreate}>
-            <Plus className="mr-2 h-4 w-4" />
-            เพิ่มสินเชื่อใหม่
-          </Button>
-        </div>
-
-        {stats && (
-          <LoanProductStatsCards
-            total={stats.total}
-            active={stats.active}
-            inactive={stats.inactive}
-            popular={stats.popular}
-            isLoading={loading}
-          />
-        )}
-
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 w-full">
-                <Input
-                  placeholder="ค้นหาสินเชื่อ..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="flex flex-col md:flex-row gap-4">
-                <select
-                  className="flex h-10 w-full md:w-auto items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option value="">ทุกสถานะ</option>
-                  <option value="ACTIVE">ใช้งาน</option>
-                  <option value="INACTIVE">ไม่ใช้งาน</option>
-                  <option value="ARCHIVED">เก็บถาวร</option>
-                </select>
-
-                <Button onClick={handleSearch} className="w-full md:w-auto">
-                  <Search className="mr-2 h-4 w-4" />
-                  ค้นหา
-                </Button>
-              </div>
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl text-white font-bold">จัดการผลิตภัณฑ์สินเชื่อ</h1>
+              <p className="text-white">จัดการข้อมูลสินเชื่อสำหรับ SME</p>
             </div>
-          </CardHeader>
+            <Button onClick={handleCreate}>
+              <Plus className="mr-2 h-4 w-4" />
+              เพิ่มสินเชื่อใหม่
+            </Button>
+          </div>
 
-          <CardContent>
-            {loading ? (
-              <TableSkeleton rows={pageSize} columns={1} />
-            ) : !Array.isArray(products) || products.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">ไม่พบข้อมูลสินเชื่อ</div>
-            ) : (
-              <>
-                <div className="space-y-4">
-                  {products.map((product) => (
-                    <Card key={product.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="pt-6">
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                          <div className="lg:col-span-2">
-                            <div className="flex flex-col md:flex-row justify-between items-start gap-4">
-                              <div className="flex-1 w-full">
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                                  <h3 className="text-lg font-semibold">{product.productName}</h3>
-                                  <div className="flex flex-wrap gap-2">
-                                    {product.isPopular && <Badge variant="default" className="bg-yellow-500">ยอดนิยม</Badge>}
-                                    {getStatusBadge(product.status)}
-                                    {getLoanTypeBadge(product.loanType)}
-                                  </div>
-                                </div>
+          {stats && (
+            <LoanProductStatsCards
+              total={stats.total}
+              active={stats.active}
+              inactive={stats.inactive}
+              popular={stats.popular}
+              isLoading={loading}
+            />
+          )}
 
-                                <p className="text-sm text-muted-foreground mb-2">รหัส: {product.productCode}</p>
-                                {product.description && <p className="text-sm mb-3 line-clamp-2">{product.description}</p>}
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1 w-full">
+                  <Input
+                    placeholder="ค้นหาสินเชื่อ..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    className="w-full"
+                  />
+                </div>
 
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                  <div>
-                                    <span className="text-muted-foreground">วงเงินสูงสุด:</span>
-                                    <p className="font-medium">{formatCurrency(product.maxLoanAmount)}</p>
-                                  </div>
-                                  <div>
-                                    <span className="text-muted-foreground">ระยะเวลา:</span>
-                                    <p className="font-medium">{product.maxTermMonths} เดือน</p>
-                                  </div>
-                                  <div>
-                                    <span className="text-muted-foreground">อัตราดอกเบี้ย:</span>
-                                    <p className="font-medium">{product.interestRateYear1_3 ? `${product.interestRateYear1_3}%` : product.interestRateFormula || '-'}</p>
-                                  </div>
-                                  <div>
-                                    <span className="text-muted-foreground">หลักประกัน:</span>
-                                    <p className="font-medium">{product.collateralRequired ? 'ต้องใช้' : 'ไม่ต้องใช้'}</p>
-                                  </div>
-                                </div>
+                <div className="flex flex-col md:flex-row gap-4">
+                  <select
+                    className="flex h-10 w-full md:w-auto items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <option value="">ทุกสถานะ</option>
+                    <option value="ACTIVE">ใช้งาน</option>
+                    <option value="INACTIVE">ไม่ใช้งาน</option>
+                    <option value="ARCHIVED">เก็บถาวร</option>
+                  </select>
 
-                                <div className="flex gap-2 mt-4">
-                                  <Button variant="outline" size="sm" onClick={() => handleEdit(product)}>
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    แก้ไข
-                                  </Button>
-                                  <Button variant="outline" size="sm" onClick={() => handleDeleteClick(product)}>
-                                    <Trash2 className="h-4 w-4 mr-2 text-red-600" />
-                                    ลบ
-                                  </Button>
+                  <Button onClick={handleSearch} className="w-full md:w-auto">
+                    <Search className="mr-2 h-4 w-4" />
+                    ค้นหา
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent>
+              {loading ? (
+                <TableSkeleton rows={pageSize} columns={1} />
+              ) : !Array.isArray(products) || products.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">ไม่พบข้อมูลสินเชื่อ</div>
+              ) : (
+                <>
+                  <div className="space-y-4">
+                    {products.map((product) => (
+                      <Card key={product.id} className="hover:shadow-md transition-shadow">
+                        <CardContent className="pt-6">
+                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="lg:col-span-2">
+                              <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+                                <div className="flex-1 w-full">
+                                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                                    <h3 className="text-lg font-semibold">{product.productName}</h3>
+                                    <div className="flex flex-wrap gap-2">
+                                      {product.isPopular && <Badge variant="default" className="bg-yellow-500">ยอดนิยม</Badge>}
+                                      {getStatusBadge(product.status)}
+                                      {getLoanTypeBadge(product.loanType)}
+                                    </div>
+                                  </div>
+
+                                  <p className="text-sm text-muted-foreground mb-2">รหัส: {product.productCode}</p>
+                                  {product.description && <p className="text-sm mb-3 line-clamp-2">{product.description}</p>}
+
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                    <div>
+                                      <span className="text-muted-foreground">วงเงินสูงสุด:</span>
+                                      <p className="font-medium">{formatCurrency(product.maxLoanAmount)}</p>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">ระยะเวลา:</span>
+                                      <p className="font-medium">{product.maxTermMonths} เดือน</p>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">อัตราดอกเบี้ย:</span>
+                                      <p className="font-medium">{product.interestRateYear1_3 ? `${product.interestRateYear1_3}%` : product.interestRateFormula || '-'}</p>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">หลักประกัน:</span>
+                                      <p className="font-medium">{product.collateralRequired ? 'ต้องใช้' : 'ไม่ต้องใช้'}</p>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex gap-2 mt-4">
+                                    <Button variant="outline" size="sm" onClick={() => handleEdit(product)}>
+                                      <Edit className="h-4 w-4 mr-2" />
+                                      แก้ไข
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => handleDeleteClick(product)}>
+                                      <Trash2 className="h-4 w-4 mr-2 text-red-600" />
+                                      ลบ
+                                    </Button>
+                                  </div>
                                 </div>
                               </div>
                             </div>
+
+                            <div className="lg:col-span-1">
+                              <ProductBudgetCard
+                                productId={product.id}
+                                productName={product.productName}
+                                budget={budgetsLoaded ? budgets[product.id] : undefined}
+                                onBudgetUpdate={() => loadBudgets(products.map(p => p.id))}
+                              />
+                            </div>
                           </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
 
-                          <div className="lg:col-span-1">
-                            <ProductBudgetCard 
-                              productId={product.id} 
-                              productName={product.productName}
-                              budget={budgetsLoaded ? budgets[product.id] : undefined}
-                              onBudgetUpdate={() => loadBudgets(products.map(p => p.id))}
-                            />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                  {pagination.total > 0 && (
+                    <PaginationControls currentPage={page} totalPages={pagination.totalPages} pageSize={pageSize} totalItems={pagination.total} onPageChange={setPage} onPageSizeChange={setPageSize} />
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
 
-                {pagination.total > 0 && (
-                  <PaginationControls currentPage={page} totalPages={pagination.totalPages} pageSize={pageSize} totalItems={pagination.total} onPageChange={setPage} onPageSizeChange={setPageSize} />
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
+          <LoanProductDialog open={dialogOpen} onOpenChange={setDialogOpen} product={editingProduct} onSuccess={handleDialogSuccess} />
 
-        <LoanProductDialog open={dialogOpen} onOpenChange={setDialogOpen} product={editingProduct} onSuccess={handleDialogSuccess} />
-
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>ยืนยันการลบ</AlertDialogTitle>
-              <AlertDialogDescription>
-                คุณแน่ใจหรือไม่ที่จะลบสินเชื่อ "{productToDelete?.productName}"? การดำเนินการนี้ไม่สามารถย้อนกลับได้
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600">ลบ</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
+          <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>ยืนยันการลบ</AlertDialogTitle>
+                <AlertDialogDescription>
+                  คุณแน่ใจหรือไม่ที่จะลบสินเชื่อ "{productToDelete?.productName}"? การดำเนินการนี้ไม่สามารถย้อนกลับได้
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600 px-6 py-2 hover:bg-red-700">ลบ</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
     </DashboardLayout>
   );
