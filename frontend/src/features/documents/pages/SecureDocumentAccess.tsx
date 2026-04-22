@@ -69,7 +69,8 @@ export const SecureDocumentAccess: React.FC = () => {
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
         const message =
-          body?.error ||
+          (typeof body?.error === 'string' ? body.error : null) ||
+          body?.error?.message ||
           body?.message ||
           (typeof body === 'string' ? body : null) ||
           `HTTP ${response.status}`;
@@ -110,29 +111,57 @@ export const SecureDocumentAccess: React.FC = () => {
     setError(null);
 
     try {
-      // Debug: log the API URL being used
       const debugUrl = getApiBaseUrl();
       console.log('[SecureDoc] API base URL:', debugUrl);
 
-      const result = await apiFetch<{ success: boolean; documentUrl?: string; error?: string }>(
-        '/api/secure-documents/validate',
-        {
-          method: 'POST',
-          body: JSON.stringify({ token, password }),
-        }
-      );
+      // ใช้ fetch โดยตรงเพื่อจัดการ 401 (รหัสผิด) แยกจาก error อื่น
+      const baseUrl = getApiBaseUrl();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-      if (result.success) {
+      let response: Response;
+      try {
+        response = await fetch(`${baseUrl}/api/secure-documents/validate`, {
+          method: 'POST',
+          credentials: 'include',
+          signal: controller.signal,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, password }),
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchErr: any) {
+        clearTimeout(timeoutId);
+        if (fetchErr.name === 'AbortError') throw new Error('การเชื่อมต่อหมดเวลา กรุณาลองใหม่อีกครั้ง');
+        throw fetchErr;
+      }
+
+      const body = await response.json().catch(() => ({}));
+
+      if (response.status === 401 || response.status === 400) {
+        // รหัสผิด หรือ validation error — แสดง error ชัดเจน
+        const msg = (typeof body?.error === 'string' ? body.error : null)
+          || body?.error?.message
+          || body?.message
+          || 'รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง';
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(body?.message || `เกิดข้อผิดพลาด (${response.status})`);
+      }
+
+      const result = body?.data ?? body;
+
+      if (result.success || result.documentUrl) {
         toast.success('ยืนยันตัวตนสำเร็จ');
-        
-        // Open PDF directly in new tab/window using the view endpoint
-        // Pass password as query param so backend can serve PDF directly
-        const baseUrl = getApiBaseUrl();
         const viewUrl = `${baseUrl}/api/secure-documents/${token}/view?password=${encodeURIComponent(password)}`;
-        
-        // Use window.open for LINE browser compatibility
-        // LINE browser sometimes blocks window.location.href for cross-origin
         window.open(viewUrl, '_self');
+      } else {
+        const msg = result.error || 'ไม่สามารถเข้าถึงเอกสารได้';
+        setError(msg);
+        toast.error(msg);
       }
     } catch (err: any) {
       const errorMessage = err?.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง';
