@@ -153,7 +153,8 @@ export class SecureDocumentService {
             return { success: true, documentUrl };
         } catch (error) {
             logger.error({ error, token: token.substring(0, 10) }, 'Error validating access');
-            return { success: false, error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' };
+            const errMsg = error instanceof Error ? error.message : String(error);
+            return { success: false, error: `เกิดข้อผิดพลาด: ${errMsg}` };
         }
     }
 
