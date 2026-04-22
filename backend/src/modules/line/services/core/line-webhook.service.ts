@@ -2535,7 +2535,7 @@ export class LineWebhookService {
                                     type: 'box', layout: 'vertical', paddingAll: '12px',
                                     contents: [{
                                         type: 'button', style: 'primary', color: '#FF4444',
-                                        action: { type: 'uri', label: '📄 เปิดใบแจ้งหนี้', uri: url },
+                                        action: { type: 'uri', label: 'เปิดใบแจ้งหนี้', uri: url },
                                     }],
                                 },
                             },
