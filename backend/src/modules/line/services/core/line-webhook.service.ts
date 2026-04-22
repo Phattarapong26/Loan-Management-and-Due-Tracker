@@ -2392,6 +2392,74 @@ export class LineWebhookService {
                     }
                 }
                 return [{ type: 'text', text: 'คำสั่งนี้สำหรับลูกค้าเท่านั้น' }];
+
+            case 'request_invoice_next':
+                if (this.isCustomerRole(user.role)) {
+                    const loanId = params.get('loan_id');
+                    const customerId = params.get('customer_id');
+                    if (!loanId || !customerId) return [{ type: 'text', text: '❌ ข้อมูลไม่ครบถ้วน' }];
+                    try {
+                        // หา schedule ถัดไปหลังจาก schedule ปัจจุบัน
+                        const currentSchedule = await prisma.paymentSchedule.findFirst({
+                            where: { loanId, status: { in: ['UNPAID', 'OVERDUE', 'PARTIAL'] } },
+                            orderBy: { paymentDate: 'asc' },
+                        });
+                        const nextSchedule = await prisma.paymentSchedule.findFirst({
+                            where: { loanId, status: 'UNPAID', paymentDate: { gt: currentSchedule?.paymentDate || new Date() } },
+                            orderBy: { paymentDate: 'asc' },
+                        });
+                        if (!nextSchedule) return [{ type: 'text', text: '✅ ไม่มีงวดล่วงหน้าที่สามารถขอใบแจ้งหนี้ได้' }];
+                        const { NextPaymentInvoiceService } = await import('@invoices/services/next-payment-invoice.service');
+                        const invoiceService = new NextPaymentInvoiceService();
+                        const invoiceData = await invoiceService.generateNextPaymentInvoice(loanId, user.id);
+                        const { SecureDocumentService } = await import('@documents/services/secure-document.service');
+                        const svc = new SecureDocumentService();
+                        const token = await svc.generateSecureToken('invoice', invoiceData.invoiceId, customerId);
+                        const url = await svc.getSecureDocumentUrl(token);
+                        return [{ type: 'text', text: `✅ ใบแจ้งหนี้ล่วงหน้างวดที่ ${invoiceData.nextPayment.installmentNo} พร้อมแล้ว\n\n🔗 ${url}\n\n🔒 ใช้ 4 ตัวท้ายบัตรประชาชนเพื่อเปิด` }];
+                    } catch (err) {
+                        logger.error({ err }, 'Error generating next invoice');
+                        return [{ type: 'text', text: '❌ เกิดข้อผิดพลาด กรุณาลองใหม่' }];
+                    }
+                }
+                return [{ type: 'text', text: 'คำสั่งนี้สำหรับลูกค้าเท่านั้น' }];
+
+            case 'request_overdue_invoices':
+                if (this.isCustomerRole(user.role)) {
+                    const loanId = params.get('loan_id');
+                    const customerId = params.get('customer_id');
+                    if (!loanId || !customerId) return [{ type: 'text', text: '❌ ข้อมูลไม่ครบถ้วน' }];
+                    try {
+                        const overdueSchedules = await prisma.paymentSchedule.findMany({
+                            where: { loanId, status: { in: ['OVERDUE', 'PARTIAL'] } },
+                            orderBy: { paymentDate: 'asc' },
+                            take: 5,
+                        });
+                        if (overdueSchedules.length === 0) return [{ type: 'text', text: '✅ ไม่มีงวดค้างชำระ' }];
+                        const totalOverdue = overdueSchedules.reduce((s, sc) => s + Number(sc.totalPayment), 0);
+                        const { SecureDocumentService } = await import('@documents/services/secure-document.service');
+                        const svc = new SecureDocumentService();
+                        // สร้าง invoice สำหรับงวดค้างแรก
+                        const { NextPaymentInvoiceService } = await import('@invoices/services/next-payment-invoice.service');
+                        const invoiceService = new NextPaymentInvoiceService();
+                        const invoiceData = await invoiceService.generateNextPaymentInvoice(loanId, user.id);
+                        const token = await svc.generateSecureToken('invoice', invoiceData.invoiceId, customerId);
+                        const url = await svc.getSecureDocumentUrl(token);
+                        const scheduleList = overdueSchedules.map((sc, i) => {
+                            const date = new Date(sc.paymentDate).toLocaleDateString('th-TH', { month: 'short', day: 'numeric', year: 'numeric' });
+                            const amt = Number(sc.totalPayment).toLocaleString('th-TH', { minimumFractionDigits: 2 });
+                            return `${i + 1}. ${date} — ${amt} บาท`;
+                        }).join('\n');
+                        return [{
+                            type: 'text',
+                            text: `📋 งวดค้างชำระ (${overdueSchedules.length} งวด)\n\n${scheduleList}\n\n💰 รวมทั้งหมด: ${totalOverdue.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท\n\n📄 ใบแจ้งหนี้งวดแรก:\n🔗 ${url}\n\n🔒 ใช้ 4 ตัวท้ายบัตรประชาชนเพื่อเปิด`,
+                        }];
+                    } catch (err) {
+                        logger.error({ err }, 'Error generating overdue invoices');
+                        return [{ type: 'text', text: '❌ เกิดข้อผิดพลาด กรุณาลองใหม่' }];
+                    }
+                }
+                return [{ type: 'text', text: 'คำสั่งนี้สำหรับลูกค้าเท่านั้น' }];
                 
             case 'schedule':
                 if (this.isCustomerRole(user.role)) {

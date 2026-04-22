@@ -2,6 +2,7 @@ import { PaymentScheduleRepository } from '@payments/repositories/payment-schedu
 import { LoanRepository } from '@loans/repositories/loan.repository';
 import { notificationHelper } from '@notifications/services/notification-helper.service';
 import { logger } from '@utils/common/logger.util';
+import { prisma } from '@config/database.config';
 
 export class PaymentReminderJob {
     private paymentScheduleRepository: PaymentScheduleRepository;
@@ -66,6 +67,83 @@ export class PaymentReminderJob {
                     amount: Number(schedule.totalPayment),
                     daysOverdue,
                 });
+
+                // ส่ง LINE ให้ลูกค้าโดยตรง (วันละ 1 ครั้ง)
+                try {
+                    const customerUser = await prisma.user.findFirst({
+                        where: {
+                            customers: { some: { id: schedule.loan.customerId } },
+                            lineUserId: { not: null },
+                        },
+                        select: { lineUserId: true },
+                    });
+
+                    if (customerUser?.lineUserId) {
+                        const { LineService } = await import('@line/services/core/line.service');
+                        const lineService = new LineService();
+                        const dueDate = new Date(schedule.paymentDate).toLocaleDateString('th-TH', {
+                            year: 'numeric', month: 'long', day: 'numeric',
+                        });
+                        const amount = Number(schedule.totalPayment).toLocaleString('th-TH', {
+                            minimumFractionDigits: 2,
+                        });
+                        await lineService.pushMessage(customerUser.lineUserId, [
+                            {
+                                type: 'flex',
+                                altText: `⚠️ แจ้งเตือน: ค้างชำระ ${daysOverdue} วัน`,
+                                contents: {
+                                    type: 'bubble',
+                                    header: {
+                                        type: 'box',
+                                        layout: 'vertical',
+                                        backgroundColor: '#FF4444',
+                                        paddingAll: '15px',
+                                        contents: [
+                                            { type: 'text', text: '⚠️ แจ้งเตือนชำระหนี้', weight: 'bold', size: 'lg', color: '#FFFFFF' },
+                                        ],
+                                    },
+                                    body: {
+                                        type: 'box',
+                                        layout: 'vertical',
+                                        paddingAll: '15px',
+                                        contents: [
+                                            { type: 'text', text: `คุณมียอดค้างชำระ ${daysOverdue} วัน`, size: 'md', weight: 'bold', color: '#FF4444', wrap: true },
+                                            { type: 'separator', margin: 'md' },
+                                            {
+                                                type: 'box', layout: 'horizontal', margin: 'md',
+                                                contents: [
+                                                    { type: 'text', text: 'ครบกำหนด:', size: 'sm', color: '#666666', flex: 1 },
+                                                    { type: 'text', text: dueDate, size: 'sm', weight: 'bold', flex: 2, align: 'end' },
+                                                ],
+                                            },
+                                            {
+                                                type: 'box', layout: 'horizontal', margin: 'sm',
+                                                contents: [
+                                                    { type: 'text', text: 'ยอดชำระ:', size: 'sm', color: '#666666', flex: 1 },
+                                                    { type: 'text', text: `${amount} บาท`, size: 'sm', weight: 'bold', color: '#FF4444', flex: 2, align: 'end' },
+                                                ],
+                                            },
+                                            { type: 'text', text: 'กรุณาชำระโดยเร็วเพื่อหลีกเลี่ยงค่าปรับ', size: 'xs', color: '#999999', margin: 'md', wrap: true },
+                                        ],
+                                    },
+                                    footer: {
+                                        type: 'box', layout: 'vertical', paddingAll: '12px',
+                                        contents: [
+                                            {
+                                                type: 'button',
+                                                action: { type: 'message', label: '📄 ขอใบแจ้งหนี้', text: 'ใบแจ้งหนี้' },
+                                                style: 'primary', color: '#00B900', height: 'sm',
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        ]);
+                        logger.info({ customerId: schedule.loan.customerId, daysOverdue }, '[PaymentReminder] LINE overdue alert sent to customer');
+                    }
+                } catch (lineErr) {
+                    logger.warn({ err: lineErr, customerId: schedule.loan.customerId }, '[PaymentReminder] Failed to send LINE to customer');
+                }
             } catch (error) {
                 logger.error({ scheduleId: schedule.id, error }, '[PaymentReminder] Failed to send overdue alert');
             }

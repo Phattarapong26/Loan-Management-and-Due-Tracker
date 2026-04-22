@@ -317,20 +317,22 @@ export class CustomerMessages {
                 const loans = await prisma.loan.findMany({
                     where: {
                         customerId,
-                        status: 'DISBURSED',
-                        nextPaymentDate: { not: null },
+                        status: { in: ['ACTIVE', 'DISBURSED', 'NPL', 'DEFAULTED'] },
                     },
                     include: {
                         paymentSchedule: {
-                            where: { status: 'UNPAID' },
+                            where: { status: { in: ['UNPAID', 'OVERDUE', 'PARTIAL'] } },
                             orderBy: { paymentDate: 'asc' },
                             take: 1,
                         },
                     },
-                    orderBy: { nextPaymentDate: 'asc' },
+                    orderBy: { createdAt: 'desc' },
                 });
 
-                if (!loans || loans.length === 0) {
+                // Filter loans that actually have pending schedules
+                const loansWithDue = loans.filter(l => l.paymentSchedule.length > 0);
+
+                if (!loansWithDue || loansWithDue.length === 0) {
                     return [
                         {
                             type: 'flex',
@@ -381,8 +383,10 @@ export class CustomerMessages {
                 const now = new Date();
 
                 // Create carousel bubbles for each loan
-                const bubbles = loans.map((loan) => {
-                    const nextPaymentDate = loan.nextPaymentDate ? new Date(loan.nextPaymentDate) : null;
+                const bubbles = loansWithDue.map((loan) => {
+                    const nextSchedule = loan.paymentSchedule[0];
+                    const nextPaymentDate = nextSchedule ? new Date(nextSchedule.paymentDate) : null;
+                    const nextPaymentAmount = nextSchedule ? Number(nextSchedule.totalPayment) : 0;
                     const daysUntilDue = nextPaymentDate 
                         ? Math.ceil((nextPaymentDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
                         : 0;
@@ -397,7 +401,6 @@ export class CustomerMessages {
                         ? '⏰ ครบกำหนดวันนี้'
                         : `📅 อีก ${daysUntilDue} วัน`;
 
-                    const nextSchedule = loan.paymentSchedule[0];
                     const paymentScheduleId = nextSchedule?.id || '';
 
                     return {
@@ -463,7 +466,7 @@ export class CustomerMessages {
                                         { type: 'text', text: 'ยอดที่ต้องชำระ:', size: 'sm', color: COLORS.TEXT_SECONDARY, flex: 1 },
                                         { 
                                             type: 'text', 
-                                            text: `${formatCurrency(Number(loan.nextPaymentAmount || 0))} บาท`, 
+                                            text: `${formatCurrency(nextPaymentAmount)} บาท`, 
                                             size: 'lg', 
                                             weight: 'bold', 
                                             color: COLORS.PRIMARY, 
@@ -496,46 +499,37 @@ export class CustomerMessages {
                             type: 'box',
                             layout: 'vertical',
                             contents: [
+                                { type: 'text', text: '📄 ขอใบแจ้งหนี้', size: 'xs', color: COLORS.TEXT_SECONDARY, align: 'center', weight: 'bold' },
+                                { type: 'separator', margin: 'sm' },
                                 {
-                                    type: 'box',
-                                    layout: 'vertical',
-                                    contents: [
-                                        {
-                                            type: 'text',
-                                            text: '💡 ต้องการใบแจ้งหนี้?',
-                                            size: 'xs',
-                                            color: COLORS.TEXT_SECONDARY,
-                                            align: 'center',
-                                            weight: 'bold',
-                                        },
-                                        {
-                                            type: 'text',
-                                            text: 'คลิกปุ่มด้านล่างเพื่อขอใบแจ้งหนี้ล่วงหน้า',
-                                            size: 'xxs',
-                                            color: COLORS.TEXT_SECONDARY,
-                                            align: 'center',
-                                            margin: 'xs',
-                                            wrap: true,
-                                        },
-                                    ],
-                                    margin: 'none',
-                                },
-                                {
-                                    type: 'separator',
-                                    margin: 'md',
+                                    type: 'button',
+                                    action: {
+                                        type: 'postback',
+                                        label: '📄 งวดนี้',
+                                        data: `action=request_invoice&schedule_id=${paymentScheduleId}&customer_id=${customerId}`,
+                                        displayText: 'ขอใบแจ้งหนี้งวดนี้',
+                                    },
+                                    style: 'primary', color: COLORS.PRIMARY, height: 'sm', margin: 'sm',
                                 },
                                 {
                                     type: 'button',
                                     action: {
                                         type: 'postback',
-                                        label: '📄 ขอใบแจ้งหนี้',
-                                        data: `action=request_invoice&schedule_id=${paymentScheduleId}&customer_id=${customerId}`,
-                                        displayText: 'ขอใบแจ้งหนี้',
+                                        label: '📅 ล่วงหน้า 1 งวด',
+                                        data: `action=request_invoice_next&loan_id=${loan.id}&customer_id=${customerId}`,
+                                        displayText: 'ขอใบแจ้งหนี้ล่วงหน้า',
                                     },
-                                    style: 'primary',
-                                    color: COLORS.PRIMARY,
-                                    height: 'sm',
-                                    margin: 'md',
+                                    style: 'secondary', height: 'sm', margin: 'xs',
+                                },
+                                {
+                                    type: 'button',
+                                    action: {
+                                        type: 'postback',
+                                        label: '📋 งวดค้างทั้งหมด',
+                                        data: `action=request_overdue_invoices&loan_id=${loan.id}&customer_id=${customerId}`,
+                                        displayText: 'ดูงวดค้างชำระ',
+                                    },
+                                    style: 'secondary', height: 'sm', margin: 'xs',
                                 },
                             ],
                             paddingAll: '12px',
@@ -546,7 +540,7 @@ export class CustomerMessages {
                 return [
                     {
                         type: 'flex',
-                        altText: `กำหนดชำระ (${loans.length} สินเชื่อ)`,
+                        altText: `กำหนดชำระ (${loansWithDue.length} สินเชื่อ)`,
                         contents: {
                             type: 'carousel',
                             contents: bubbles,
