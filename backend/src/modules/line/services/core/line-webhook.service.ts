@@ -2469,8 +2469,6 @@ export class LineWebhookService {
                 }
                 return [{ type: 'text', text: 'คำสั่งนี้สำหรับลูกค้าเท่านั้น' }];
 
-            case 'request_invoice_all_overdue'                return [{ type: 'text', text: 'คำสั่งนี้สำหรับลูกค้าเท่านั้น' }];
-
             case 'request_invoice_all_overdue':
                 if (this.isCustomerRole(user.role)) {
                     const loanId = params.get('loan_id');
