@@ -157,7 +157,10 @@ export const SecureDocumentAccess: React.FC = () => {
       if (result.success || result.documentUrl) {
         toast.success('ยืนยันตัวตนสำเร็จ');
         const viewUrl = `${baseUrl}/api/secure-documents/${token}/view?password=${encodeURIComponent(password)}`;
-        window.open(viewUrl, '_self');
+        // ใช้ documentUrl โดยตรงถ้ามี ไม่งั้นใช้ view endpoint
+        const targetUrl = result.documentUrl || viewUrl;
+        // LINE browser: ใช้ location.href แทน window.open
+        window.location.href = targetUrl;
       } else {
         const msg = result.error || 'ไม่สามารถเข้าถึงเอกสารได้';
         setError(msg);
