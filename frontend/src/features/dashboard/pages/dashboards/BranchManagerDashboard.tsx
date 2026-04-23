@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { DashboardLayout } from '@/shared/components/layout/DashboardLayout';
 import { dashboardApi, loansApi } from '@/shared/lib/api-endpoints';
+import { useAuth } from '@/shared/contexts/AuthContext';
 import { apiClient } from '@/shared/lib/api-client';
 import { Badge } from '@/shared/components/ui/badge';
 import { DashboardSkeleton } from '@/shared/components/skeletons';
@@ -56,6 +57,9 @@ const AlertItem = ({ title, time, type }: { title: string; time: string; type: '
 };
 
 export default function BranchManagerDashboard() {
+  const { user, currentRole } = useAuth();
+  const isAdmin = currentRole === 'admin';
+  const userBranchId = user?.branchId;
   const [selectedProduct, setSelectedProduct] = useState<LoanProduct | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -72,9 +76,9 @@ export default function BranchManagerDashboard() {
 
   // Fetch high risk loans (overdue > 30 days or DSCR < 1.0) with auto-refresh
   const { data: highRiskLoansData, isLoading: isHighRiskLoading } = useQuery({
-    queryKey: ['highRiskLoans'],
+    queryKey: ['highRiskLoans', isAdmin ? 'all' : (userBranchId || 'na')],
     queryFn: async () => {
-      const response = await loansApi.list({ status: 'ACTIVE', limit: 100 });
+      const response = await loansApi.list({ status: 'ACTIVE', limit: 100, branchId: isAdmin ? undefined : userBranchId });
       if (!response.data) return [];
       return response.data.loans.filter((loan: any) => 
         loan.overdueDays >= 30 || (loan.dscr && loan.dscr < 1.0)
@@ -86,12 +90,12 @@ export default function BranchManagerDashboard() {
 
   // Fetch pending approvals (both PENDING and APPROVED but not disbursed) with auto-refresh
   const { data: pendingApprovalsData, isLoading: isPendingLoading } = useQuery({
-    queryKey: ['pendingApprovals'],
+    queryKey: ['pendingApprovals', isAdmin ? 'all' : (userBranchId || 'na')],
     queryFn: async () => {
       // Get both pending and approved loans
       const [pendingResponse, approvedResponse] = await Promise.all([
-        loansApi.list({ status: 'PENDING_APPROVAL', limit: 50 }),
-        loansApi.list({ status: 'APPROVED', limit: 50 }),
+        loansApi.list({ status: 'PENDING_APPROVAL', limit: 50, branchId: isAdmin ? undefined : userBranchId }),
+        loansApi.list({ status: 'APPROVED', limit: 50, branchId: isAdmin ? undefined : userBranchId }),
       ]);
       
       const pendingLoans = pendingResponse.data?.loans || [];
@@ -147,9 +151,9 @@ export default function BranchManagerDashboard() {
 
   // Fetch all loans for trend calculation
   const { data: allLoansData } = useQuery({
-    queryKey: ['allLoansForTrends'],
+    queryKey: ['allLoansForTrends', isAdmin ? 'all' : (userBranchId || 'na')],
     queryFn: async () => {
-      const response = await loansApi.list({ limit: 1000 });
+      const response = await loansApi.list({ limit: 1000, branchId: isAdmin ? undefined : userBranchId });
       return response.data?.loans || [];
     },
     refetchInterval: 30000,
