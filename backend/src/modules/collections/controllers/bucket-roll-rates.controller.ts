@@ -24,17 +24,34 @@ export class BucketRollRatesController {
         reply: FastifyReply
     ) => {
         try {
+            const userId = request.user?.userId;
             const branchId = request.user?.branchId;
             const role = request.user?.role;
-            
-            // Admin can see all branches, optionally filter by branchId. Others see only their branch.
-            const filterBranchId = role === 'ADMIN' ? (request.query?.branchId || undefined) : branchId;
+
+            // RBAC filtering:
+            // ADMIN  → can filter by any branchId/officerId from query params (or see all)
+            // MANAGER → restricted to own branch only
+            // OFFICER → restricted to own branch AND own loans only
+            let filterBranchId: string | undefined;
+            let filterOfficerId: string | undefined;
+
+            if (role === 'ADMIN') {
+                filterBranchId = request.query?.branchId || undefined;
+                filterOfficerId = request.query?.officerId || undefined;
+            } else if (role === 'MANAGER') {
+                filterBranchId = branchId;
+                filterOfficerId = undefined; // Manager sees all officers in their branch
+            } else {
+                // OFFICER: see only their own loans in their branch
+                filterBranchId = branchId;
+                filterOfficerId = userId;
+            }
 
             const points = request.query?.points ? Number(request.query.points) : undefined;
             const analysis = await bucketRollRatesRealtimeService.getBucketRollRatesAnalysis(filterBranchId, {
                 interval: request.query?.interval,
                 points: Number.isFinite(points as any) ? (points as number) : undefined,
-                officerId: role === 'ADMIN' ? (request.query?.officerId || undefined) : undefined,
+                officerId: filterOfficerId,
                 productId: role === 'ADMIN' ? (request.query?.productId || undefined) : undefined,
             });
 
