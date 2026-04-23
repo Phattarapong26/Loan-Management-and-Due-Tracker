@@ -110,16 +110,12 @@ export default function CollectionsReminders() {
   const { data: officersData } = useQuery({
     queryKey: ["roll-officers", rollBranchId],
     queryFn: async () => {
-      if (rollBranchId !== "all") {
-        const result = await branchesApi.getEmployees(rollBranchId);
-        if (result.error) throw new Error(result.error.message ?? String(result.error));
-        return result.data || [];
-      }
-      const result = await usersApi.list({ page: 1, limit: 200, role: "OFFICER", status: "ACTIVE" });
+      if (rollBranchId === "all") return [];
+      const result = await branchesApi.getEmployees(rollBranchId);
       if (result.error) throw new Error(result.error.message ?? String(result.error));
-      return result.data?.users || [];
+      return (result.data || []).filter((u: ApiUser) => u.role === 'OFFICER' || (u as any).role === 'OFFICER');
     },
-    enabled: isAdmin,
+    enabled: isAdmin && rollBranchId !== "all",
     staleTime: 15 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
   });
@@ -1303,20 +1299,22 @@ export default function CollectionsReminders() {
                             </SelectContent>
                           </Select>
 
-                          <Select value={rollOfficerId} onValueChange={setRollOfficerId}>
-                            <SelectTrigger className="w-full sm:w-[260px]">
-                              <User className="h-4 w-4 mr-2 text-slate-500" />
-                              <SelectValue placeholder="ทุกเจ้าหน้าที่" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">ทุกเจ้าหน้าที่</SelectItem>
-                              {officers.map((o) => (
-                                <SelectItem key={o.id} value={o.id}>
-                                  {`${o.firstName || ""} ${o.lastName || ""}`.trim() || o.email || o.id}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          {rollBranchId !== "all" && (
+                            <Select value={rollOfficerId} onValueChange={setRollOfficerId}>
+                              <SelectTrigger className="w-full sm:w-[260px]">
+                                <User className="h-4 w-4 mr-2 text-slate-500" />
+                                <SelectValue placeholder="ทุกเจ้าหน้าที่" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">ทุกเจ้าหน้าที่</SelectItem>
+                                {officers.map((o) => (
+                                  <SelectItem key={o.id} value={o.id}>
+                                    {`${o.firstName || ""} ${o.lastName || ""}`.trim() || o.email || o.id}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
 
                           <Select value={rollProductId} onValueChange={setRollProductId}>
                             <SelectTrigger className="w-full sm:w-[320px]">
