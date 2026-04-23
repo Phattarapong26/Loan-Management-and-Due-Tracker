@@ -147,6 +147,7 @@ export default function Customers() {
   const navigate = useNavigate();
   const { user, currentRole } = useAuth();
   const isAdmin = currentRole === 'admin';
+  const isManager = currentRole === 'branch_manager';
   const alertDialog = useAlertDialog();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -248,14 +249,14 @@ export default function Customers() {
 
   // Fetch customers
   const { data: customersData, isLoading, error } = useQuery({
-    queryKey: ['customers', { search: searchTerm, status: statusFilter, branch: isAdmin ? branchFilter : (user?.branchId || 'na'), officer: isAdmin ? 'all' : (user?.id || 'na'), page, pageSize }],
+    queryKey: ['customers', { search: searchTerm, status: statusFilter, branch: isAdmin ? branchFilter : (user?.branchId || 'na'), officer: (isAdmin || isManager) ? 'all' : (user?.id || 'na'), page, pageSize }],
     queryFn: async () => {
       const result = await customersApi.list({
         ...getPaginationParams(),
         search: searchTerm || undefined,
         status: statusFilter !== 'all' ? statusFilter.toUpperCase() : undefined,
         branchId: isAdmin ? (branchFilter !== 'all' ? branchFilter : undefined) : user?.branchId,
-        officerId: isAdmin ? undefined : user?.id,
+        officerId: (isAdmin || isManager) ? undefined : user?.id,
       });
       
       // Handle case where no customers exist (should return empty data, not error)

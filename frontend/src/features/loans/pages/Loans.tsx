@@ -134,7 +134,7 @@ export default function Loans() {
   const alertDialog = useAlertDialog();
   const { user, currentRole } = useAuth(); // Add useAuth hook
   const isAdmin = currentRole === 'admin';
-  const [searchTerm, setSearchTerm] = useState('');
+  const isManager = currentRole === 'branch_manager';
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -166,13 +166,13 @@ export default function Loans() {
 
   // Fetch loans (all statuses for loan application management)
   const { data: loansData, isLoading, error } = useQuery({
-    queryKey: ['loans', { search: searchTerm, status: statusFilter, branch: isAdmin ? branchFilter : (user?.branchId || 'na'), officer: isAdmin ? 'all' : (user?.id || 'na'), page, pageSize }],
+    queryKey: ['loans', { search: searchTerm, status: statusFilter, branch: isAdmin ? branchFilter : (user?.branchId || 'na'), officer: (isAdmin || isManager) ? 'all' : (user?.id || 'na'), page, pageSize }],
     queryFn: async () => {
       const result = await loansApi.list({
         ...getPaginationParams(),
         status: statusFilter !== 'all' ? statusFilter.toUpperCase().replace('_', '_') : undefined,
         branchId: isAdmin ? (branchFilter !== 'all' ? branchFilter : undefined) : user?.branchId,
-        officerId: isAdmin ? undefined : user?.id,
+        officerId: (isAdmin || isManager) ? undefined : user?.id,
       });
       if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
@@ -181,11 +181,11 @@ export default function Loans() {
 
   // Fetch loan statistics for all loans (not filtered by pagination)
   const { data: statsData, isLoading: isLoadingStats } = useQuery({
-    queryKey: ['loan-statistics', 'all', isAdmin ? branchFilter : (user?.branchId || 'na'), isAdmin ? 'all' : (user?.id || 'na')],
+    queryKey: ['loan-statistics', 'all', isAdmin ? branchFilter : (user?.branchId || 'na'), (isAdmin || isManager) ? 'all' : (user?.id || 'na')],
     queryFn: async () => {
       const result = await loansApi.getStatistics({
         branchId: isAdmin ? (branchFilter !== 'all' ? branchFilter : undefined) : user?.branchId,
-        officerId: isAdmin ? undefined : user?.id,
+        officerId: (isAdmin || isManager) ? undefined : user?.id,
       });
       if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;

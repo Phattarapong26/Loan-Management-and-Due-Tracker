@@ -66,6 +66,7 @@ export default function Payments() {
   const navigate = useNavigate();
   const { user, currentRole } = useAuth();
   const isAdmin = currentRole === 'admin';
+  const isManager = currentRole === 'branch_manager';
   const alertDialog = useAlertDialog();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -108,7 +109,7 @@ export default function Payments() {
 
   // Fetch loans based on filter (active, closed, or all)
   const { data: loansData, isLoading, error } = useQuery({
-    queryKey: ['loans-payment-view', { search: searchTerm, status: statusFilter, loanStatus: loanStatusFilter, branch: isAdmin ? branchFilter : (user?.branchId || 'na'), officer: isAdmin ? 'all' : (user?.id || 'na'), page: currentPage, limit: pageSize }],
+    queryKey: ['loans-payment-view', { search: searchTerm, status: statusFilter, loanStatus: loanStatusFilter, branch: isAdmin ? branchFilter : (user?.branchId || 'na'), officer: (isAdmin || isManager) ? 'all' : (user?.id || 'na'), page: currentPage, limit: pageSize }],
     queryFn: async () => {
       let statusQuery = '';
       if (loanStatusFilter === 'active') {
@@ -124,7 +125,7 @@ export default function Payments() {
         limit: pageSize,
         status: statusQuery,
         branchId: isAdmin ? (branchFilter !== 'all' ? branchFilter : undefined) : user?.branchId,
-        officerId: isAdmin ? undefined : user?.id,
+        officerId: (isAdmin || isManager) ? undefined : user?.id,
       });
       if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
@@ -133,7 +134,7 @@ export default function Payments() {
 
   // Fetch loan statistics based on filter
   const { data: statsData, isLoading: isLoadingStats } = useQuery({
-    queryKey: ['loan-statistics', loanStatusFilter, isAdmin ? branchFilter : (user?.branchId || 'na'), isAdmin ? 'all' : (user?.id || 'na')],
+    queryKey: ['loan-statistics', loanStatusFilter, isAdmin ? branchFilter : (user?.branchId || 'na'), (isAdmin || isManager) ? 'all' : (user?.id || 'na')],
     queryFn: async () => {
       let statusQuery = '';
       if (loanStatusFilter === 'active') {
@@ -147,7 +148,7 @@ export default function Payments() {
       const result = await loansApi.getStatistics({
         status: statusQuery,
         branchId: isAdmin ? (branchFilter !== 'all' ? branchFilter : undefined) : user?.branchId,
-        officerId: isAdmin ? undefined : user?.id,
+        officerId: (isAdmin || isManager) ? undefined : user?.id,
       });
       if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
