@@ -113,7 +113,7 @@ export default function Branches() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isCodeManuallyEdited, setIsCodeManuallyEdited] = useState(false);
+  
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
   const { page, pageSize, setPage, setPageSize, getPaginationParams } = usePagination();
 
@@ -199,7 +199,7 @@ export default function Branches() {
         confirmText: 'เสร็จสิ้น',
       });
       setIsAddDialogOpen(false);
-      setIsCodeManuallyEdited(false);
+      
       setFormData({ name: '', code: '', address: '', phone: '', province: '', district: '', subdistrict: '', postalCode: '', managerName: '' });
     },
     onError: (error: unknown) => {
@@ -410,11 +410,10 @@ export default function Branches() {
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
           setIsAddDialogOpen(open);
-          if (!open) setIsCodeManuallyEdited(false);
         }}>
           <DialogTrigger asChild>
             <Button onClick={() => {
-              setIsCodeManuallyEdited(false);
+              
               setFormData(prev => ({ ...prev, code: generateBranchCode() }));
             }}>
               <Plus className="h-4 w-4 mr-2" />
@@ -439,18 +438,14 @@ export default function Branches() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label>รหัสสาขา *</Label>
-                    {!isCodeManuallyEdited && (
-                      <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">อัตโนมัติ</span>
-                    )}
+                    <span className="text-xs text-green-700 bg-green-50 px-2 py-0.5 rounded-full">สร้างอัตโนมัติ</span>
                   </div>
                   <Input
                     value={formData.code}
-                    onChange={(e) => {
-                      setIsCodeManuallyEdited(true);
-                      setFormData({ ...formData, code: e.target.value.toUpperCase() });
-                    }}
+                    readOnly
+                    disabled
+                    className="bg-muted text-muted-foreground cursor-not-allowed"
                     placeholder="BR-C001"
-                    maxLength={10}
                   />
                 </div>
               </div>

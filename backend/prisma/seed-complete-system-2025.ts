@@ -188,9 +188,10 @@ async function seedCompleteSystem2025() {
   await prisma.branch.deleteMany({});
   console.log('  ✓ Cleanup done\n');
 
-  // [FIX-9] ใช้ UTC dates ตลอด
+  // [FIX-9] ใช้ UTC dates ตลอด — ใช้วันปัจจุบันจริงๆ เพื่อให้ GOOD_PAYER ไม่กลายเป็น OVERDUE
   const PROJECT_START = utcDate(2025, 1, 1);
-  const CURRENT_DATE  = utcDate(2026, 3, 10);
+  const now = new Date();
+  const CURRENT_DATE  = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
   console.log(`📅 Period: ${PROJECT_START.toISOString().slice(0, 10)} → ${CURRENT_DATE.toISOString().slice(0, 10)}\n`);
 

@@ -816,7 +816,7 @@ export async function registerRoutes(app: FastifyInstance) {
                     .send(fileStream);
             } catch (error) {
                 logger.error({ error }, 'Error serving PDF file');
-                return reply.code(500).send({ error: 'Error serving PDF file' });
+                return reply.code(500).send({ error: 'ไม่สามารถเปิดไฟล์ PDF ได้ กรุณาลองใหม่อีกครั้ง' });
             }
         }
     );
@@ -2407,7 +2407,7 @@ export async function registerRoutes(app: FastifyInstance) {
                     .header('Content-Disposition', `inline; filename="disbursement-${loanId}.pdf"`)
                     .send(pdfBuffer);
             } catch (err: any) {
-                return reply.code(500).send({ error: err.message });
+                return reply.code(500).send({ error: 'ไม่สามารถสร้างไฟล์ PDF ได้ กรุณาลองใหม่อีกครั้ง' });
             }
         }
     );
@@ -2435,7 +2435,7 @@ export async function registerRoutes(app: FastifyInstance) {
                     .header('Content-Disposition', `inline; filename="invoice-${scheduleId}.pdf"`)
                     .send(pdfBuffer);
             } catch (err: any) {
-                return reply.code(500).send({ error: err.message });
+                return reply.code(500).send({ error: 'ไม่สามารถสร้างไฟล์ PDF ใบแจ้งหนี้ได้ กรุณาลองใหม่อีกครั้ง' });
             }
         }
     );
@@ -2451,7 +2451,7 @@ export async function registerRoutes(app: FastifyInstance) {
                     where: { paymentId },
                     select: { id: true, receiptData: true },
                 });
-                if (!receipt) return reply.code(404).send({ error: 'Receipt not found' });
+                if (!receipt) return reply.code(404).send({ error: 'ไม่พบใบเสร็จ' });
                 const { paymentReceiptPDFService } = await import('@invoices/services/payment-receipt-pdf.service');
                 const pdfBuffer = await paymentReceiptPDFService.generatePaymentReceiptPDF(receipt.receiptData as any);
                 return reply
@@ -2459,7 +2459,7 @@ export async function registerRoutes(app: FastifyInstance) {
                     .header('Content-Disposition', `inline; filename="receipt-${paymentId}.pdf"`)
                     .send(pdfBuffer);
             } catch (err: any) {
-                return reply.code(500).send({ error: err.message });
+                return reply.code(500).send({ error: 'ไม่สามารถสร้างไฟล์ PDF ใบเสร็จได้ กรุณาลองใหม่อีกครั้ง' });
             }
         }
     );
@@ -2490,7 +2490,7 @@ export async function registerRoutes(app: FastifyInstance) {
                 ]);
 
                 if (!loan || schedules.length === 0) {
-                    return reply.code(404).send({ error: 'No overdue schedules found' });
+                    return reply.code(404).send({ error: 'ไม่พบรายการค้างชำระ' });
                 }
 
                 const fmt = (n: number) => n.toLocaleString('th-TH', { minimumFractionDigits: 2 });
@@ -2571,7 +2571,7 @@ export async function registerRoutes(app: FastifyInstance) {
                     .header('Content-Disposition', `inline; filename="overdue-invoice-${loanId}.pdf"`)
                     .send(pdfBuffer);
             } catch (err: any) {
-                return reply.code(500).send({ error: err.message });
+                return reply.code(500).send({ error: 'ไม่สามารถสร้างไฟล์ PDF ใบแจ้งหนี้ค้างชำระได้ กรุณาลองใหม่อีกครั้ง' });
             }
         }
     );

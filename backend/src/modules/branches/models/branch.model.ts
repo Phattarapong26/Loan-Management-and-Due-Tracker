@@ -4,7 +4,7 @@ import { z } from 'zod';
  * Branch creation schema
  */
 export const createBranchSchema = z.object({
-    code: z.string().min(1, 'Branch code is required').max(10).regex(/^[A-Z0-9]+$/, 'Branch code must be uppercase alphanumeric'),
+    code: z.string().min(1, 'Branch code is required').max(10).regex(/^[A-Z0-9-]+$/, 'Branch code must be uppercase alphanumeric with optional hyphens'),
     name: z.string().min(1, 'Branch name is required').max(255),
     address: z.string().max(500).optional(),
     phone: z.string().max(20).optional(),

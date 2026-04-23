@@ -1,7 +1,7 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import * as React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DashboardLayout } from '@/shared/components/layout/DashboardLayout';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -122,6 +122,15 @@ const statusConfig = {
 export default function Loans() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const createForCustomerId = searchParams.get('createFor') || '';
+
+  // Auto-open create dialog if navigated from customer page
+  useEffect(() => {
+    if (createForCustomerId) {
+      setIsCreateDialogOpen(true);
+    }
+  }, [createForCustomerId]);
   const alertDialog = useAlertDialog();
   const { user, currentRole } = useAuth(); // Add useAuth hook
   const isAdmin = currentRole === 'admin';
@@ -135,14 +144,14 @@ export default function Loans() {
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
-  const [currentStep, setCurrentStep] = useState(1); // Add step state
+  const [currentStep, setCurrentStep] = useState(createForCustomerId ? 2 : 1);
 
   const [isCustomerOpen, setIsCustomerOpen] = useState(false);
   const [isLoanProductOpen, setIsLoanProductOpen] = useState(false);
   const { page, pageSize, setPage, setPageSize, getPaginationParams } = usePagination();
 
   const [formData, setFormData] = useState({
-    customerId: '',
+    customerId: createForCustomerId,
     loanProductId: '',
     amount: '',
     interestRate: '8.5',

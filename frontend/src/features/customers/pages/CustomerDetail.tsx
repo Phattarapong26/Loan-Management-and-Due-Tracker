@@ -106,7 +106,7 @@ export default function CustomerDetail() {
   const [contactForm, setContactForm] = useState({ method: '', summary: '', result: '' });
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  // Fetch customer data with auto-refresh for AI processing
+  // Fetch customer data
   const { data: customerData, isLoading: isLoadingCustomer, refetch } = useQuery({
     queryKey: ['customer', id],
     queryFn: async () => {
@@ -133,16 +133,6 @@ export default function CustomerDetail() {
       return sanitizeDates(normalized) as APICustomer;
     },
     enabled: !!id,
-    refetchInterval: (query) => {
-      // Auto-refresh every 5 seconds if there are documents being processed
-      const customer = query.state.data;
-      const processingStatus = (customer as any)?.aiExtractedData?.processingStatus;
-      if (processingStatus === 'processing' || 
-          (typeof processingStatus === 'string' && processingStatus.startsWith('processing'))) {
-        return 5000;
-      }
-      return false;
-    },
   });
 
   // Fetch contact logs for this customer
@@ -239,31 +229,6 @@ export default function CustomerDetail() {
   // Use normalized customer data
   const customer = customerData;
   
-  // Debug: Log normalized data
-  useEffect(() => {
-    if (customer?.aiExtractedData) {
-      console.log('[CustomerDetail] Normalized aiExtractedData:', {
-        hasCompanyInfo: !!customer.aiExtractedData.companyInfo,
-        shareholdersCount: customer.aiExtractedData.shareholders?.length || 0,
-        hasLoanSummary: !!customer.aiExtractedData.loanSummary,
-        financialStatementsCount: customer.aiExtractedData.financialStatements?.length || 0,
-        balanceSheetsCount: customer.aiExtractedData.balanceSheets?.length || 0,
-        vatRecordsCount: customer.aiExtractedData.vatRecords?.length || 0,
-        creditBureauCount: customer.aiExtractedData.creditBureauReports?.length || 0,
-        bankStatementsCount: customer.aiExtractedData.bankStatements?.length || 0,
-        hasInvestment: !!customer.aiExtractedData.investmentStructure,
-        collateralsCount: customer.aiExtractedData.collaterals?.length || 0,
-        hasWorkingCapital: !!customer.aiExtractedData.workingCapital,
-        hasRevenueProjection: !!customer.aiExtractedData.revenueProjection,
-        hasDSCR: !!customer.aiExtractedData.dscr,
-        hasBusinessHistory: !!customer.aiExtractedData.businessHistory,
-        suppliersCount: customer.aiExtractedData.suppliers?.length || 0,
-        customersCount: customer.aiExtractedData.customers?.length || 0,
-        processingStatus: customer.aiExtractedData.processingStatus,
-      });
-    }
-  }, [customer?.aiExtractedData]);
-  
   // Transform API contact logs to component format - memoized
   const contactLogsForSection = useMemo(() => 
     (contactLogsData?.contactLogs || []).map((log: APIContactLog) => ({
@@ -284,10 +249,6 @@ export default function CustomerDetail() {
   // Use normalized extractedData
   const extractedData = customer?.aiExtractedData as ParsedBusinessProfile | undefined;
   const hasExtractedData = !!extractedData;
-
-  // Show processing status
-  const isProcessing = extractedData?.processingStatus === 'processing' || 
-    (typeof extractedData?.processingStatus === 'string' && extractedData.processingStatus.startsWith('processing'));
 
   // Show loading if no customer data
   if (!customer && !isLoadingCustomer) {
@@ -321,7 +282,7 @@ export default function CustomerDetail() {
 
   // Document stats - differentiate completed vs total
   const completedDocs = documentsData?.documents?.filter(
-    (d: any) => d.status === 'PROCESSED' || d.status === 'completed' || d.aiProcessed === true
+    (d: any) => d.reviewStatus === 'APPROVED'
   ).length || 0;
   const totalDocs = documentsData?.documents?.length || 0;
 
@@ -413,12 +374,6 @@ export default function CustomerDetail() {
             <Badge className={customer.status === 'ACTIVE' ? 'bg-success text-success-foreground' : 'bg-gray-100 text-gray-600 border-gray-200'}>
               {customer.status === 'ACTIVE' ? 'ใช้งาน' : 'ไม่ใช้งาน'}
             </Badge>
-            {isProcessing && (
-              <Badge variant="outline" className="bg-blue-50 text-white border-blue-200">
-                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                กำลังประมวลผล ...
-              </Badge>
-            )}
           </div>
           <p className="text-white text-sm">ทะเบียนนิติบุคคล: {customer.registrationNumber} | รหัส: {id}</p>
         </div>
@@ -1209,7 +1164,7 @@ export default function CustomerDetail() {
 
       {/* Link LINE Dialog - QR Code - Kasikorn Bank Theme */}
       <Dialog open={isLinkLineDialogOpen} onOpenChange={setIsLinkLineDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader className="space-y-3">
             <div className="flex items-center justify-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#138F3E] to-[#0F7A34]">
@@ -1248,37 +1203,7 @@ export default function CustomerDetail() {
                     </div>
                   </div>
 
-                  {/* Instructions Card */}
-                  <div className="bg-gradient-to-br from-[#138F3E] to-[#0F7A34] rounded-xl p-4 text-white shadow-lg">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 mt-1">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
-                          <span className="text-xl">📱</span>
-                        </div>
-                      </div>
-                      <div className="flex-1 space-y-2">
-                        <h4 className="font-bold text-lg">วิธีการใช้งาน</h4>
-                        <ol className="space-y-1.5 text-sm text-white/90">
-                          <li className="flex items-start gap-2">
-                            <span className="font-bold">1.</span>
-                            <span>เปิดแอป LINE แล้วสแกน QR Code</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <span className="font-bold">2.</span>
-                            <span>กดเพิ่มเพื่อน Official Account</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <span className="font-bold">3.</span>
-                            <span>ระบบจะส่งรหัสลงทะเบียนอัตโนมัติ</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <span className="font-bold">4.</span>
-                            <span>เชื่อมต่อบัญชีสำเร็จทันที!</span>
-                          </li>
-                        </ol>
-                      </div>
-                    </div>
-                  </div>
+             
 
                   {/* Token Info Card */}
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4">

@@ -711,6 +711,7 @@ export class PaymentScheduleRepository {
         paymentNumber: number;
         paymentDate: Date;
         status: string;
+        totalPayment: any;
     } | null> {
         return this.db.paymentSchedule.findFirst({
             where: {
@@ -722,6 +723,7 @@ export class PaymentScheduleRepository {
                 paymentNumber: true,
                 paymentDate: true,
                 status: true,
+                totalPayment: true,
             },
         });
     }
@@ -772,7 +774,7 @@ export class PaymentScheduleRepository {
         daysOverdue: number;
         penaltyAmount: number;
         compoundInterestAmount: number;
-        status: string;
+        status: 'UNPAID' | 'PAID' | 'PARTIAL' | 'OVERDUE';
     }): Promise<void> {
         await this.db.paymentSchedule.update({
             where: { id },

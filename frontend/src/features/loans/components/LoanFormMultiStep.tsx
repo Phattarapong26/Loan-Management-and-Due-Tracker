@@ -43,6 +43,7 @@ interface LoanFormMultiStepProps {
   onSubmit: (data: LoanFormData) => Promise<void>;
   onCancel: () => void;
   isSubmitting?: boolean;
+  initialCustomerId?: string;
 }
 
 const STEPS = [
@@ -57,10 +58,11 @@ export function LoanFormMultiStep({
   onSubmit,
   onCancel,
   isSubmitting = false,
+  initialCustomerId,
 }: LoanFormMultiStepProps) {
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(initialCustomerId ? 2 : 1);
   const [formData, setFormData] = useState<LoanFormData>({
-    customerId: '',
+    customerId: initialCustomerId || '',
     loanProductId: '',
     amount: '',
     interestRate: '8.5',

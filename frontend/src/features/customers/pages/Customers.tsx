@@ -153,6 +153,8 @@ export default function Customers() {
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [isExporting, setIsExporting] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [linkMode, setLinkMode] = useState<'new' | 'existing'>('new');
   const [selectKey, setSelectKey] = useState(0);
 
   // Increment selectKey when modal opens to force Select remount
@@ -760,7 +762,41 @@ export default function Customers() {
                   <span className="text-xs text-muted-foreground">* = ข้อมูลที่จำเป็นต้องกรอก</span>
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-2 sm:py-4">
+              {/* Admin: toggle between new customer and link to existing */}
+              {isAdmin && !editingCustomerId && (
+                <div className="flex gap-2 border rounded-lg p-1 bg-muted mx-0">
+                  <button type="button" onClick={() => setLinkMode('new')}
+                    className={`flex-1 text-sm py-1.5 rounded-md transition-colors ${linkMode === 'new' ? 'bg-white shadow font-medium' : 'text-muted-foreground'}`}>
+                    สร้างลูกค้าใหม่
+                  </button>
+                  <button type="button" onClick={() => setLinkMode('existing')}
+                    className={`flex-1 text-sm py-1.5 rounded-md transition-colors ${linkMode === 'existing' ? 'bg-white shadow font-medium' : 'text-muted-foreground'}`}>
+                    ผูกกับลูกค้าเดิม
+                  </button>
+                </div>
+              )}
+              {isAdmin && !editingCustomerId && linkMode === 'existing' && (
+                <div className="space-y-2 px-0">
+                  <Label className="text-sm">ค้นหาลูกค้าเดิม</Label>
+                  <Input placeholder="ค้นหาชื่อบริษัท, เลขผู้เสียภาษี, เบอร์โทร..." value={customerSearchQuery} onChange={(e) => setCustomerSearchQuery(e.target.value)} />
+                  {customerSearchQuery.length >= 2 && (
+                    <div className="border rounded-lg max-h-48 overflow-y-auto">
+                      {(customersData?.customers || []).filter((c: any) =>
+                        c.businessName?.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
+                        c.taxId?.includes(customerSearchQuery) || c.phone?.includes(customerSearchQuery)
+                      ).slice(0, 8).map((c: any) => (
+                        <button key={c.id} type="button" onClick={() => { setIsAddDialogOpen(false); navigate(`/customers/${c.id}`); }}
+                          className="w-full text-left px-3 py-2 hover:bg-muted text-sm border-b last:border-0">
+                          <div className="font-medium">{c.businessName}</div>
+                          <div className="text-xs text-muted-foreground">{c.taxId} · {c.phone}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {(!isAdmin || editingCustomerId || linkMode === 'new') && (
+                <div className="grid gap-4 py-2 sm:py-4">
                 {/* Branch and Officer Info */}
                 <div className="rounded-lg border bg-muted/50 p-3 sm:p-4 space-y-2">
                   <p className="text-sm font-medium">ข้อมูลการมอบหมาย</p>
@@ -946,6 +982,7 @@ export default function Customers() {
                   </Select>
                 </div>
               </div>
+              )}
               <DialogFooter className="flex-col sm:flex-row gap-2">
                 <Button
                   variant="outline"
@@ -1146,7 +1183,7 @@ export default function Customers() {
                                   <Edit className="h-4 w-4 mr-2" />
                                   แก้ไข
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => navigate(`/loans?createFor=${customer.id}&customerName=${encodeURIComponent(customer.businessName)}`)}>
                                   <FileText className="h-4 w-4 mr-2" />
                                   สร้างคำขอสินเชื่อ
                                 </DropdownMenuItem>
