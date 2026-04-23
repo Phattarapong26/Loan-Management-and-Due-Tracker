@@ -31,7 +31,7 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Loader2
+  Loader
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { lineAuditApi } from '../api/line-audit.api';
@@ -182,7 +182,7 @@ export function LineAuditDialog({
 
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin" />
+              <Loader className="h-6 w-6 animate-spin" />
               <span className="ml-2">กำลังโหลดข้อมูล...</span>
             </div>
           ) : lineStatus ? (
@@ -276,7 +276,7 @@ export function LineAuditDialog({
                       >
                         {disconnectMutation.isPending ? (
                           <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            <Loader className="h-4 w-4 mr-2 animate-spin" />
                             กำลังตัดการเชื่อมต่อ...
                           </>
                         ) : (

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
-import { Upload, FileSpreadsheet, FileText, Image, X, Loader2, ScanLine, CheckCircle2, AlertCircle } from "lucide-react";
+import { Upload, FileSpreadsheet, FileText, Image, X, Loader, ScanLine, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { toast } from "sonner";
@@ -549,7 +549,7 @@ export function DocumentUpload({ customerId, onUploadComplete, onReviewRequest }
                             ) : uploadedFile.status === 'error' ? (
                               <AlertCircle className="w-4 h-4 text-red-600" />
                             ) : (
-                              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                              <Loader className="w-4 h-4 animate-spin text-primary" />
                             )}
                             {stageLabels[uploadedFile.status]}
                           </span>
@@ -645,7 +645,7 @@ export function DocumentUpload({ customerId, onUploadComplete, onReviewRequest }
             >
               {isProcessing ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader className="mr-2 h-4 w-4 animate-spin" />
                   กำลังประมวลผล...
                 </>
               ) : (

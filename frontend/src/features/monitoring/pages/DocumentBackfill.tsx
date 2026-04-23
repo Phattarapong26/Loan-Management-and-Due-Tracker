@@ -9,7 +9,7 @@ import {
     Clock,
     CheckCircle2,
     AlertCircle,
-    Loader2,
+    Loader,
 } from 'lucide-react';
 import { documentBackfillApi, type BackfillLastRunStatus } from '@/shared/lib/api-endpoints';
 import { DashboardLayout } from '@/shared/components/layout/DashboardLayout';
@@ -140,7 +140,7 @@ const DocumentBackfill: React.FC = () => {
                             disabled={runningTask !== null}
                         >
                             {runningTask === 'all' ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                <Loader className="h-4 w-4 mr-2 animate-spin" />
                             ) : (
                                 <Play className="h-4 w-4 mr-2" />
                             )}
@@ -222,7 +222,7 @@ const DocumentBackfill: React.FC = () => {
                                             <Icon className={`h-5 w-5 ${color}`} />
                                         </div>
                                         {statsLoading ? (
-                                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                            <Loader className="h-4 w-4 animate-spin text-muted-foreground" />
                                         ) : isComplete ? (
                                             <Badge variant="outline" className="text-green-600 border-green-300">
                                                 <CheckCircle2 className="h-3 w-3 mr-1" />
@@ -255,7 +255,7 @@ const DocumentBackfill: React.FC = () => {
                                             onClick={() => runTaskMutation.mutate(key as 'receipts' | 'contracts' | 'invoices')}
                                         >
                                             {runningTask === key ? (
-                                                <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                                                <Loader className="h-3 w-3 mr-2 animate-spin" />
                                             ) : (
                                                 <Play className="h-3 w-3 mr-2" />
                                             )}

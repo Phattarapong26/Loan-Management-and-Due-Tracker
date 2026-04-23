@@ -41,7 +41,7 @@ import {
   MapPin,
   Edit,
   Eye,
-  Loader2,
+  Loader,
   Power,
   PowerOff,
 } from 'lucide-react';
@@ -493,7 +493,7 @@ export default function Branches() {
               <Button onClick={handleAddBranch} disabled={createBranchMutation.isPending}>
                 {createBranchMutation.isPending ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader className="h-4 w-4 mr-2 animate-spin" />
                     กำลังบันทึก...
                   </>
                 ) : (
@@ -574,7 +574,7 @@ export default function Branches() {
               <Button onClick={handleUpdateBranch} disabled={updateBranchMutation.isPending}>
                 {updateBranchMutation.isPending ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader className="h-4 w-4 mr-2 animate-spin" />
                     กำลังบันทึก...
                   </>
                 ) : (

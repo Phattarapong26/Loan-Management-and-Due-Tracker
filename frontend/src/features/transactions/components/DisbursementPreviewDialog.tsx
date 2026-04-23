@@ -21,7 +21,7 @@ import {
   FileCheck,
   AlertTriangle,
   CheckCircle2,
-  Loader2,
+  Loader,
   Eye
 } from 'lucide-react';
 import { Badge } from '@/shared/components/ui/badge';
@@ -142,10 +142,8 @@ export function DisbursementPreviewDialog({
   // ✅ Create customer with defaults - now after all the above declarations
   const customerWithDefaults = {
     ...originalCustomer,
-    address: originalCustomer?.address || originalCustomer?.business_address || 'ไม่ได้ระบุที่อยู่ในระบบ',
-    business_address: originalCustomer?.business_address || originalCustomer?.address || 'ไม่ได้ระบุที่อยู่ธุรกิจในระบบ',
-    phone: originalCustomer?.phone || originalCustomer?.business_phone || 'ไม่ได้ระบุเบอร์โทรในระบบ',
-    business_phone: originalCustomer?.business_phone || originalCustomer?.phone || 'ไม่ได้ระบุเบอร์โทรธุรกิจในระบบ',
+    address: originalCustomer?.address || 'ไม่ได้ระบุที่อยู่ในระบบ',
+    phone: originalCustomer?.phone || 'ไม่ได้ระบุเบอร์โทรในระบบ',
     email: originalCustomer?.email || 'ไม่ได้ระบุอีเมลในระบบ',
     thaiId: originalCustomer?.thaiId || '1234567890123', // Mock for PDF password
     taxId: originalCustomer?.taxId || '1234567890123', // Mock for PDF password
@@ -163,9 +161,7 @@ export function DisbursementPreviewDialog({
     customerCode: originalCustomer?.customerCode,
     businessName: originalCustomer?.businessName,
     address: originalCustomer?.address,
-    business_address: originalCustomer?.business_address,
     phone: originalCustomer?.phone,
-    business_phone: originalCustomer?.business_phone,
     email: originalCustomer?.email,
     thaiIdRaw: originalCustomer?.thaiId?.substring(0, 30),
     taxIdRaw: originalCustomer?.taxId?.substring(0, 30),
@@ -186,8 +182,8 @@ export function DisbursementPreviewDialog({
   const validations = [
     {
       label: 'ข้อมูลลูกค้า',
-      valid: !!(customer?.businessName && customer?.business_address && !customer?.business_address?.includes('ไม่ได้ระบุ')),
-      message: (customer?.businessName && customer?.business_address && !customer?.business_address?.includes('ไม่ได้ระบุ')) ? '✓ ครบถ้วน' : '⚠ ข้อมูลที่อยู่ไม่ครบถ้วน'
+      valid: !!(customer?.businessName && customer?.address && !customer?.address?.includes('ไม่ได้ระบุ')),
+      message: (customer?.businessName && customer?.address && !customer?.address?.includes('ไม่ได้ระบุ')) ? '✓ ครบถ้วน' : '⚠ ข้อมูลที่อยู่ไม่ครบถ้วน'
     },
     {
       label: 'เลขบัตร/ผู้เสียภาษี',
@@ -196,8 +192,8 @@ export function DisbursementPreviewDialog({
     },
     {
       label: 'เบอร์โทรศัพท์',
-      valid: !!(customer?.business_phone || customer?.phone) && !customer?.business_phone?.includes('ไม่ได้ระบุ'),
-      message: (customer?.business_phone || customer?.phone) && !customer?.business_phone?.includes('ไม่ได้ระบุ') ? '✓ มีข้อมูล' : '⚠ ไม่มีข้อมูล (แนะนำให้มี)'
+      valid: !!(customer?.phone) && !customer?.phone?.includes('ไม่ได้ระบุ'),
+      message: (customer?.phone) && !customer?.phone?.includes('ไม่ได้ระบุ') ? '✓ มีข้อมูล' : '⚠ ไม่มีข้อมูล (แนะนำให้มี)'
     },
     {
       label: 'ข้อมูลสัญญา',
@@ -330,8 +326,8 @@ export function DisbursementPreviewDialog({
                   <MapPin className="h-4 w-4 text-slate-400 mt-0.5" />
                   <div className="flex-1">
                     <p className="text-xs text-slate-500">ที่อยู่</p>
-                    <p className={`font-medium ${customer?.business_address?.includes('ไม่ได้ระบุ') ? 'text-amber-600 italic' : 'text-slate-700'}`}>
-                      {customer?.business_address || customer?.address}
+                    <p className={`font-medium ${customer?.address?.includes('ไม่ได้ระบุ') ? 'text-amber-600 italic' : 'text-slate-700'}`}>
+                      {customer?.address}
                     </p>
                   </div>
                 </div>
@@ -359,8 +355,8 @@ export function DisbursementPreviewDialog({
                     <Phone className="h-4 w-4 text-slate-400 mt-0.5" />
                     <div className="flex-1">
                       <p className="text-xs text-slate-500">เบอร์โทรศัพท์</p>
-                      <p className={`font-medium ${customer?.business_phone?.includes('ไม่ได้ระบุ') ? 'text-amber-600 italic' : 'text-slate-700'}`}>
-                        {customer?.business_phone || customer?.phone}
+                      <p className={`font-medium ${customer?.phone?.includes('ไม่ได้ระบุ') ? 'text-amber-600 italic' : 'text-slate-700'}`}>
+                        {customer?.phone}
                       </p>
                     </div>
                   </div>
@@ -554,7 +550,7 @@ export function DisbursementPreviewDialog({
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader className="h-4 w-4 mr-2 animate-spin" />
                     กำลังเบิกจ่าย...
                   </>
                 ) : (

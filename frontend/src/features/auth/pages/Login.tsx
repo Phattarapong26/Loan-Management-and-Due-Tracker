@@ -6,7 +6,7 @@ import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
-import { Lock, Mail, Shield, User, Briefcase, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Lock, Mail, Shield, User, Briefcase, Loader, Eye, EyeOff } from 'lucide-react';
 import type { UserRole } from '@/shared/types/user';
 import { lazy, Suspense } from 'react';
 import { useCenterAlert } from '@/shared/hooks/useCenterAlert';
@@ -159,7 +159,7 @@ export default function Login() {
                   >
                     {isLoading ? (
                       <>
-                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                        <Loader className="h-5 w-5 mr-2 animate-spin" />
                         กำลังเข้าสู่ระบบ...
                       </>
                     ) : (

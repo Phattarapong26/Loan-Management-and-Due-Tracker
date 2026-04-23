@@ -14,7 +14,7 @@
 import { useState, useEffect, useCallback, forwardRef } from 'react';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
-import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Loader } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import {
   validateThaiId,
@@ -215,7 +215,7 @@ export const ValidatedInput = forwardRef<HTMLInputElement, ValidatedInputProps>(
       }
 
       if (isValidating) {
-        return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
+        return <Loader className="h-4 w-4 animate-spin text-blue-500" />;
       }
 
       if (!validationResult) {

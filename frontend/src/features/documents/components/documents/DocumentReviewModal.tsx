@@ -9,7 +9,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, CheckCircle2, Pencil, Save, AlertTriangle, ChevronDown, 
-  ChevronUp, Layers, Loader2, FileText
+  ChevronUp, Layers, Loader, FileText
 } from "lucide-react";
 import { EnhancedDataViewer } from './EnhancedDataViewer';
 import { DebugDataViewer } from './DebugDataViewer';
@@ -450,7 +450,7 @@ export function DocumentReviewModal({
                 disabled={isSaving}
               >
                 {isSaving ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Loader className="w-5 h-5 animate-spin" />
                 ) : (
                   <>
                     <FileText className="w-4 h-4 mr-2" />
@@ -467,7 +467,7 @@ export function DocumentReviewModal({
             >
               {isSaving ? (
                 <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  <Loader className="w-5 h-5 mr-2 animate-spin" />
                   กำลังบันทึก...
                 </>
               ) : (

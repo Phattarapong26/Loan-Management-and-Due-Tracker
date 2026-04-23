@@ -12,7 +12,7 @@ import {
   Check, 
   AlertCircle, 
   Send, 
-  Loader2,
+  Loader,
   Link2,
   ExternalLink,
 } from 'lucide-react';
@@ -283,7 +283,7 @@ export function LineIntegrationCard({
                 >
                   {isTesting ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <Loader className="h-4 w-4 mr-2 animate-spin" />
                       กำลังส่ง...
                     </>
                   ) : (
@@ -368,7 +368,7 @@ export function LineIntegrationCard({
                           >
                             {isTesting ? (
                               <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                <Loader className="h-4 w-4 mr-2 animate-spin" />
                                 กำลังส่ง...
                               </>
                             ) : (
@@ -401,7 +401,7 @@ export function LineIntegrationCard({
                           >
                             {isTesting ? (
                               <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                <Loader className="h-4 w-4 mr-2 animate-spin" />
                                 กำลังส่ง...
                               </>
                             ) : (
@@ -455,7 +455,7 @@ export function LineIntegrationCard({
                       >
                         {isTesting ? (
                           <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            <Loader className="h-4 w-4 mr-2 animate-spin" />
                             กำลังส่ง...
                           </>
                         ) : (

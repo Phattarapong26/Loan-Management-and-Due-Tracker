@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select';
-import { Loader2, Wallet, User, DollarSign, Info, FileText, Lock, Eye } from 'lucide-react';
+import { Loader, Wallet, User, DollarSign, Info, FileText, Lock, Eye } from 'lucide-react';
 import { Disbursement } from '@/shared/lib/api-endpoints';
 
 interface TransactionExecuteDialogProps {
@@ -185,7 +185,7 @@ export function TransactionExecuteDialog({
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader className="h-4 w-4 mr-2 animate-spin" />
                   กำลังโหลด...
                 </>
               ) : (

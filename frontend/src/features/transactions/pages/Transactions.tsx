@@ -42,7 +42,7 @@ import {
   Eye,
   FileText,
   Send,
-  Loader2,
+  Loader,
   Download,
   Building2,
   LucideIcon,
@@ -409,7 +409,7 @@ export default function Transactions() {
 
               {isLoading ? (
                 <div className="flex justify-center items-center h-64">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <Loader className="h-8 w-8 animate-spin text-primary" />
                 </div>
               ) : filteredTransactions.length === 0 ? (
                 <div className="text-center py-12">
@@ -545,7 +545,7 @@ export default function Transactions() {
 
               {isLoading ? (
                 <div className="flex justify-center items-center h-64">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <Loader className="h-8 w-8 animate-spin text-primary" />
                 </div>
               ) : filteredTransactions.length === 0 ? (
                 <div className="text-center py-12">

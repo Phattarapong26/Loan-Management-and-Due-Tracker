@@ -53,7 +53,7 @@ import {
   UserCheck,
   Shield,
   Building2,
-  Loader2,
+  Loader,
   Link2,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -481,7 +481,7 @@ export default function UsersPage() {
               <Button onClick={handleSaveUser} disabled={createUserMutation.isPending || updateUserMutation.isPending}>
                 {(createUserMutation.isPending || updateUserMutation.isPending) ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader className="h-4 w-4 mr-2 animate-spin" />
                     กำลังบันทึก...
                   </>
                 ) : (
@@ -733,7 +733,7 @@ export default function UsersPage() {
             <Button onClick={confirmResetPassword} disabled={resetPasswordMutation.isPending}>
               {resetPasswordMutation.isPending ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader className="h-4 w-4 mr-2 animate-spin" />
                   กำลังดำเนินการ...
                 </>
               ) : (

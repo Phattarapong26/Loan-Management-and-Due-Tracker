@@ -1,7 +1,7 @@
 import { Dialog, DialogContent } from '@/shared/components/ui/dialog';
 import { Button } from '@/shared/components/ui/button';
 import { Textarea } from '@/shared/components/ui/textarea';
-import { Loader2, XCircle, DollarSign, User, X, Info, AlertTriangle } from 'lucide-react';
+import { Loader, XCircle, DollarSign, User, X, Info, AlertTriangle } from 'lucide-react';
 
 import { Disbursement } from '@/shared/lib/api-endpoints';
 
@@ -111,7 +111,7 @@ export function DisbursementRejectDialog({
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader className="h-4 w-4 mr-2 animate-spin" />
                   กำลังปฏิเสธ...
                 </>
               ) : (

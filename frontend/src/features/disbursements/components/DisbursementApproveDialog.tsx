@@ -6,7 +6,7 @@ import { Textarea } from '@/shared/components/ui/textarea';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
-import { Loader2, CheckCircle, DollarSign, User, Info, Calendar, AlertTriangle } from 'lucide-react';
+import { Loader, CheckCircle, DollarSign, User, Info, Calendar, AlertTriangle } from 'lucide-react';
 
 import { Disbursement } from '@/shared/lib/api-endpoints';
 
@@ -319,7 +319,7 @@ export function DisbursementApproveDialog({
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader className="h-4 w-4 mr-2 animate-spin" />
                   กำลังอนุมัติ...
                 </>
               ) : (

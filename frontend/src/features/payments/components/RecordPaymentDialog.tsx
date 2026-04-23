@@ -19,7 +19,7 @@ import {
 import { 
   DollarSign, 
   User, 
-  Loader2, 
+  Loader, 
   CheckCircle2, 
   XCircle, 
   Calendar,
@@ -380,7 +380,7 @@ export function RecordPaymentDialog({
                 >
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                      <Loader className="h-5 w-5 mr-2 animate-spin" />
                       กำลังบันทึก...
                     </>
                   ) : isOverpayment ? (

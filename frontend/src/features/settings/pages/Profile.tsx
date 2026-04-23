@@ -8,7 +8,7 @@ import { Label } from '@/shared/components/ui/label';
 import { UserAvatar } from '@/shared/components/ui/user-avatar';
 import { AvatarPicker } from '@/shared/components/ui/avatar-picker';
 import { useAuth } from '@/shared/contexts/AuthContext';
-import { User as UserIcon, Camera, Save, Loader2 } from 'lucide-react';
+import { User as UserIcon, Camera, Save, Loader } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/shared/lib/api-client';
 import { usersApi } from '@/shared/lib/api-endpoints';
@@ -197,7 +197,7 @@ export default function Profile() {
             <div className="flex justify-end pt-4">
               <Button onClick={handleSaveProfile} disabled={saveProfileMutation.isPending}>
                 {saveProfileMutation.isPending ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />กำลังบันทึก...</>
+                  <><Loader className="h-4 w-4 mr-2 animate-spin" />กำลังบันทึก...</>
                 ) : (
                   <><Save className="h-4 w-4 mr-2" />บันทึกข้อมูล</>
                 )}

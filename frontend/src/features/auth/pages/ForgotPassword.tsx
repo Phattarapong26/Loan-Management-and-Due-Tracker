@@ -4,7 +4,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { Mail, Loader2, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Mail, Loader, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { authApi } from '@/shared/lib/api-endpoints';
 import { toast } from 'sonner';
 
@@ -102,7 +102,7 @@ export default function ForgotPassword() {
                                 >
                                     {isLoading ? (
                                         <>
-                                            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                                            <Loader className="h-5 w-5 mr-2 animate-spin" />
                                             กำลังส่งลิงก์...
                                         </>
                                     ) : (

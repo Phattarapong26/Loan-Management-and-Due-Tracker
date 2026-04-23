@@ -15,7 +15,7 @@ import {
   Users,
   Check,
   Trash2,
-  Loader2,
+  Loader,
   CalendarClock,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
@@ -216,7 +216,7 @@ export default function Notifications() {
         <CardContent>
           {isLoading ? (
             <div className="text-center py-12">
-              <Loader2 className="h-12 w-12 mx-auto text-muted-foreground/50 animate-spin" />
+              <Loader className="h-12 w-12 mx-auto text-muted-foreground/50 animate-spin" />
               <p className="text-muted-foreground mt-4">กำลังโหลด...</p>
             </div>
           ) : filteredNotifications.length === 0 ? (

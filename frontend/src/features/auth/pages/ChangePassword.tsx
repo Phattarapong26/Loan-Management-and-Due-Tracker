@@ -4,7 +4,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { Lock, Eye, EyeOff, Loader2, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Lock, Eye, EyeOff, Loader, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { authApi } from '@/shared/lib/api-endpoints';
 import { toast } from 'sonner';
 
@@ -168,7 +168,7 @@ export default function ChangePassword() {
                                         disabled={isLoading || !currentPassword || !isPasswordValid || !passwordsMatch}
                                     >
                                         {isLoading ? (
-                                            <><Loader2 className="h-5 w-5 mr-2 animate-spin" />กำลังดำเนินการ...</>
+                                            <><Loader className="h-5 w-5 mr-2 animate-spin" />กำลังดำเนินการ...</>
                                         ) : 'เปลี่ยนรหัสผ่าน'}
                                     </Button>
                                 </div>

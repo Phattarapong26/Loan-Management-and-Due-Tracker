@@ -55,7 +55,7 @@ import {
   DollarSign,
   TrendingUp,
   AlertCircle,
-  Loader2,
+  Loader,
   Download,
   Building2,
   LucideIcon,
@@ -971,7 +971,7 @@ export default function Disbursements() {
 
           {isLoading ? (
             <div className="flex justify-center items-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <Loader className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : filteredDisbursements.length === 0 ? (
             <div className="text-center py-12">
@@ -1036,7 +1036,7 @@ export default function Disbursements() {
                                 )}
                                 {(d.loan?.productConfig as any)?.disbursementPdfStatus === 'generating' && (
                                   <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    <Loader className="h-3 w-3 mr-1 animate-spin" />
                                     กำลังสร้าง PDF...
                                   </Badge>
                                 )}
@@ -1491,7 +1491,7 @@ export default function Disbursements() {
             >
               {createMutation.isPending ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader className="h-4 w-4 mr-2 animate-spin" />
                   กำลังดำเนินการ...
                 </>
               ) : (
@@ -1713,7 +1713,7 @@ export default function Disbursements() {
             >
               {updateMutation.isPending ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader className="h-4 w-4 mr-2 animate-spin" />
                   กำลังบันทึก...
                 </>
               ) : (

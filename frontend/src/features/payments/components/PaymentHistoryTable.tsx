@@ -14,7 +14,7 @@ import {
   FileText,
   Banknote,
   Receipt,
-  Loader2,
+  Loader,
   TrendingDown,
   AlertCircle,
   CheckCircle2,
@@ -115,7 +115,7 @@ export function PaymentHistoryTable({ payments, isLoading, receiptsByPaymentId }
         </CardHeader>
         <CardContent className="p-8">
           <div className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="h-10 w-10 animate-spin text-[#138F3E] mb-4" />
+            <Loader className="h-10 w-10 animate-spin text-[#138F3E] mb-4" />
             <p className="text-slate-500 font-medium">กำลังโหลดประวัติการชำระ...</p>
           </div>
         </CardContent>

@@ -4,7 +4,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { Lock, Loader2, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Lock, Loader, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { authApi } from '@/shared/lib/api-endpoints';
 import { toast } from 'sonner';
 
@@ -198,7 +198,7 @@ export default function ResetPassword() {
                                     >
                                         {isLoading ? (
                                             <>
-                                                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                                                <Loader className="h-5 w-5 mr-2 animate-spin" />
                                                 กำลังดำเนินการ...
                                             </>
                                         ) : (

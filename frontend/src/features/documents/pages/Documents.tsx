@@ -57,6 +57,7 @@ import {
   FolderOpen,
   Users,
   Building2,
+  Loader,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { documentsApi, customersApi, businessProfilesApi, branchesApi, Branch } from '@/shared/lib/api-endpoints';
@@ -82,7 +83,6 @@ interface Document {
   reviewStatus: string;
   confidenceScore?: number;
   extractedData?: ParsedBusinessProfile;
-  reviewStatus: string;
   uploadedBy: string;
   createdAt: string;
 }
@@ -634,7 +634,7 @@ export default function Documents() {
                 <SelectContent>
                   {isLoadingCustomers ? (
                     <div className="p-4 text-center">
-                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                      <Loader className="h-4 w-4 animate-spin mx-auto" />
                     </div>
                   ) : customers.length === 0 ? (
                     <div className="p-4 text-center text-sm text-muted-foreground">

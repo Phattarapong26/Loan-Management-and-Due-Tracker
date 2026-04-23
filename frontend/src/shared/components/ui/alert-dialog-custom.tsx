@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/shared/components/ui/dialog';
 import { Button } from '@/shared/components/ui/button';
-import { CheckCircle, XCircle, AlertTriangle, Info, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, Info, Loader } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 
 type AlertType = 'success' | 'error' | 'warning' | 'info' | 'loading';
@@ -53,7 +53,7 @@ const alertConfig = {
     textColor: 'text-blue-50',
   },
   loading: {
-    icon: Loader2,
+    icon: Loader,
     gradient: 'from-slate-500 to-slate-600',
     iconColor: 'text-slate-600',
     buttonColor: 'bg-slate-600 hover:bg-slate-700',

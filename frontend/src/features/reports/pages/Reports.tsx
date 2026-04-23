@@ -32,7 +32,7 @@ import {
   Users,
   Building2,
   Printer,
-  Loader2,
+  Loader,
   Receipt,
   FileText,
   Info,
@@ -262,7 +262,7 @@ export default function Reports() {
               </div>
               <Button onClick={handleGenerate} disabled={isLoading} className="w-full sm:w-auto">
                 {isLoading ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
                   <BarChart3 className="h-4 w-4 mr-2" />
                 )}

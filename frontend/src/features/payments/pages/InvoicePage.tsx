@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { InvoiceTemplate } from '../components/InvoiceTemplate';
 import { apiClient } from '@/shared/lib/api-client';
-import { Loader2 } from 'lucide-react';
+import { Loader } from 'lucide-react';
 
 interface InvoiceData {
     accountNo: string;
@@ -112,7 +112,7 @@ export const InvoicePage: React.FC = () => {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
-                    <Loader2 className="w-12 h-12 animate-spin text-[#00A950] mx-auto mb-4" />
+                    <Loader className="w-12 h-12 animate-spin text-[#00A950] mx-auto mb-4" />
                     <p className="text-gray-600">กำลังโหลดใบแจ้งหนี้...</p>
                 </div>
             </div>

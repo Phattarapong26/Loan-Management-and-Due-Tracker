@@ -45,7 +45,7 @@ import {
   DollarSign,
   Phone,
   FileText,
-  Loader2,
+  Loader,
   UserCheck,
   AlertCircle,
   Check,
@@ -654,7 +654,7 @@ export default function CalendarPage() {
               <Button onClick={handleAddEvent} disabled={createEventMutation.isPending}>
                 {createEventMutation.isPending ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader className="h-4 w-4 mr-2 animate-spin" />
                     กำลังบันทึก...
                   </>
                 ) : (
@@ -715,7 +715,7 @@ export default function CalendarPage() {
           <CardContent>
             {isLoading ? (
               <p className="text-muted-foreground text-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                <Loader className="h-6 w-6 animate-spin mx-auto" />
               </p>
             ) : eventsForSelectedDate.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">
@@ -827,7 +827,7 @@ export default function CalendarPage() {
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setEditingEvent(null)}>ยกเลิก</Button>
             <Button onClick={handleUpdateEvent} disabled={updateEventMutation.isPending}>
-              {updateEventMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />กำลังบันทึก...</> : 'บันทึก'}
+              {updateEventMutation.isPending ? <><Loader className="h-4 w-4 mr-2 animate-spin" />กำลังบันทึก...</> : 'บันทึก'}
             </Button>
           </DialogFooter>
         </DialogContent>

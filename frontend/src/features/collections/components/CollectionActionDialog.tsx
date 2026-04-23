@@ -27,7 +27,7 @@ import {
   DollarSign,
   Clock,
   Send,
-  Loader2,
+  Loader,
   CheckCircle,
   XCircle,
   Mail,
@@ -449,7 +449,7 @@ export function CollectionActionDialog({
                 >
                   {createActionMutation.isPending ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <Loader className="h-4 w-4 mr-2 animate-spin" />
                       กำลังดำเนินการ...
                     </>
                   ) : (

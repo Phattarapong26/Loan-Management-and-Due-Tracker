@@ -3,7 +3,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
-import { Loader2, Wallet, DollarSign, User, X, Info, CheckCircle } from 'lucide-react';
+import { Loader, Wallet, DollarSign, User, X, Info, CheckCircle } from 'lucide-react';
 
 import { Disbursement } from '@/shared/lib/api-endpoints';
 
@@ -168,7 +168,7 @@ export function DisbursementDisburseDialog({
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader className="h-4 w-4 mr-2 animate-spin" />
                   กำลังเบิกจ่าย...
                 </>
               ) : (
