@@ -135,6 +135,7 @@ export default function Loans() {
   const { user, currentRole } = useAuth(); // Add useAuth hook
   const isAdmin = currentRole === 'admin';
   const isManager = currentRole === 'branch_manager';
+  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
