@@ -695,7 +695,7 @@ export default function Documents() {
               onCancel={handleReviewCancel}
               existingCustomers={customers.map((c: Customer) => ({
                 id: c.id,
-                name: c.businessName,
+                name: c.businessName || c.name || 'ไม่ระบุชื่อ',
                 taxId: c.taxId,
               }))}
             />
@@ -715,7 +715,7 @@ export default function Documents() {
               }}
               existingCustomers={customers.map((c: Customer) => ({
                 id: c.id,
-                name: c.businessName,
+                name: c.businessName || c.name || 'ไม่ระบุชื่อ',
                 taxId: c.taxId,
               }))}
             />

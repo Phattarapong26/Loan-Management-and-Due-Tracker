@@ -9,15 +9,17 @@ import { useEditableData } from '../../hooks/useEditableData';
 // Customer type for company details
 type CustomerCompany = {
   id?: string;
-  name?: string;
+  businessName?: string;
+  name?: string; // alias
   registrationNumber?: string;
   registeredCapital?: number;
-  registrationDate?: string;
+  registrationDate?: string | Date;
   businessType?: string;
   yearsInBusiness?: number;
+  businessAgeYears?: number;
   address?: string;
   employees?: number;
-  pumpCount?: number;
+  numberOfEmployees?: number;
   [key: string]: unknown;
 };
 
@@ -28,15 +30,18 @@ interface CompanyInfoSectionProps {
 
 export function CompanyInfoSection({ customer, customerId }: CompanyInfoSectionProps) {
   const initialData = useMemo(() => ({
-    name: customer?.name || '',
+    businessName: customer?.businessName || customer?.name || '',
     registrationNumber: customer?.registrationNumber || '',
     registeredCapital: customer?.registeredCapital || 0,
-    registrationDate: customer?.registrationDate || '',
+    registrationDate: customer?.registrationDate
+      ? (typeof customer.registrationDate === 'string'
+          ? customer.registrationDate.split('T')[0]
+          : (customer.registrationDate as Date).toISOString().split('T')[0])
+      : '',
     businessType: customer?.businessType || '',
-    yearsInBusiness: customer?.yearsInBusiness || 0,
+    businessAgeYears: customer?.yearsInBusiness || customer?.businessAgeYears || 0,
     address: customer?.address || '',
-    employees: customer?.employees || 0,
-    pumpCount: customer?.pumpCount || 0,
+    numberOfEmployees: customer?.employees || customer?.numberOfEmployees || 0,
   }), [customer]);
 
   const {
@@ -106,9 +111,9 @@ export function CompanyInfoSection({ customer, customerId }: CompanyInfoSectionP
           <div className="grid md:grid-cols-2 gap-y-8">
             <EditableField
               label="ชื่อบริษัท"
-              value={editedData.name}
+              value={editedData.businessName}
               isEditing={isEditing}
-              onChange={(v) => updateField('name', v)}
+              onChange={(v) => updateField('businessName', v)}
               icon={<Building2 className="w-3.5 h-3.5 text-[#0065FB]" />}
             />
             <EditableField
@@ -143,7 +148,14 @@ export function CompanyInfoSection({ customer, customerId }: CompanyInfoSectionP
               onChange={(v) => updateField('businessType', v)}
               icon={<Briefcase className="w-3.5 h-3.5 text-[#0065FB]" />}
             />
-          
+            <EditableField
+              label="จำนวนพนักงาน"
+              value={editedData.numberOfEmployees}
+              isEditing={isEditing}
+              onChange={(v) => updateField('numberOfEmployees', v)}
+              type="number"
+              icon={<Users className="w-3.5 h-3.5 text-[#0065FB]" />}
+            />
           </div>
 
           {/* Address Section */}

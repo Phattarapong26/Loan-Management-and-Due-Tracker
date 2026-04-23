@@ -111,6 +111,12 @@ export const updateCustomerSchema = z.object({
     taxId: z.string().optional(),
     avatar: z.string().url('URL รูปภาพไม่ถูกต้อง').max(500).optional().nullable(),
     annualRevenue: z.number().positive(validationMessages.amount.tooLow.message).optional(),
+    // Company info fields
+    registeredCapital: z.number().optional(),
+    registrationDate: z.string().optional(),
+    registrationNumber: z.string().optional(),
+    numberOfEmployees: z.number().int().optional(),
+    businessAgeYears: z.number().int().optional(),
 }).refine(
     (data) => {
         if (data.thaiId) {

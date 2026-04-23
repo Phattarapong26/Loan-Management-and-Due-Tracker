@@ -27,17 +27,19 @@ export interface Customer {
     address?: string;
     branchId: string;
     officerId?: string;
-    customerCode: string; // Required for identification
+    customerCode: string;
     avatar?: string;
     registrationNumber?: string;
     lineId?: string;
     phoneNumber?: string;
     yearsInBusiness?: number;
+    businessAgeYears?: number;
     registeredCapital?: number;
     registrationDate?: string | Date;
     employees?: number;
+    numberOfEmployees?: number;
     pumpCount?: number;
-    aiExtractedData?: Record<string, unknown>; // Business profile data from Excel parsing
+    aiExtractedData?: Record<string, unknown>;
     createdByName?: string;
     createdByUser?: { id: string; firstName: string; lastName: string } | null;
     _count?: { loans?: number };

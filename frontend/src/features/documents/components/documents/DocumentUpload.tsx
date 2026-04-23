@@ -69,7 +69,7 @@ export function DocumentUpload({ customerId, onUploadComplete, onReviewRequest }
         setExistingCustomers(
           data.customers.map((c: Customer) => ({
             id: c.id,
-            name: c.businessName || c.name,
+            name: c.businessName || c.name || 'ไม่ระบุชื่อ',
             taxId: c.taxId,
           }))
         );

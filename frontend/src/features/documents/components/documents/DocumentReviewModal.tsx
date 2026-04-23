@@ -9,11 +9,12 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, CheckCircle2, Pencil, Save, AlertTriangle, ChevronDown, 
-  ChevronUp, Layers, Loader, FileText
+  ChevronUp, Layers, Loader, FileText, Search
 } from "lucide-react";
 import { EnhancedDataViewer } from './EnhancedDataViewer';
 import { DebugDataViewer } from './DebugDataViewer';
 import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
 import { toast } from "sonner";
 import { ParsedBusinessProfile } from "../../utils/parsers/excel-parser";
 import {
@@ -64,9 +65,21 @@ export function DocumentReviewModal({
   const [saveAction, setSaveAction] = useState<'create' | 'link'>('create');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [showSheetInfo, setShowSheetInfo] = useState(false);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
 
   const confidence = Math.round((profile.matchConfidence || 0) * 100);
   const sectionCounts = useMemo(() => calculateSectionCounts(profile), [profile]);
+
+  // Filter customers based on search term
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearchTerm.trim()) return existingCustomers;
+    
+    const searchLower = customerSearchTerm.toLowerCase();
+    return existingCustomers.filter(customer => 
+      customer.name?.toLowerCase().includes(searchLower) ||
+      customer.taxId?.includes(searchLower)
+    );
+  }, [existingCustomers, customerSearchTerm]);
 
   const handleSave = async () => {
     if (saveAction === 'link' && !selectedCustomerId) {
@@ -222,44 +235,84 @@ export function DocumentReviewModal({
         </div>
 
         {/* Customer Selection Bar */}
-        <div className="px-6 py-3 border-b border-border bg-muted/10 flex items-center gap-4">
-          <span className="text-sm font-medium text-foreground">การดำเนินการ:</span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setSaveAction('create')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                saveAction === 'create'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-            >
-              สร้างลูกค้าใหม่
-            </button>
-            <button
-              onClick={() => setSaveAction('link')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                saveAction === 'link'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-            >
-              ผูกกับลูกค้าที่มีอยู่
-            </button>
+        <div className="px-6 py-3 border-b border-border bg-muted/10">
+          <div className="flex flex-col gap-3">
+            {/* Action Toggle */}
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium text-foreground">การดำเนินการ:</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setSaveAction('create');
+                    setSelectedCustomerId('');
+                    setCustomerSearchTerm('');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    saveAction === 'create'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  สร้างลูกค้าใหม่
+                </button>
+                <button
+                  onClick={() => setSaveAction('link')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    saveAction === 'link'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  ผูกกับลูกค้าที่มีอยู่
+                </button>
+              </div>
+            </div>
+
+            {/* Customer Search & Select (shown when link action is selected) */}
+            {saveAction === 'link' && (
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="ค้นหาชื่อลูกค้าหรือเลขประจำตัวผู้เสียภาษี..."
+                    value={customerSearchTerm}
+                    onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                    className="pl-10 h-9"
+                  />
+                </div>
+                <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
+                  <SelectTrigger className="w-[350px] h-9">
+                    <SelectValue placeholder="เลือกลูกค้า..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filteredCustomers.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        {customerSearchTerm ? 'ไม่พบลูกค้าที่ค้นหา' : 'ไม่มีลูกค้าในระบบ'}
+                      </div>
+                    ) : (
+                      filteredCustomers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          <div className="flex flex-col py-1">
+                            <span className="font-medium">{customer.name}</span>
+                            {customer.taxId && (
+                              <span className="text-xs text-muted-foreground">
+                                เลขประจำตัวผู้เสียภาษี: {customer.taxId}
+                              </span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {filteredCustomers.length > 0 && (
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {filteredCustomers.length} รายการ
+                  </span>
+                )}
+              </div>
+            )}
           </div>
-          {saveAction === 'link' && (
-            <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
-              <SelectTrigger className="w-[300px] h-9">
-                <SelectValue placeholder="เลือกลูกค้า..." />
-              </SelectTrigger>
-              <SelectContent>
-                {existingCustomers.map((customer) => (
-                  <SelectItem key={customer.id} value={customer.id}>
-                    {customer.businessName} {customer.taxId ? `(${customer.taxId})` : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
         </div>
 
         {/* Body */}

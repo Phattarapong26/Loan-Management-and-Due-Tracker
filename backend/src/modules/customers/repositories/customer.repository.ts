@@ -132,6 +132,12 @@ export class CustomerRepository {
             documentComplete?: boolean;
             lineUserId?: string | null;
             lineLinkedAt?: Date | null;
+            // Company info fields
+            registeredCapital?: number;
+            registrationDate?: string;
+            registrationNumber?: string;
+            numberOfEmployees?: number;
+            businessAgeYears?: number;
         },
         branchId?: string
     ): Promise<Customer> {
@@ -147,6 +153,12 @@ export class CustomerRepository {
         if (data.documentComplete !== undefined) updateData.documentComplete = data.documentComplete;
         if (data.lineUserId !== undefined) updateData.lineUserId = data.lineUserId;
         if (data.lineLinkedAt !== undefined) updateData.lineLinkedAt = data.lineLinkedAt;
+        // Company info fields
+        if (data.registeredCapital !== undefined) updateData.registered_capital = data.registeredCapital;
+        if (data.registrationDate !== undefined) updateData.business_registration_date = data.registrationDate ? new Date(data.registrationDate) : null;
+        if (data.registrationNumber !== undefined) updateData.business_registration_type = data.registrationNumber;
+        if (data.numberOfEmployees !== undefined) updateData.number_of_employees = data.numberOfEmployees;
+        if (data.businessAgeYears !== undefined) updateData.business_age_years = data.businessAgeYears;
 
         // Encrypt Thai ID if provided
         if (data.thaiId !== undefined) {

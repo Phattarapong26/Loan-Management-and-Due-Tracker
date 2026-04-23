@@ -315,6 +315,12 @@ export class CustomerService {
             address: safeDecryptMaybe(customer.address) || null,
             thaiId: safeDecryptMaybe(customer.thaiId) || null,
             taxId: safeDecryptMaybe(customer.taxId) || '',
+            // Map snake_case DB fields to camelCase for frontend
+            registeredCapital: customer.registered_capital ? Number(customer.registered_capital) : undefined,
+            registrationDate: customer.business_registration_date?.toISOString().split('T')[0] ?? undefined,
+            registrationNumber: customer.business_registration_type ?? undefined,
+            numberOfEmployees: customer.number_of_employees ?? undefined,
+            businessAgeYears: customer.business_age_years ?? undefined,
         };
     }
 
