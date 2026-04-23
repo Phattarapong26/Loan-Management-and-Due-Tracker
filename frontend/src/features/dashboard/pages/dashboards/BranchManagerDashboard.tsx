@@ -364,7 +364,7 @@ export default function BranchManagerDashboard() {
                     strokeWidth="12"
                     fill="transparent"
                   />
-                  {/* Health circle - shows "good" percentage (100% - NPL) */}
+                  {/* Health circle - shows NPL percentage (filled = NPL portion) */}
                   <circle
                     cx="96"
                     cy="96"
@@ -372,8 +372,8 @@ export default function BranchManagerDashboard() {
                     stroke={nplRatio > 5 ? '#E53E3E' : nplRatio > 3 ? '#F59E0B' : '#10B981'}
                     strokeWidth="12"
                     fill="transparent"
-                    strokeDasharray={`${2 * Math.PI * 80}`}
-                    strokeDashoffset={`${2 * Math.PI * 80 * (Math.min(nplRatio, 100) / 100)}`}
+                    strokeDasharray={`${2 * Math.PI * 80 * (Math.min(nplRatio, 100) / 100)} ${2 * Math.PI * 80}`}
+                    strokeDashoffset="0"
                     strokeLinecap="round"
                     className="transition-all duration-1000 ease-out"
                   />
