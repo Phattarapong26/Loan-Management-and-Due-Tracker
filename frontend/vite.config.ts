@@ -12,6 +12,7 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
     proxy: {
+      // Backend health endpoints are NOT under /api
       '/health': {
         target: process.env.VITE_BACKEND_URL || 'http://localhost:3000',
         changeOrigin: true,
@@ -28,6 +29,7 @@ export default defineConfig(({ mode }) => ({
         secure: false,
       },
     },
+    // Allow Railway and custom domains
     allowedHosts: [
       '.up.railway.app',
       'localhost',
@@ -37,23 +39,6 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-    },
-  },
-  build: {
-    // Ensure chunk filenames include content hash for cache busting
-    rollupOptions: {
-      output: {
-        // Stable chunk names with content hash
-        chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]',
-        // Split large vendor libs into separate chunks
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-query': ['@tanstack/react-query'],
-          'vendor-ui': ['framer-motion', 'sonner'],
-        },
-      },
     },
   },
 }));

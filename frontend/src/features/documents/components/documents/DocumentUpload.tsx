@@ -271,12 +271,7 @@ export function DocumentUpload({ customerId, officerId, branchId, officers = [],
       let errorMessage = 'ไม่สามารถประมวลผลไฟล์ได้';
       
       if (error instanceof Error) {
-        if (error.message.includes('text/html') || error.message.includes('MIME') || error.message.includes('not a valid JavaScript')) {
-          // Dynamic import chunk failed to load (stale deployment / cache issue)
-          errorMessage = '❌ เวอร์ชันแอปเก่า กรุณารีเฟรชหน้าเว็บ\n\nกด Ctrl+Shift+R (Windows) หรือ Cmd+Shift+R (Mac) แล้วลองอีกครั้ง';
-          // Auto-suggest reload
-          toast.error('กรุณารีเฟรชหน้าเว็บ (Ctrl+Shift+R) แล้วลองอีกครั้ง', { duration: 8000 });
-        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        if (error.message.includes('network') || error.message.includes('fetch')) {
           errorMessage = '❌ เกิดข้อผิดพลาดในการเชื่อมต่อ\n\nไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้\n\nกรุณา:\n• ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต\n• ลองอัพโหลดอีกครั้ง';
         } else if (error.message.includes('parse') || error.message.includes('read')) {
           errorMessage = '❌ ไม่สามารถอ่านไฟล์ได้\n\nไฟล์อาจเสียหายหรือรูปแบบไม่ถูกต้อง\n\nกรุณา:\n• ตรวจสอบว่าไฟล์เปิดได้ใน Excel\n• ลองบันทึกไฟล์ใหม่แล้วอัพโหลดอีกครั้ง\n• ใช้ไฟล์ Excel รูปแบบ .xlsx';
