@@ -53,10 +53,8 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  Sparkles,
   RefreshCw,
   FolderOpen,
-  Loader2,
   Users,
   Building2,
 } from 'lucide-react';
@@ -81,7 +79,7 @@ interface Document {
     businessName: string;
   };
   aiProcessed: boolean;
-  aiStatus?: string;
+  reviewStatus: string;
   confidenceScore?: number;
   extractedData?: ParsedBusinessProfile;
   reviewStatus: string;
@@ -96,10 +94,9 @@ interface Customer {
 }
 
 const statusConfig = {
-  pending: { label: 'รอตรวจสอบ', icon: Clock, color: 'bg-muted text-muted-foreground', animate: false },
-  processing: { label: 'กำลังวิเคราะห์', icon: Sparkles, color: 'bg-primary text-primary-foreground', animate: true },
-  completed: { label: 'สมบูรณ์', icon: CheckCircle, color: 'bg-success text-success-foreground', animate: false },
-  failed: { label: 'ไม่สมบูรณ์', icon: XCircle, color: 'bg-destructive text-destructive-foreground', animate: false },
+  PENDING: { label: 'รอตรวจสอบ', icon: Clock, color: 'bg-muted text-muted-foreground', animate: false },
+  APPROVED: { label: 'สมบูรณ์', icon: CheckCircle, color: 'bg-success text-success-foreground', animate: false },
+  REJECTED: { label: 'ไม่สมบูรณ์', icon: XCircle, color: 'bg-destructive text-destructive-foreground', animate: false },
 };
 
 const fileTypeConfig = {
@@ -160,14 +157,7 @@ export default function Documents() {
       }
       return response.data || response;
     },
-    refetchInterval: (query) => {
-      // Auto-refresh every 3 seconds if there are documents being processed
-      const data = query.state.data;
-      const hasProcessing = (data as any)?.documents?.some(
-        (doc: Document) => doc.aiStatus === 'pending' || doc.aiStatus === 'processing'
-      );
-      return hasProcessing ? 3000 : false;
-    },
+    refetchInterval: false,
   });
 
   // Fetch branches for admin filter
@@ -231,7 +221,7 @@ export default function Documents() {
   const filteredDocs = documents.filter((doc: Document) => {
     const matchesSearch = doc.fileName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       doc.customer?.businessName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || doc.aiStatus === statusFilter;
+    const matchesStatus = statusFilter === 'all' || doc.reviewStatus === statusFilter;
     const matchesCustomer = customerFilter === 'all' || doc.customerId === customerFilter;
     return matchesSearch && matchesStatus && matchesCustomer;
   });
@@ -379,9 +369,9 @@ export default function Documents() {
     }
   };
 
-  const completedCount = (documents as any[]).filter((d: Document) => d.aiStatus === 'completed').length;
-  const processingCount = (documents as any[]).filter((d: Document) => d.aiStatus === 'processing' || d.aiStatus === 'pending').length;
-  const errorCount = (documents as any[]).filter((d: Document) => d.aiStatus === 'failed').length;
+  const completedCount = (documents as any[]).filter((d: Document) => d.reviewStatus === 'APPROVED').length;
+  const processingCount = 0;
+  const errorCount = (documents as any[]).filter((d: Document) => d.reviewStatus === 'REJECTED').length;
 
   return (
     <DashboardLayout breadcrumbs={[{ label: 'Home' }, { label: 'จัดการเอกสาร' }]}>
@@ -392,12 +382,6 @@ export default function Documents() {
           <h1 className="text-2xl font-bold text-white">จัดการเอกสาร</h1>
           <p className="text-white">
             อัพโหลดเอกสารและวิเคราะห์ข้อมูลจากไฟล์ Excel
-            {processingCount > 0 && (
-              <span className="ml-2 inline-flex items-center gap-1 text-primary">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                <span className="text-xs">กำลังวิเคราะห์ {processingCount} รายการ</span>
-              </span>
-            )}
           </p>
         </div>
         <Button onClick={() => setIsUploadDialogOpen(true)}>
@@ -484,10 +468,9 @@ export default function Documents() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">สถานะทั้งหมด</SelectItem>
-                <SelectItem value="completed">สมบูรณ์</SelectItem>
-                <SelectItem value="processing">กำลังวิเคราะห์</SelectItem>
-                <SelectItem value="pending">รอตรวจสอบ</SelectItem>
-                <SelectItem value="failed">ไม่สมบูรณ์</SelectItem>
+                <SelectItem value="APPROVED">สมบูรณ์</SelectItem>
+                <SelectItem value="PENDING">รอตรวจสอบ</SelectItem>
+                <SelectItem value="REJECTED">ไม่สมบูรณ์</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -525,9 +508,9 @@ export default function Documents() {
                   {filteredDocs.map((doc: Document) => {
                     const fileConfig = getFileTypeConfig(doc.mimeType);
                     const FileIcon = fileConfig.icon;
-                    const status = doc.aiStatus || 'pending';
+                    const status = doc.reviewStatus || 'PENDING';
                     const StatusIcon = statusConfig[status as keyof typeof statusConfig]?.icon || Clock;
-                    const statusStyle = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+                    const statusStyle = statusConfig[status as keyof typeof statusConfig] || statusConfig.PENDING;
 
                     return (
                       <TableRow key={doc.id} className="hover:bg-muted/30">
@@ -571,7 +554,7 @@ export default function Documents() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            {(doc.aiStatus === 'pending' || doc.extractedData) && (
+                            {(doc.reviewStatus === 'PENDING' || doc.extractedData) && (
                               <Button 
                                 variant="outline" 
                                 size="sm" 

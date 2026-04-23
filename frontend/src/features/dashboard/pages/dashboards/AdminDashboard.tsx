@@ -1056,7 +1056,7 @@ export default function AdminDashboard() {
 
       {/* Footer */}
       <footer className="mt-auto py-6 px-8 text-center text-slate-400 text-xs">
-        © 2024 K-Lending System. All rights reserved. Administrator Dashboard.
+        © 2026 SME D BANK System. All rights reserved. Administrator Dashboard.
       </footer>
 
       {/* Health Component Details Modal */}

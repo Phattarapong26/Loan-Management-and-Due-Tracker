@@ -17,7 +17,7 @@ router.post('/', async (req, res) => {
     const creditLine = await creditLineService.createCreditLine(req.body);
     res.status(201).json(creditLine);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถสร้างวงเงินเชื่อได้ กรุณาตรวจสอบข้อมูล' });
   }
 });
 
@@ -36,7 +36,7 @@ router.get('/', async (req, res) => {
     });
     res.json(creditLines);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดรายการวงเงินเชื่อได้' });
   }
 });
 
@@ -49,7 +49,7 @@ router.get('/statistics', async (req, res) => {
     const stats = await creditLineService.getStatistics();
     res.json(stats);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดสถิติได้' });
   }
 });
 
@@ -65,7 +65,7 @@ router.get('/expiring', async (req, res) => {
     );
     res.json(creditLines);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดรายการที่จะหมดอายุได้' });
   }
 });
 
@@ -78,7 +78,7 @@ router.get('/customer/:customerId', async (req, res) => {
     const creditLines = await creditLineService.getCreditLinesByCustomerId(req.params.customerId);
     res.json(creditLines);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดรายการวงเงินเชื่อได้' });
   }
 });
 
@@ -90,11 +90,11 @@ router.get('/:id', async (req, res) => {
   try {
     const creditLine = await creditLineService.getCreditLineById(req.params.id);
     if (!creditLine) {
-      return res.status(404).json({ error: 'Credit line not found' });
+      return res.status(404).json({ error: 'ไม่พบวงเงินเชื่อ' });
     }
     res.json(creditLine);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดรายการวงเงินเชื่อได้' });
   }
 });
 
@@ -107,7 +107,7 @@ router.put('/:id', async (req, res) => {
     const creditLine = await creditLineService.updateCreditLine(req.params.id, req.body);
     res.json(creditLine);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถอัปเดตวงเงินเชื่อได้' });
   }
 });
 
@@ -120,7 +120,7 @@ router.post('/:id/suspend', async (req, res) => {
     const creditLine = await creditLineService.suspendCreditLine(req.params.id);
     res.json(creditLine);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถระงับวงเงินเชื่อได้' });
   }
 });
 
@@ -133,7 +133,7 @@ router.post('/:id/activate', async (req, res) => {
     const creditLine = await creditLineService.activateCreditLine(req.params.id);
     res.json(creditLine);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถเปิดใช้งานวงเงินเชื่อได้' });
   }
 });
 
@@ -146,7 +146,7 @@ router.post('/:id/close', async (req, res) => {
     const creditLine = await creditLineService.closeCreditLine(req.params.id);
     res.json(creditLine);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถปิดวงเงินเชื่อได้' });
   }
 });
 
@@ -159,7 +159,7 @@ router.delete('/:id', async (req, res) => {
     await creditLineService.deleteCreditLine(req.params.id);
     res.status(204).send();
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถลบวงเงินเชื่อได้' });
   }
 });
 

@@ -1,21 +1,25 @@
 /**
- * Complete System Seed Script 2025-2026 (Fixed)
+ * Complete System Seed Script 2025-2026 (Fixed v2)
  *
- * Bug fixes:
- * 1. firstPaymentDate = วันที่ 1 ของเดือนถัดจากวันเบิกจ่าย (ไม่ใช่ disbursementDate + 1 month)
- * 2. NPL scenario ใช้ daysSinceDue >= 90 จริงๆ แทนที่จะ set OVERDUE เมื่อ month >= 4
- * 3. applicationMonth ของ NPL ไม่เกิน 12 เพื่อให้ loan เริ่มก่อน currentDate เสมอ
- * 4. สร้าง schedule ทุกงวดตลอด term (ไม่ break กลาง loop) และ mark FUTURE สำหรับงวดที่ยังไม่ถึง
- * 5. Update loan.outstandingBalance และ schedule.paidAmount หลังสร้าง payment
- * 6. Collection actions filter จาก actual overdue status แทนที่จะใช้ scenario
+ * Bug fixes applied on top of "Fixed" version:
+ * 1. contract_number / customerCode uniqueness — ใช้ crypto.randomUUID() แทน Date.now() slice
+ * 2. remainingPrincipal drift — clamp ตัวแปรด้วยเช่นกัน ไม่ใช่แค่ field
+ * 3. outstandingBalance ติดลบ — ใช้ Math.max(0, current - payment) ผ่าน raw query
+ * 4. LATE_PAYER paymentDate ในอนาคต — clamp ไม่ให้เกิน currentDate
+ * 5. EARLY_PAYER paymentDate ก่อน disbursementDate — clamp ไม่ให้น้อยกว่า disbursementDate
+ * 6. taxId unique เมื่อ re-seed — ใส่ timestamp suffix ที่ยาวพอ
+ * 7. paidAmount ใช้ increment แทน set เผื่อ multi-payment ในอนาคต
+ * 8. Collection actionDate อาจ invalid — ใช้ Math.ceil และ guard daysOverdue > 0
  *
  * Flow:
- * 1. Products → 2. Branches → 3. Branch Managers → 4. Officers → 5. Customers
- * 6. Loan Contracts → 7. Disbursements → 8. Payment Schedules → 9. Payments → 10. Collections
+ * 1. Admin → 2. Products → 3. Penalty Rules → 4. Product Budgets
+ * 5. Branches → 6. Users → 7. Customers → 8. Loan Contracts
+ * 9. Disbursements → 10. Payment Schedules → 11. Payments → 12. Collections
  */
 
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { randomUUID } from 'crypto';
 import { EncryptionUtil } from '../src/core/utils/security/encryption.util';
 
 const prisma = new PrismaClient();
@@ -35,7 +39,7 @@ function addDays(date: Date, days: number): Date {
 }
 
 /**
- * FIX 1: คืนวันที่ 1 ของเดือนถัดจากวันเบิกจ่าย
+ * คืนวันที่ 1 ของเดือนถัดจากวันเบิกจ่าย
  * เช่น เบิกจ่าย 15 ม.ค. → return 1 ก.พ.
  *      เบิกจ่าย 1 มี.ค.  → return 1 เม.ย.
  */
@@ -48,12 +52,30 @@ function getFirstDayOfNextMonth(date: Date): Date {
 }
 
 function randomBetween(min: number, max: number): number {
+  if (min >= max) return min;
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 function randomDecimal(min: number, max: number, decimals: number = 2): number {
   const factor = Math.pow(10, decimals);
   return Math.floor((Math.random() * (max - min) + min) * factor) / factor;
+}
+
+/**
+ * FIX 1: สร้าง unique short ID ที่ไม่พึ่ง Date.now() slice
+ * ใช้ 8 ตัวแรกของ UUID (hex) → ชนกันยากมากใน seed
+ */
+function shortId(): string {
+  return randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase();
+}
+
+/**
+ * FIX 4 & 5: clamp date ให้อยู่ใน [minDate, maxDate]
+ */
+function clampDate(date: Date, minDate: Date, maxDate: Date): Date {
+  if (date < minDate) return new Date(minDate);
+  if (date > maxDate) return new Date(maxDate);
+  return date;
 }
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -108,12 +130,14 @@ const BRANCH_DATA = [
 // ─── Main seed function ────────────────────────────────────────────────────────
 
 async function seedCompleteSystem2025() {
-  console.log('🌱 Starting Complete System Seed 2025-2026 (Fixed)...\n');
+  console.log('🌱 Starting Complete System Seed 2025-2026 (Fixed v2)...\n');
 
   const projectStartDate = new Date('2025-01-01');
   const currentDate = new Date('2026-03-10');
 
-  console.log(`📅 Project period: ${projectStartDate.toDateString()} → ${currentDate.toDateString()}\n`);
+  console.log(
+    `📅 Project period: ${projectStartDate.toDateString()} → ${currentDate.toDateString()}\n`
+  );
 
   // ══════════════════════════════════════════════════════════════
   // STEP 1: ADMIN
@@ -364,7 +388,11 @@ async function seedCompleteSystem2025() {
             warning_threshold: 80.0,
             critical_threshold: 95.0,
             budget_status:
-              utilizationRate > 0.95 ? 'CRITICAL' : utilizationRate > 0.8 ? 'WARNING' : 'ACTIVE',
+              utilizationRate > 0.95
+                ? 'CRITICAL'
+                : utilizationRate > 0.8
+                ? 'WARNING'
+                : 'ACTIVE',
             budget_owner: admin.id,
             notes: `${year} Q${quarter} budget for ${product.productName}`,
             created_by: admin.id,
@@ -444,11 +472,6 @@ async function seedCompleteSystem2025() {
   // ══════════════════════════════════════════════════════════════
   console.log('\n👤 Step 6: Creating customers...');
 
-  /**
-   * FIX 3: applicationMonth ของ NPL ลดลงเหลือ max 12
-   * เพื่อให้ startDate (projectStartDate + applicationMonth) ≤ currentDate (มี.ค. 2026)
-   * เสมอ — ป้องกัน loan ที่ "ยังไม่เริ่ม" มี OVERDUE schedules
-   */
   const customerTemplates = [
     // ── Good payers (60%) ─────────────────────────────────────
     ...Array(12)
@@ -483,7 +506,6 @@ async function seedCompleteSystem2025() {
       })),
 
     // ── NPL cases (15%) ───────────────────────────────────────
-    // FIX 3: applicationMonth max เปลี่ยนจาก 20 → 12
     ...Array(3)
       .fill(null)
       .map((_, i) => ({
@@ -495,7 +517,7 @@ async function seedCompleteSystem2025() {
         scenario: ['NPL_EARLY', 'NPL_GRADUAL', 'NPL_SUDDEN'][i % 3],
         loanAmount: randomBetween(1_500_000, 6_000_000),
         termMonths: [36, 48, 60][i % 3],
-        applicationMonth: randomBetween(3, 12), // ← FIX 3
+        applicationMonth: randomBetween(3, 12),
         riskLevel: 'HIGH',
       })),
   ];
@@ -503,22 +525,28 @@ async function seedCompleteSystem2025() {
   const createdCustomers = [];
   const officers = createdUsers.filter((u) => u.role === 'OFFICER');
 
+  // FIX 6: timestamp ที่ยาวพอสำหรับ taxId uniqueness
+  const seedRunTs = Date.now().toString();
+
   for (let i = 0; i < customerTemplates.length; i++) {
     const cd = customerTemplates[i];
     const officer = officers[i % officers.length];
-    const ts = Date.now().toString().slice(-6);
+
+    // FIX 1: ใช้ shortId() แทน Date.now().slice() เพื่อหลีกเลี่ยงการชน
+    const uid = shortId();
 
     const customer = await prisma.customer.create({
       data: {
-        customerCode: `CUST${ts}${String(i + 1).padStart(3, '0')}`,
+        customerCode: `CUST${uid}${String(i + 1).padStart(3, '0')}`,
         businessName: cd.businessName,
         businessType: cd.businessType as any,
         industry_code: cd.industry_code,
         business_size: cd.business_size as any,
         phone: `081234${String(i + 1000).padStart(4, '0')}`,
-        email: `customer${i + 1}@business.com`,
+        email: `customer${i + 1}_${uid}@business.com`,
         thaiId: EncryptionUtil.encrypt(`1234567890${String(i).padStart(3, '0')}`),
-        taxId: `0123456789${String(i).padStart(3, '0')}${ts.slice(-1)}`,
+        // FIX 6: ใส่ seedRunTs (13 หลัก) ป้องกัน unique collision เมื่อ re-seed
+        taxId: `${seedRunTs.slice(-8)}${String(i).padStart(5, '0')}`,
         status: 'ACTIVE',
         createdBy: officer.id,
         branchId: officer.branchId!,
@@ -542,11 +570,13 @@ async function seedCompleteSystem2025() {
     const officer = cr.officer;
     const product = createdProducts[i % createdProducts.length];
     const contractDate = addMonths(projectStartDate, cd.applicationMonth);
-    const ts = Date.now().toString().slice(-6);
+
+    // FIX 1: ใช้ shortId() แทน Date.now().slice()
+    const uid = shortId();
 
     const loan = await prisma.loan.create({
       data: {
-        contract_number: `L${ts}${String(i + 1).padStart(3, '0')}`,
+        contract_number: `L${uid}${String(i + 1).padStart(3, '0')}`,
         customerId: cr.id,
         loanProductId: product.id,
         branchId: officer.branchId!,
@@ -642,9 +672,8 @@ async function seedCompleteSystem2025() {
     });
 
     // Budget consumption
-    const loanDate = disbursementDate;
-    const year = loanDate.getFullYear();
-    const quarter = Math.ceil((loanDate.getMonth() + 1) / 3);
+    const year = disbursementDate.getFullYear();
+    const quarter = Math.ceil((disbursementDate.getMonth() + 1) / 3);
     const budget = productBudgets.find(
       (b) =>
         b.product_id === lr.loanProductId &&
@@ -662,13 +691,13 @@ async function seedCompleteSystem2025() {
           disbursed_amount: Number(lr.principal),
           consumption_type: 'DISBURSEMENT',
           status: 'ACTIVE',
-          consumption_date: loanDate,
+          consumption_date: disbursementDate,
           processed_by: officer.id,
         },
       });
     }
 
-    // Cache disbursementDate back onto loan record for Step 9
+    // Cache disbursementDate onto loan record for Step 9
     (lr as any).disbursementDate = disbursementDate;
   }
 
@@ -677,8 +706,6 @@ async function seedCompleteSystem2025() {
 
   // ══════════════════════════════════════════════════════════════
   // STEP 9: PAYMENT SCHEDULES
-  // FIX 1: งวดแรก = วันที่ 1 ของเดือนถัดจากวันเบิกจ่าย
-  // FIX 2: NPL OVERDUE ต้องมี daysSinceDue >= 90 จริงๆ
   // ══════════════════════════════════════════════════════════════
   console.log('\n📅 Step 9: Creating payment schedules...');
 
@@ -694,10 +721,7 @@ async function seedCompleteSystem2025() {
 
     const disbursedOn: Date = (lr as any).disbursementDate ?? addDays(lr.startDate, 7);
 
-    /**
-     * FIX 1: firstPaymentDate = วันที่ 1 ของเดือนถัดจากวันเบิกจ่าย
-     * งวดที่ n มี dueDate = firstPaymentDate + (n-1) เดือน
-     */
+    // งวดแรก = วันที่ 1 ของเดือนถัดจากวันเบิกจ่าย
     const firstPaymentDate = getFirstDayOfNextMonth(disbursedOn);
 
     const monthlyRate = interestRate / 100 / 12;
@@ -705,15 +729,17 @@ async function seedCompleteSystem2025() {
       (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, termMonths)) /
       (Math.pow(1 + monthlyRate, termMonths) - 1);
 
+    // FIX 2: clamp remainingPrincipal ทั้งตัวแปร ไม่ใช่แค่ field
     let remainingPrincipal = loanAmount;
 
     for (let month = 1; month <= termMonths; month++) {
-      // FIX 1: dueDate คำนวณจาก firstPaymentDate ไม่ใช่ disbursedOn
       const dueDate = addMonths(firstPaymentDate, month - 1);
 
       const interestPayment = remainingPrincipal * monthlyRate;
       const principalPayment = monthlyPayment - interestPayment;
-      remainingPrincipal -= principalPayment;
+
+      // FIX 2: clamp เพื่อป้องกัน floating-point drift ก่อนใช้งวดถัดไป
+      remainingPrincipal = Math.max(0, remainingPrincipal - principalPayment);
 
       const daysSinceDue = Math.floor(
         (currentDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)
@@ -723,13 +749,8 @@ async function seedCompleteSystem2025() {
       let paymentStatus = 'UNPAID';
       let daysOverdue = 0;
 
-      // FIX: สร้างทุกงวดตลอด term แล้ว mark status ให้ถูกต้อง
       if (dueDate > currentDate) {
-        // งวดที่ยังไม่ถึงกำหนด
         paymentStatus = 'FUTURE';
-      } else if (daysSinceDue <= 0) {
-        // งวดที่เพิ่งครบกำหนดวันนี้หรือยังไม่ครบ
-        paymentStatus = 'UNPAID';
       } else if (cd.scenario === 'GOOD_PAYER' || cd.scenario === 'EARLY_PAYER') {
         paymentStatus = 'PAID';
       } else if (cd.scenario === 'LATE_PAYER') {
@@ -740,24 +761,16 @@ async function seedCompleteSystem2025() {
           daysOverdue = daysSinceDue > 30 ? daysSinceDue : 0;
         }
       } else if (cd.scenario.startsWith('NPL')) {
-        /**
-         * FIX 2: NPL จะเป็น OVERDUE ก็ต่อเมื่อ
-         *   - ค้างชำระมาแล้ว >= 90 วัน
-         *   - และเป็นงวดที่ 4 เป็นต้นไป (3 งวดแรกยังชำระปกติ)
-         * ระหว่าง 0-90 วันหลัง due → PARTIAL หรือ UNPAID เท่านั้น
-         */
         if (month <= 3) {
-          // 3 งวดแรก: ลูกค้ายังพอชำระได้
           paymentStatus = Math.random() < 0.5 ? 'PAID' : 'PARTIAL';
         } else if (daysSinceDue >= 90) {
-          // ค้างเกิน 90 วัน → OVERDUE จริงๆ
           paymentStatus = 'OVERDUE';
           daysOverdue = daysSinceDue;
-        } else {
-          // ค้างแต่ยังไม่ถึง 90 วัน → LATE / PARTIAL ยังไม่ใช่ NPL
+        } else if (daysSinceDue > 0) {
           paymentStatus = Math.random() < 0.4 ? 'PARTIAL' : 'UNPAID';
           daysOverdue = daysSinceDue;
         }
+        // else: งวดที่ยังไม่ถึงกำหนด → UNPAID (default ข้างบนครอบคลุมแล้ว)
       }
 
       const schedule = await prisma.paymentSchedule.create({
@@ -768,10 +781,10 @@ async function seedCompleteSystem2025() {
           principalAmount: principalPayment,
           interestAmount: interestPayment,
           totalPayment: monthlyPayment,
-          remainingBalance: Math.max(0, remainingPrincipal),
+          remainingBalance: remainingPrincipal,
           status: paymentStatus as any,
           daysOverdue: daysOverdue > 0 ? daysOverdue : 0,
-          paidAmount: 0, // เริ่มต้นที่ 0 จะ update ใน Step 10
+          paidAmount: 0,
         },
       });
 
@@ -795,17 +808,26 @@ async function seedCompleteSystem2025() {
 
     if (sr.status !== 'PAID' && sr.status !== 'PARTIAL') continue;
 
+    const disbursedOn: Date = (lr as any).disbursementDate ?? addDays(lr.startDate, 7);
+
     let paymentAmount = Number(sr.totalPayment);
-    let paymentDate: Date = sr.paymentDate;
+    let paymentDate: Date = new Date(sr.paymentDate);
 
     if (sr.status === 'PARTIAL') {
       paymentAmount = paymentAmount * randomDecimal(0.3, 0.8);
     }
 
     if (cd.scenario === 'LATE_PAYER') {
-      paymentDate = addDays(sr.paymentDate, randomBetween(1, 15));
+      const late = addDays(sr.paymentDate, randomBetween(1, 15));
+      // FIX 4: clamp ไม่ให้ paymentDate เกิน currentDate
+      paymentDate = clampDate(late, disbursedOn, currentDate);
     } else if (cd.scenario === 'EARLY_PAYER') {
-      paymentDate = addDays(sr.paymentDate, -randomBetween(1, 5));
+      const early = addDays(sr.paymentDate, -randomBetween(1, 5));
+      // FIX 5: clamp ไม่ให้ paymentDate ก่อน disbursementDate
+      paymentDate = clampDate(early, disbursedOn, currentDate);
+    } else {
+      // GOOD_PAYER / NPL: ชำระตรงวัน แต่ไม่เกิน currentDate
+      paymentDate = clampDate(paymentDate, disbursedOn, currentDate);
     }
 
     const payment = await prisma.payment.create({
@@ -825,21 +847,23 @@ async function seedCompleteSystem2025() {
     });
     createdPayments.push(payment);
 
-    // FIX: Update schedule.paidAmount
+    // FIX 7: ใช้ increment แทน set เผื่อ multi-payment ในอนาคต
     await prisma.paymentSchedule.update({
       where: { id: sr.id },
-      data: { paidAmount: paymentAmount },
-    });
-
-    // FIX: Update loan.outstandingBalance
-    await prisma.loan.update({
-      where: { id: lr.id },
       data: {
-        outstandingBalance: {
-          decrement: paymentAmount,
+        paidAmount: {
+          increment: paymentAmount,
         },
       },
     });
+
+    // FIX 3: ป้องกัน outstandingBalance ติดลบ — ใช้ raw update ด้วย GREATEST
+    // (Prisma ไม่รองรับ GREATEST โดยตรง จึงใช้ $executeRaw)
+    await prisma.$executeRaw`
+      UPDATE "Loan"
+      SET "outstandingBalance" = GREATEST(0, "outstandingBalance" - ${paymentAmount})
+      WHERE "id" = ${lr.id}
+    `;
 
     await prisma.transaction.create({
       data: {
@@ -868,8 +892,8 @@ async function seedCompleteSystem2025() {
   console.log('\n📞 Step 11: Creating collection actions for overdue accounts...');
 
   const createdCollectionActions = [];
-  
-  // FIX: Filter เฉพาะ schedules ที่มี actual overdue status และ daysOverdue > 0
+
+  // Filter เฉพาะ schedules ที่มี actual overdue status และ daysOverdue > 0
   const overdueSchedules = createdSchedules.filter(
     (s) => (s.status === 'OVERDUE' || s.status === 'UNPAID') && s.daysOverdue > 0
   );
@@ -880,22 +904,29 @@ async function seedCompleteSystem2025() {
     const cd = sr.customerData;
     const lr = sr.loanRecord;
     const officer = lr.officer;
-    
-    // จำนวน action ขึ้นอยู่กับ daysOverdue จริงๆ ไม่ใช่ scenario
+
     let numActions = 1;
     if (sr.daysOverdue >= 90) {
-      numActions = randomBetween(4, 6); // NPL level
+      numActions = randomBetween(4, 6);
     } else if (sr.daysOverdue >= 30) {
-      numActions = randomBetween(2, 4); // Medium overdue
+      numActions = randomBetween(2, 4);
     } else {
-      numActions = randomBetween(1, 2); // Early overdue
+      numActions = randomBetween(1, 2);
     }
 
     for (let j = 0; j < numActions; j++) {
-      const actionDate = addDays(sr.paymentDate, randomBetween(sr.daysOverdue / 2, sr.daysOverdue));
+      // FIX 8: ใช้ Math.ceil และ guard daysOverdue > 0 ป้องกัน invalid range
+      const halfDays = Math.ceil(sr.daysOverdue / 2);
+      const actionDate = addDays(
+        sr.paymentDate,
+        randomBetween(halfDays, sr.daysOverdue)
+      );
+
+      // ข้ามถ้า actionDate อยู่ในอนาคต
       if (actionDate > currentDate) continue;
 
-      const priority = sr.daysOverdue >= 90 ? 'HIGH' : sr.daysOverdue >= 30 ? 'MEDIUM' : 'LOW';
+      const priority =
+        sr.daysOverdue >= 90 ? 'HIGH' : sr.daysOverdue >= 30 ? 'MEDIUM' : 'LOW';
 
       const action = await prisma.collectionAction.create({
         data: {
@@ -966,21 +997,27 @@ async function seedCompleteSystem2025() {
   console.log('─'.repeat(60));
 
   // Scenario breakdown
-  const scenarioCount = createdCustomers.reduce((acc, c) => {
-    const s = c.scenario.scenario as string;
-    acc[s] = (acc[s] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const scenarioCount = createdCustomers.reduce(
+    (acc, c) => {
+      const s = c.scenario.scenario as string;
+      acc[s] = (acc[s] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
   console.log('  Customer scenarios:');
   for (const [scenario, count] of Object.entries(scenarioCount)) {
     console.log(`    ${scenario.padEnd(18)}: ${count}`);
   }
 
   // Schedule status breakdown
-  const statusCount = createdSchedules.reduce((acc, s) => {
-    acc[s.status] = (acc[s.status] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const statusCount = createdSchedules.reduce(
+    (acc, s) => {
+      acc[s.status] = (acc[s.status] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
   console.log('  Schedule statuses:');
   for (const [status, count] of Object.entries(statusCount)) {
     console.log(`    ${status.padEnd(18)}: ${count}`);
@@ -988,14 +1025,15 @@ async function seedCompleteSystem2025() {
 
   console.log('═'.repeat(60));
   console.log('\n🎉 Seed completed successfully!\n');
-  console.log('Fixes applied:');
-  console.log('  ✅ งวดแรก = วันที่ 1 ของเดือนถัดจากวันเบิกจ่ายเสมอ');
-  console.log('  ✅ NPL จะเป็น OVERDUE ก็ต่อเมื่อค้างชำระ >= 90 วันจริงๆ');
-  console.log('  ✅ applicationMonth ของ NPL ≤ 12 (loan เริ่มก่อน currentDate)');
-  console.log('  ✅ สร้าง schedule ทุกงวดตลอด term (ไม่ break กลาง loop)');
-  console.log('  ✅ Update loan.outstandingBalance หลังรับ payment');
-  console.log('  ✅ Update schedule.paidAmount หลังรับ payment');
-  console.log('  ✅ Collection actions filter จาก actual overdue status');
+  console.log('Fixes applied (v2):');
+  console.log('  ✅ [FIX 1] contract_number/customerCode unique — ใช้ shortId() (UUID-based)');
+  console.log('  ✅ [FIX 2] remainingPrincipal clamp ทั้งตัวแปร ป้องกัน amortization drift');
+  console.log('  ✅ [FIX 3] outstandingBalance ใช้ GREATEST(0, balance - payment) ป้องกันติดลบ');
+  console.log('  ✅ [FIX 4] LATE_PAYER paymentDate clamp ไม่เกิน currentDate');
+  console.log('  ✅ [FIX 5] EARLY_PAYER paymentDate clamp ไม่ก่อน disbursementDate');
+  console.log('  ✅ [FIX 6] taxId ใส่ seedRunTs (13 หลัก) ป้องกัน unique violation เมื่อ re-seed');
+  console.log('  ✅ [FIX 7] paidAmount ใช้ increment แทน set');
+  console.log('  ✅ [FIX 8] Collection actionDate ใช้ Math.ceil + guard range');
 }
 
 // ─── Entry point ───────────────────────────────────────────────────────────────
@@ -1012,8 +1050,7 @@ async function main() {
 }
 
 const isMainModule =
-  process.argv[1] &&
-  process.argv[1].endsWith('seed-complete-system-2025.ts');
+  process.argv[1] && process.argv[1].endsWith('seed-complete-system-2025.ts');
 
 if (isMainModule) {
   main()

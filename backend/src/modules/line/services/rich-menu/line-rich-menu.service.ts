@@ -54,7 +54,7 @@ export class LineRichMenuService {
             );
             return { richMenuId: response.data.richMenuId };
         } catch (error: any) {
-            return { error: error.message };
+            return { error: 'ไม่สามารถสร้าง Rich Menu ได้' };
         }
     }
 
@@ -65,7 +65,7 @@ export class LineRichMenuService {
             });
             return { richmenus: response.data.richmenus || [] };
         } catch (error: any) {
-            return { richmenus: [], error: error.message };
+            return { richmenus: [], error: 'ไม่สามารถโหลดรายการ Rich Menu ได้' };
         }
     }
 
@@ -78,7 +78,7 @@ export class LineRichMenuService {
             );
             return { success: true };
         } catch (error: any) {
-            return { success: false, error: error.message };
+            return { success: false, error: 'ไม่สามารถตั้งค่า Rich Menu เริ่มต้นได้' };
         }
     }
 
@@ -92,7 +92,7 @@ export class LineRichMenuService {
             );
             return { success: true };
         } catch (error: any) {
-            return { success: false, error: error.message };
+            return { success: false, error: 'ไม่สามารถอัปโหลดรูปภาพ Rich Menu ได้' };
         }
     }
 
@@ -103,7 +103,7 @@ export class LineRichMenuService {
             });
             return { success: true };
         } catch (error: any) {
-            return { success: false, error: error.message };
+            return { success: false, error: 'ไม่สามารถลบ Rich Menu ได้' };
         }
     }
 }

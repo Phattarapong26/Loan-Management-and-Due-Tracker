@@ -6,6 +6,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { thaiAddressService } from '../services/thai-address.service';
 import { logger } from '@utils/common/logger.util';
+import { ResponseUtil } from '@utils/formatting/response.util';
 
 export class ThaiAddressController {
   /**
@@ -18,7 +19,7 @@ export class ThaiAddressController {
       return reply.send(provinces);
     } catch (error: any) {
       logger.error({ error }, 'Error in getProvinces');
-      return reply.code(500).send({ error: error.message });
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดข้อมูลจังหวัดได้', 500, 'LOAD_ERROR');
     }
   }
 
@@ -34,14 +35,14 @@ export class ThaiAddressController {
       const { province } = request.query;
       
       if (!province) {
-        return reply.code(400).send({ error: 'Province parameter is required' });
+        return ResponseUtil.error(reply, 'กรุณาระบุจังหวัด', 400, 'REQUIRED_FIELD');
       }
 
       const districts = thaiAddressService.getDistrictsByProvinceName(province);
       return reply.send(districts);
     } catch (error: any) {
       logger.error({ error }, 'Error in getDistricts');
-      return reply.code(500).send({ error: error.message });
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดข้อมูลอำเภอ/เขตได้', 500, 'LOAD_ERROR');
     }
   }
 
@@ -57,14 +58,14 @@ export class ThaiAddressController {
       const { province, district } = request.query;
       
       if (!province || !district) {
-        return reply.code(400).send({ error: 'Province and district parameters are required' });
+        return ResponseUtil.error(reply, 'กรุณาระบุจังหวัดและอำเภอ/เขต', 400, 'REQUIRED_FIELD');
       }
 
       const subdistricts = thaiAddressService.getSubdistrictsByDistrictName(district, province);
       return reply.send(subdistricts);
     } catch (error: any) {
       logger.error({ error }, 'Error in getSubdistricts');
-      return reply.code(500).send({ error: error.message });
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดข้อมูลตำบล/แขวงได้', 500, 'LOAD_ERROR');
     }
   }
 
@@ -82,21 +83,24 @@ export class ThaiAddressController {
       const { province, district, subdistrict } = request.query;
       
       if (!province || !district || !subdistrict) {
-        return reply.code(400).send({ 
-          error: 'Province, district, and subdistrict parameters are required' 
-        });
+        return ResponseUtil.error(
+          reply, 
+          'กรุณาระบุจังหวัด อำเภอ/เขต และตำบล/แขวง', 
+          400, 
+          'REQUIRED_FIELD'
+        );
       }
 
       const postalCode = thaiAddressService.getPostalCode(subdistrict, district, province);
       
       if (!postalCode) {
-        return reply.code(404).send({ error: 'Postal code not found' });
+        return ResponseUtil.notFound(reply, 'ไม่พบรหัสไปรษณีย์');
       }
 
       return reply.send({ postalCode });
     } catch (error: any) {
       logger.error({ error }, 'Error in getPostalCode');
-      return reply.code(500).send({ error: error.message });
+      return ResponseUtil.error(reply, 'ไม่สามารถค้นหารหัสไปรษณีย์ได้', 500, 'LOAD_ERROR');
     }
   }
 }

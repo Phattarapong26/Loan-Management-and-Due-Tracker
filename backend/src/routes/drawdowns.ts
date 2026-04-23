@@ -17,7 +17,7 @@ router.post('/', async (req, res) => {
     const drawdown = await drawdownService.createDrawdown(req.body);
     res.status(201).json(drawdown);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถสร้างรายการเบิกเงินได้ กรุณาตรวจสอบข้อมูล' });
   }
 });
 
@@ -37,7 +37,7 @@ router.get('/', async (req, res) => {
     });
     res.json(drawdowns);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดรายการเบิกเงินได้' });
   }
 });
 
@@ -50,7 +50,7 @@ router.get('/statistics', async (req, res) => {
     const stats = await drawdownService.getStatistics();
     res.json(stats);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดสถิติได้' });
   }
 });
 
@@ -66,7 +66,7 @@ router.get('/maturing', async (req, res) => {
     );
     res.json(drawdowns);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดรายการที่จะครบกำหนดได้' });
   }
 });
 
@@ -79,7 +79,7 @@ router.get('/credit-line/:creditLineId', async (req, res) => {
     const drawdowns = await drawdownService.getDrawdownsByCreditLineId(req.params.creditLineId);
     res.json(drawdowns);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดรายการเบิกเงินได้' });
   }
 });
 
@@ -91,11 +91,11 @@ router.get('/:id', async (req, res) => {
   try {
     const drawdown = await drawdownService.getDrawdownById(req.params.id);
     if (!drawdown) {
-      return res.status(404).json({ error: 'Drawdown not found' });
+      return res.status(404).json({ error: 'ไม่พบรายการเบิกเงิน' });
     }
     res.json(drawdown);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดรายการเบิกเงินได้' });
   }
 });
 
@@ -108,7 +108,7 @@ router.put('/:id', async (req, res) => {
     const drawdown = await drawdownService.updateDrawdown(req.params.id, req.body);
     res.json(drawdown);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถอัปเดตรายการเบิกเงินได้' });
   }
 });
 
@@ -121,7 +121,7 @@ router.post('/:id/repay', async (req, res) => {
     const drawdown = await drawdownService.repayDrawdown(req.params.id);
     res.json(drawdown);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถชำระคืนได้' });
   }
 });
 
@@ -134,7 +134,7 @@ router.post('/:id/cancel', async (req, res) => {
     const drawdown = await drawdownService.cancelDrawdown(req.params.id);
     res.json(drawdown);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถยกเลิกรายการเบิกเงินได้' });
   }
 });
 
@@ -147,7 +147,7 @@ router.delete('/:id', async (req, res) => {
     await drawdownService.deleteDrawdown(req.params.id);
     res.status(204).send();
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถลบรายการเบิกเงินได้' });
   }
 });
 

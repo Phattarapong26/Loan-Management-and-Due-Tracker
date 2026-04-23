@@ -34,7 +34,6 @@ export class DocumentRepository {
                 mimeType: input.mimeType,
                 fileHash: input.fileHash,
                 uploadedBy: input.uploadedBy,
-                aiStatus: 'pending',
             },
         });
     }
@@ -83,7 +82,7 @@ export class DocumentRepository {
         }
 
         if (params.status) {
-            where.aiStatus = params.status;
+            where.reviewStatus = params.status;
         }
 
         if (params.documentType) {
@@ -110,94 +109,6 @@ export class DocumentRepository {
         ]);
 
         return { documents, total };
-    }
-
-    /**
-     * Update document status
-     */
-    async updateStatus(id: string, status: string) {
-        return prisma.document.update({
-            where: { id },
-            data: { aiStatus: status },
-        });
-    }
-
-    /**
-     * Update document with AI results
-     */
-    async updateWithAIResults(
-        id: string,
-        data: {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            extractedData: any;
-            confidenceScore: number;
-            warnings?: string[];
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            enhancedData?: any;
-            processingVersion?: string;
-        }
-    ) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const updateData: any = {
-            aiProcessed: true,
-            aiStatus: 'completed',
-            extractedData: data.extractedData,
-            confidenceScore: data.confidenceScore,
-        };
-
-        // Add enhanced data if available
-        if (data.enhancedData) {
-            updateData.enhancedData = data.enhancedData;
-        }
-
-        // Add processing version if available
-        if (data.processingVersion) {
-            updateData.processingVersion = data.processingVersion;
-        }
-
-        // Add document subtype from enhanced data
-        if (data.enhancedData?.documentType) {
-            updateData.documentSubtype = data.enhancedData.documentType;
-        }
-
-        return prisma.document.update({
-            where: { id },
-            data: updateData,
-        });
-    }
-
-    /**
-     * Get AI results for document
-     */
-    async getAIResults(documentId: string) {
-        const document = await prisma.document.findUnique({
-            where: { id: documentId },
-            select: {
-                extractedData: true,
-                confidenceScore: true,
-                aiStatus: true,
-                aiProcessed: true,
-                enhancedData: true,
-                processingVersion: true,
-                documentSubtype: true,
-            },
-        });
-
-        if (!document || !document.aiProcessed) {
-            return null;
-        }
-
-        return {
-            document_id: documentId,
-            extracted_data: document.extractedData,
-            confidence_score: document.confidenceScore,
-            enhanced_data: document.enhancedData,
-            processing_version: document.processingVersion || 'v1',
-            document_subtype: document.documentSubtype,
-            processed_at: new Date().toISOString(),
-            created_at: new Date().toISOString(),
-            warnings: [],
-        };
     }
 
     /**

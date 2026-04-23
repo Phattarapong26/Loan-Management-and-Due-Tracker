@@ -37,7 +37,7 @@ export interface Customer {
     registrationDate?: string | Date;
     employees?: number;
     pumpCount?: number;
-    aiExtractedData?: Record<string, unknown>; // Business profile data from AI parsing
+    aiExtractedData?: Record<string, unknown>; // Business profile data from Excel parsing
     createdByName?: string;
     createdByUser?: { id: string; firstName: string; lastName: string } | null;
     _count?: { loans?: number };
@@ -131,10 +131,7 @@ export interface Document {
     filePath: string;
     fileSize: number;
     mimeType: string;
-    status: 'PENDING' | 'PROCESSED' | 'FAILED' | 'processing' | 'completed' | 'failed';
-    aiResults?: Record<string, unknown>;
-    aiProcessed: boolean;
-    aiStatus?: string;
+    extractedData?: Record<string, unknown>;
     confidenceScore?: number;
     reviewStatus: string;
     uploadedBy: string;

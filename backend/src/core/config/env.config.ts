@@ -91,9 +91,6 @@ const envSchema = z.object({
     // Payment Webhook (optional, defaults to LINE_CHANNEL_SECRET if not provided)
     PAYMENT_WEBHOOK_SECRET: z.string().optional(),
 
-    // Google Gemini AI
-    GEMINI_API_KEY: z.string().optional(),
-
     // SMTP Email (nodemailer)
     SMTP_HOST: z.string().default('smtp.gmail.com'),
     SMTP_PORT: z.string().default('587'),

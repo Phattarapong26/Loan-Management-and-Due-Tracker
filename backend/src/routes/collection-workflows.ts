@@ -17,7 +17,7 @@ router.post('/', async (req, res) => {
     const step = await collectionWorkflowService.createWorkflowStep(req.body);
     res.status(201).json(step);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถสร้างขั้นตอนการทำงานได้ กรุณาตรวจสอบข้อมูล' });
   }
 });
 
@@ -35,7 +35,7 @@ router.get('/', async (req, res) => {
     });
     res.json(steps);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดข้อมูลขั้นตอนการทำงานได้' });
   }
 });
 
@@ -48,7 +48,7 @@ router.get('/statistics', async (req, res) => {
     const stats = await collectionWorkflowService.getWorkflowStatistics();
     res.json(stats);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดสถิติได้' });
   }
 });
 
@@ -61,11 +61,11 @@ router.get('/for-overdue/:days', async (req, res) => {
     const days = parseInt(req.params.days);
     const step = await collectionWorkflowService.getWorkflowStepForDaysOverdue(days);
     if (!step) {
-      return res.status(404).json({ error: 'No workflow step found for this overdue period' });
+      return res.status(404).json({ error: 'ไม่พบขั้นตอนการทำงานสำหรับช่วงค้างชำระนี้' });
     }
     res.json(step);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดขั้นตอนการทำงานได้' });
   }
 });
 
@@ -77,11 +77,11 @@ router.get('/:id', async (req, res) => {
   try {
     const step = await collectionWorkflowService.getWorkflowStepById(req.params.id);
     if (!step) {
-      return res.status(404).json({ error: 'Workflow step not found' });
+      return res.status(404).json({ error: 'ไม่พบขั้นตอนการทำงาน' });
     }
     res.json(step);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดขั้นตอนการทำงานได้' });
   }
 });
 
@@ -94,7 +94,7 @@ router.put('/:id', async (req, res) => {
     const step = await collectionWorkflowService.updateWorkflowStep(req.params.id, req.body);
     res.json(step);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถอัปเดตขั้นตอนการทำงานได้' });
   }
 });
 
@@ -108,7 +108,7 @@ router.patch('/:id/toggle', async (req, res) => {
     const step = await collectionWorkflowService.toggleWorkflowStep(req.params.id, isActive);
     res.json(step);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถเปลี่ยนสถานะขั้นตอนการทำงานได้' });
   }
 });
 
@@ -121,7 +121,7 @@ router.delete('/:id', async (req, res) => {
     await collectionWorkflowService.deleteWorkflowStep(req.params.id);
     res.status(204).send();
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถลบขั้นตอนการทำงานได้' });
   }
 });
 

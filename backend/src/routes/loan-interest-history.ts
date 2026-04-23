@@ -17,7 +17,7 @@ router.post('/', async (req, res) => {
     const history = await loanInterestHistoryService.createInterestHistory(req.body);
     res.status(201).json(history);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถบันทึกประวัติดอกเบี้ยได้ กรุณาตรวจสอบข้อมูล' });
   }
 });
 
@@ -29,9 +29,9 @@ router.post('/bulk', async (req, res) => {
   try {
     const { records } = req.body;
     const count = await loanInterestHistoryService.bulkCreateInterestHistory(records);
-    res.status(201).json({ count, message: `Created ${count} records` });
+    res.status(201).json({ count, message: `สร้าง ${count} รายการสำเร็จ` });
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถบันทึกประวัติดอกเบี้ยได้ กรุณาตรวจสอบข้อมูล' });
   }
 });
 
@@ -52,7 +52,7 @@ router.get('/', async (req, res) => {
     });
     res.json(history);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดประวัติดอกเบี้ยได้' });
   }
 });
 
@@ -65,7 +65,7 @@ router.get('/statistics', async (req, res) => {
     const stats = await loanInterestHistoryService.getStatistics();
     res.json(stats);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดสถิติได้' });
   }
 });
 
@@ -78,7 +78,7 @@ router.get('/loan/:loanId', async (req, res) => {
     const history = await loanInterestHistoryService.getInterestHistoryByLoanId(req.params.loanId);
     res.json(history);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดประวัติดอกเบี้ยได้' });
   }
 });
 
@@ -91,7 +91,7 @@ router.get('/loan/:loanId/total', async (req, res) => {
     const total = await loanInterestHistoryService.calculateTotalInterest(req.params.loanId);
     res.json(total);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถคำนวณดอกเบี้ยรวมได้' });
   }
 });
 
@@ -104,7 +104,7 @@ router.get('/loan/:loanId/rate-changes', async (req, res) => {
     const changes = await loanInterestHistoryService.getInterestRateChanges(req.params.loanId);
     res.json(changes);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดประวัติการเปลี่ยนแปลงอัตราดอกเบี้ยได้' });
   }
 });
 
@@ -119,11 +119,11 @@ router.get('/loan/:loanId/payment/:paymentNumber', async (req, res) => {
       parseInt(req.params.paymentNumber)
     );
     if (!history) {
-      return res.status(404).json({ error: 'Interest history not found' });
+      return res.status(404).json({ error: 'ไม่พบประวัติดอกเบี้ย' });
     }
     res.json(history);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดประวัติดอกเบี้ยได้' });
   }
 });
 
@@ -135,7 +135,7 @@ router.get('/loan/:loanId/date-range', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     if (!startDate || !endDate) {
-      return res.status(400).json({ error: 'startDate and endDate are required' });
+      return res.status(400).json({ error: 'กรุณาระบุวันที่เริ่มต้นและวันที่สิ้นสุด' });
     }
     const history = await loanInterestHistoryService.getInterestHistoryByDateRange(
       req.params.loanId,
@@ -144,7 +144,7 @@ router.get('/loan/:loanId/date-range', async (req, res) => {
     );
     res.json(history);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดประวัติดอกเบี้ยได้' });
   }
 });
 
@@ -156,11 +156,11 @@ router.get('/:id', async (req, res) => {
   try {
     const history = await loanInterestHistoryService.getInterestHistoryById(req.params.id);
     if (!history) {
-      return res.status(404).json({ error: 'Interest history not found' });
+      return res.status(404).json({ error: 'ไม่พบประวัติดอกเบี้ย' });
     }
     res.json(history);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดประวัติดอกเบี้ยได้' });
   }
 });
 
@@ -173,7 +173,7 @@ router.delete('/:id', async (req, res) => {
     await loanInterestHistoryService.deleteInterestHistory(req.params.id);
     res.status(204).send();
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถลบประวัติดอกเบี้ยได้' });
   }
 });
 

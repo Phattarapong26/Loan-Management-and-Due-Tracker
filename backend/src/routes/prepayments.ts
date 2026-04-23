@@ -17,7 +17,7 @@ router.post('/', async (req, res) => {
     const prepayment = await prepaymentService.createPrepayment(req.body);
     res.status(201).json(prepayment);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถดำเนินการได้ กรุณาตรวจสอบข้อมูล' });
   }
 });
 
@@ -38,7 +38,7 @@ router.post('/calculate-impact', async (req, res) => {
     );
     res.json(impact);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถดำเนินการได้ กรุณาตรวจสอบข้อมูล' });
   }
 });
 
@@ -59,7 +59,7 @@ router.get('/', async (req, res) => {
     });
     res.json(prepayments);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดข้อมูลการชำระเงินล่วงหน้าได้' });
   }
 });
 
@@ -72,7 +72,7 @@ router.get('/statistics', async (req, res) => {
     const stats = await prepaymentService.getStatistics();
     res.json(stats);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดข้อมูลการชำระเงินล่วงหน้าได้' });
   }
 });
 
@@ -85,7 +85,7 @@ router.get('/loan/:loanId', async (req, res) => {
     const prepayments = await prepaymentService.getPrepaymentsByLoanId(req.params.loanId);
     res.json(prepayments);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดข้อมูลการชำระเงินล่วงหน้าได้' });
   }
 });
 
@@ -98,7 +98,7 @@ router.get('/loan/:loanId/total', async (req, res) => {
     const total = await prepaymentService.calculateTotalPrepayments(req.params.loanId);
     res.json(total);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดข้อมูลการชำระเงินล่วงหน้าได้' });
   }
 });
 
@@ -110,11 +110,11 @@ router.get('/:id', async (req, res) => {
   try {
     const prepayment = await prepaymentService.getPrepaymentById(req.params.id);
     if (!prepayment) {
-      return res.status(404).json({ error: 'Prepayment not found' });
+      return res.status(404).json({ error: 'ไม่พบรายการชำระเงินล่วงหน้า' });
     }
     res.json(prepayment);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดข้อมูลการชำระเงินล่วงหน้าได้' });
   }
 });
 
@@ -127,7 +127,7 @@ router.put('/:id', async (req, res) => {
     const prepayment = await prepaymentService.updatePrepayment(req.params.id, req.body);
     res.json(prepayment);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถดำเนินการได้ กรุณาตรวจสอบข้อมูล' });
   }
 });
 
@@ -141,7 +141,7 @@ router.post('/:id/process', async (req, res) => {
     const prepayment = await prepaymentService.processPrepayment(req.params.id, processedBy);
     res.json(prepayment);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถดำเนินการได้ กรุณาตรวจสอบข้อมูล' });
   }
 });
 
@@ -154,7 +154,7 @@ router.delete('/:id', async (req, res) => {
     await prepaymentService.deletePrepayment(req.params.id);
     res.status(204).send();
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถดำเนินการได้ กรุณาตรวจสอบข้อมูล' });
   }
 });
 

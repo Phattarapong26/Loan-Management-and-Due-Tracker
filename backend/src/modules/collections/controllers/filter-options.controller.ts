@@ -6,6 +6,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { filterOptionsService } from '../services/filter-options.service';
 import { logger } from '@utils/common/logger.util';
+import { ResponseUtil } from '@utils/formatting/response.util';
 
 export class FilterOptionsController {
   /**
@@ -17,7 +18,7 @@ export class FilterOptionsController {
       return reply.send(branches);
     } catch (error: any) {
       logger.error({ error }, 'Error in getBranches');
-      return reply.code(500).send({ error: error.message });
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดข้อมูลสาขาได้', 500, 'LOAD_ERROR');
     }
   }
 
@@ -30,7 +31,7 @@ export class FilterOptionsController {
       return reply.send(regions);
     } catch (error: any) {
       logger.error({ error }, 'Error in getRegions');
-      return reply.code(500).send({ error: error.message });
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดข้อมูลภูมิภาคได้', 500, 'LOAD_ERROR');
     }
   }
 
@@ -47,7 +48,7 @@ export class FilterOptionsController {
       return reply.send(zones);
     } catch (error: any) {
       logger.error({ error }, 'Error in getZones');
-      return reply.code(500).send({ error: error.message });
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดข้อมูลโซนได้', 500, 'LOAD_ERROR');
     }
   }
 
@@ -60,7 +61,7 @@ export class FilterOptionsController {
       return reply.send(years);
     } catch (error: any) {
       logger.error({ error }, 'Error in getYears');
-      return reply.code(500).send({ error: error.message });
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดข้อมูลปีได้', 500, 'LOAD_ERROR');
     }
   }
 }

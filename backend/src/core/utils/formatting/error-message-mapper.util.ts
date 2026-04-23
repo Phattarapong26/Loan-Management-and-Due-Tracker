@@ -154,9 +154,71 @@ export class ErrorMessageMapper {
             userMessage: 'Role ของผู้รับไม่รองรับการแจ้งเตือนนี้',
             nextSteps: [
                 'เลือกผู้รับที่เป็น Admin / Manager / Officer',
-                'ตรวจสอบสิทธิ์และบทบาทผู้ใช้ในหน้า “จัดการผู้ใช้”'
+                'ตรวจสอบสิทธิ์และบทบาทผู้ใช้ในหน้า "จัดการผู้ใช้"'
             ],
             retryable: false
+        },
+        'WEBHOOK_ERROR': {
+            userMessage: 'เกิดข้อผิดพลาดในการประมวลผลข้อความจาก LINE',
+            nextSteps: [
+                'ตรวจสอบว่า Webhook URL ถูกต้อง',
+                'ตรวจสอบ Channel Access Token',
+                'ลองส่งข้อความใหม่อีกครั้ง'
+            ],
+            retryable: true
+        },
+        'NOTIFICATION_ERROR': {
+            userMessage: 'ไม่สามารถส่งการแจ้งเตือนได้',
+            nextSteps: [
+                'ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต',
+                'ตรวจสอบสิทธิ์การส่งข้อความ',
+                'ลองใหม่อีกครั้งในภายหลัง'
+            ],
+            retryable: true
+        },
+        'RICH_MENU_ERROR': {
+            userMessage: 'ไม่สามารถจัดการเมนู LINE ได้',
+            nextSteps: [
+                'ตรวจสอบการตั้งค่า Rich Menu',
+                'ตรวจสอบ Channel Access Token',
+                'ติดต่อผู้ดูแลระบบ'
+            ],
+            retryable: true
+        },
+        'REGISTRATION_ERROR': {
+            userMessage: 'ไม่สามารถสร้างรหัสลงทะเบียน LINE ได้',
+            nextSteps: [
+                'ตรวจสอบว่าบัญชี LINE นี้ยังไม่ได้ลงทะเบียน',
+                'ลองใหม่อีกครั้ง',
+                'ติดต่อเจ้าหน้าที่'
+            ],
+            retryable: true
+        },
+        'ALREADY_LINKED': {
+            userMessage: 'บัญชี LINE นี้เชื่อมต่อกับผู้ใช้อื่นแล้ว',
+            nextSteps: [
+                'ใช้บัญชี LINE อื่น',
+                'ติดต่อผู้ดูแลระบบเพื่อยกเลิกการเชื่อมต่อเดิม'
+            ],
+            retryable: false
+        },
+        'OTP_VERIFICATION_ERROR': {
+            userMessage: 'ไม่สามารถยืนยันรหัส OTP ได้',
+            nextSteps: [
+                'ตรวจสอบรหัส OTP ให้ถูกต้อง',
+                'ขอรหัส OTP ใหม่',
+                'ตรวจสอบอีเมลของคุณ'
+            ],
+            retryable: true
+        },
+        'TEST_MESSAGE_ERROR': {
+            userMessage: 'ไม่สามารถส่งข้อความทดสอบได้',
+            nextSteps: [
+                'ตรวจสอบการเชื่อมต่อ',
+                'ตรวจสอบ Channel Access Token',
+                'ลองใหม่อีกครั้ง'
+            ],
+            retryable: true
         },
 
         // ==================== Concurrency Errors ====================
@@ -249,6 +311,17 @@ export class ErrorMessageMapper {
             nextSteps: [
                 'กรุณารอสักครู่แล้วลองใหม่',
                 'ระบบจะพร้อมใช้งานอีกครั้งในอีก 1-2 นาที'
+            ],
+            retryable: true
+        },
+
+        // ==================== Data Loading Errors ====================
+        'LOAD_ERROR': {
+            userMessage: 'ไม่สามารถโหลดข้อมูลได้',
+            nextSteps: [
+                'กรุณารีเฟรชหน้าจอ',
+                'ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต',
+                'ลองใหม่อีกครั้งในภายหลัง'
             ],
             retryable: true
         },

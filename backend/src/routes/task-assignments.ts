@@ -17,7 +17,7 @@ router.post('/', async (req, res) => {
     const task = await taskAssignmentService.createTask(req.body);
     res.status(201).json(task);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถสร้างงานได้ กรุณาตรวจสอบข้อมูล' });
   }
 });
 
@@ -29,9 +29,9 @@ router.post('/bulk', async (req, res) => {
   try {
     const { tasks } = req.body;
     const count = await taskAssignmentService.bulkCreateTasks(tasks);
-    res.status(201).json({ count, message: `Created ${count} tasks` });
+    res.status(201).json({ count, message: `สร้างงาน ${count} รายการสำเร็จ` });
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถสร้างงานได้ กรุณาตรวจสอบข้อมูล' });
   }
 });
 
@@ -64,7 +64,7 @@ router.get('/', async (req, res) => {
     });
     res.json(tasks);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดรายการงานได้' });
   }
 });
 
@@ -81,7 +81,7 @@ router.get('/pending/:userId', async (req, res) => {
     );
     res.json(tasks);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดงานที่รอดำเนินการได้' });
   }
 });
 
@@ -95,7 +95,7 @@ router.get('/overdue', async (req, res) => {
     const tasks = await taskAssignmentService.getOverdueTasks(userId as string);
     res.json(tasks);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดงานที่เกินกำหนดได้' });
   }
 });
 
@@ -109,7 +109,7 @@ router.get('/statistics', async (req, res) => {
     const stats = await taskAssignmentService.getTaskStatistics(userId as string);
     res.json(stats);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดสถิติได้' });
   }
 });
 
@@ -121,11 +121,11 @@ router.get('/:id', async (req, res) => {
   try {
     const task = await taskAssignmentService.getTaskById(req.params.id);
     if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ error: 'ไม่พบงาน' });
     }
     res.json(task);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'ไม่สามารถโหลดงานได้' });
   }
 });
 
@@ -138,7 +138,7 @@ router.put('/:id', async (req, res) => {
     const task = await taskAssignmentService.updateTask(req.params.id, req.body);
     res.json(task);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถอัปเดตงานได้' });
   }
 });
 
@@ -152,7 +152,7 @@ router.post('/:id/complete', async (req, res) => {
     const task = await taskAssignmentService.completeTask(req.params.id, notes);
     res.json(task);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถเสร็จสิ้นงานได้' });
   }
 });
 
@@ -166,7 +166,7 @@ router.post('/:id/reassign', async (req, res) => {
     const task = await taskAssignmentService.reassignTask(req.params.id, newAssigneeId);
     res.json(task);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถมอบหมายงานใหม่ได้' });
   }
 });
 
@@ -180,7 +180,7 @@ router.post('/:id/cancel', async (req, res) => {
     const task = await taskAssignmentService.cancelTask(req.params.id, reason);
     res.json(task);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถยกเลิกงานได้' });
   }
 });
 
@@ -193,7 +193,7 @@ router.delete('/:id', async (req, res) => {
     await taskAssignmentService.deleteTask(req.params.id);
     res.status(204).send();
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: 'ไม่สามารถลบงานได้' });
   }
 });
 

@@ -764,7 +764,7 @@ export default function BranchManagerDashboard() {
 
       {/* Footer */}
       <footer className="mt-auto py-6 px-8 text-center text-slate-400 text-xs">
-        © 2024 K-Lending System. All rights reserved. Confidential Information.
+        © 2026 SME D BANK System. All rights reserved. Confidential Information.
       </footer>
 
       {/* Product Detail Modal */}

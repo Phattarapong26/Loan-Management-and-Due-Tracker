@@ -81,18 +81,6 @@ export class DocumentService {
             branchId,
         });
 
-        // Auto-process Excel files with AI
-        if (
-            file.mimetype.includes('spreadsheet') ||
-            file.mimetype.includes('excel')
-        ) {
-            console.log(`[Document Upload] Excel file detected: ${document.id}`);
-            console.log(`[Document Upload] ⚠️  Auto-processing DISABLED - Frontend will handle parsing`);
-            // NOTE: Auto-processing is disabled
-            // Frontend parses the file and sends parsed data via saveAIResults()
-            // This prevents duplicate parsing and ensures consistency
-        }
-
         return document;
     }
 
@@ -208,8 +196,6 @@ export class DocumentService {
 
         if (extractedData) {
             updateData.extractedData = extractedData;
-            updateData.aiStatus = 'completed';
-            updateData.aiProcessed = true;
         }
 
         const document = await this.documentRepository.update(documentId, updateData);
@@ -227,7 +213,6 @@ export class DocumentService {
 
         return this.documentRepository.update(documentId, {
             extractedData,
-            aiProcessed: true
         });
     }
 }

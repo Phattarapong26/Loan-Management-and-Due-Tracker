@@ -69,14 +69,14 @@ export class AuthController {
                 (authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : '');
 
             if (!token) {
-                return ResponseUtil.error(reply, 'No token provided', 400);
+                return ResponseUtil.error(reply, 'กรุณาระบุ token', 400, 'REQUIRED_FIELD');
             }
 
             await this.authService.logout(token);
 
             JWTUtil.clearAuthCookies(reply);
 
-            return ResponseUtil.success(reply, { message: 'Logged out successfully' });
+            return ResponseUtil.success(reply, { message: 'ออกจากระบบสำเร็จ' });
         } catch (error: any) {
             return ResponseUtil.error(reply, error.message, 400);
         }
@@ -158,7 +158,7 @@ export class AuthController {
     ) => {
         try {
             await this.authService.forgotPassword(request, request.body.email);
-            return ResponseUtil.success(reply, { message: 'Reset link sent to email if account exists' });
+            return ResponseUtil.success(reply, { message: 'ส่งลิงก์รีเซ็ตรหัสผ่านไปยังอีเมลแล้ว (หากบัญชีมีอยู่ในระบบ)' });
         } catch (error: any) {
             return ResponseUtil.error(reply, error.message, 400);
         }
@@ -177,7 +177,7 @@ export class AuthController {
                 request.body.token,
                 request.body.password
             );
-            return ResponseUtil.success(reply, { message: 'Password reset successfully' });
+            return ResponseUtil.success(reply, { message: 'รีเซ็ตรหัสผ่านสำเร็จ' });
         } catch (error: any) {
             return ResponseUtil.error(reply, error.message, 400);
         }
@@ -193,7 +193,7 @@ export class AuthController {
         try {
             const userId = (request.user as any).userId;
             await this.authService.changePassword(userId, request.body.currentPassword, request.body.newPassword);
-            return ResponseUtil.success(reply, { message: 'Password changed successfully' });
+            return ResponseUtil.success(reply, { message: 'เปลี่ยนรหัสผ่านสำเร็จ' });
         } catch (error: any) {
             return ResponseUtil.error(reply, error.message, 400);
         }

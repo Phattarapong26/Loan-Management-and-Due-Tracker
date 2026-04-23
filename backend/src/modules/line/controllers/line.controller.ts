@@ -23,7 +23,7 @@ export const lineController = {
             return reply.send(result);
         } catch (error: any) {
             console.error('Webhook processing error:', error);
-            return reply.status(500).send({ success: false, error: error.message });
+            return ResponseUtil.error(reply, 'เกิดข้อผิดพลาดในการประมวลผล webhook', 500, 'WEBHOOK_ERROR');
         }
     },
 
@@ -36,7 +36,7 @@ export const lineController = {
             const result = await notificationService.sendNotification(role, lineUserId, userId, testMode);
             return reply.send(result);
         } catch (error: any) {
-            return reply.status(500).send({ success: false, error: error.message });
+            return ResponseUtil.error(reply, 'ไม่สามารถส่งการแจ้งเตือนได้', 500, 'NOTIFICATION_ERROR');
         }
     },
 
@@ -297,7 +297,7 @@ export const lineController = {
                 },
             });
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message || 'Internal error', 500, 'INTERNAL_ERROR');
+            return ResponseUtil.error(reply, 'ไม่สามารถส่งข้อความทดสอบได้', 500, 'INTERNAL_ERROR');
         }
     },
 
@@ -308,7 +308,7 @@ export const lineController = {
             const result = await richMenuService.handleAction(action, richMenuId, imageUrl);
             return reply.send(result);
         } catch (error: any) {
-            return reply.status(500).send({ success: false, error: error.message });
+            return ResponseUtil.error(reply, 'ไม่สามารถจัดการ Rich Menu ได้', 500, 'RICH_MENU_ERROR');
         }
     },
 
@@ -344,10 +344,7 @@ export const lineController = {
                 expiresAt: tokenData.expiresAt
             });
         } catch (error: any) {
-            return reply.status(500).send({
-                success: false,
-                error: error.message
-            });
+            return ResponseUtil.error(reply, 'ไม่สามารถสร้างรหัสลงทะเบียนได้', 500, 'REGISTRATION_ERROR');
         }
     },
 
@@ -380,16 +377,10 @@ export const lineController = {
                 message: 'LINE account linked successfully'
             });
         } catch (error: any) {
-            if (error.message.includes('already linked')) {
-                return reply.status(400).send({
-                    success: false,
-                    error: error.message
-                });
+            if (error.message?.includes('already linked')) {
+                return ResponseUtil.error(reply, 'บัญชี LINE นี้เชื่อมต่อกับผู้ใช้อื่นแล้ว', 400, 'ALREADY_LINKED');
             }
-            return reply.status(500).send({
-                success: false,
-                error: error.message
-            });
+            return ResponseUtil.error(reply, 'ไม่สามารถยืนยันรหัส OTP ได้', 500, 'OTP_VERIFICATION_ERROR');
         }
     },
 
@@ -451,18 +442,18 @@ export const lineController = {
 
             return reply.send({
                 success: true,
-                message: 'OTP sent to your email address'
+                message: 'ส่งรหัส OTP ไปยังอีเมลของคุณแล้ว'
             });
         } catch (error: any) {
-            if (error.message.includes('rate limit')) {
+            if (error.message?.includes('rate limit')) {
                 return reply.status(429).send({
                     success: false,
-                    error: error.message
+                    error: 'คุณส่งคำขอบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่'
                 });
             }
             return reply.status(500).send({
                 success: false,
-                error: error.message
+                error: 'ไม่สามารถส่งรหัส OTP ได้'
             });
         }
     },
@@ -487,7 +478,7 @@ export const lineController = {
         } catch (error: any) {
             return reply.status(500).send({
                 success: false,
-                error: error.message,
+                error: 'ไม่สามารถโหลดการตั้งค่า LINE ได้',
             });
         }
     },
@@ -504,7 +495,7 @@ export const lineController = {
             if (!user) {
                 return reply.status(401).send({
                     success: false,
-                    error: 'Unauthorized',
+                    error: 'กรุณาเข้าสู่ระบบใหม่',
                 });
             }
 
@@ -521,7 +512,7 @@ export const lineController = {
             console.error('Error generating customer QR:', error);
             return reply.status(500).send({
                 success: false,
-                error: error.message,
+                error: 'ไม่สามารถสร้าง QR Code ได้',
             });
         }
     },
@@ -547,7 +538,7 @@ export const lineController = {
             console.error('Error checking QR status:', error);
             return reply.status(500).send({
                 success: false,
-                error: error.message,
+                error: 'ไม่สามารถตรวจสอบสถานะ QR Code ได้',
             });
         }
     },
@@ -563,7 +554,7 @@ export const lineController = {
             if (!authUser || authUser.userId !== userId) {
                 return reply.status(403).send({
                     success: false,
-                    error: 'Unauthorized'
+                    error: 'คุณไม่มีสิทธิ์เข้าถึง'
                 });
             }
 
@@ -572,7 +563,7 @@ export const lineController = {
                 if (!isValidToken) {
                     return reply.status(400).send({
                         success: false,
-                        error: 'Invalid or expired registration token'
+                        error: 'รหัสลงทะเบียนหมดอายุหรือไม่ถูกต้อง'
                     });
                 }
             }
@@ -581,12 +572,12 @@ export const lineController = {
 
             return reply.send({
                 success: true,
-                message: 'LINE account linked successfully'
+                message: 'เชื่อมต่อบัญชี LINE สำเร็จ'
             });
         } catch (error: any) {
             return reply.status(500).send({
                 success: false,
-                error: error.message
+                error: 'ไม่สามารถเชื่อมต่อบัญชี LINE ได้'
             });
         }
     },
@@ -602,7 +593,7 @@ export const lineController = {
             if (!authUser || (authUser.userId !== userId && authUser.role !== 'ADMIN')) {
                 return reply.status(403).send({
                     success: false,
-                    error: 'Unauthorized'
+                    error: 'คุณไม่มีสิทธิ์เข้าถึง'
                 });
             }
 
@@ -610,12 +601,12 @@ export const lineController = {
 
             return reply.send({
                 success: true,
-                message: 'LINE account unlinked successfully'
+                message: 'ยกเลิกการเชื่อมต่อ LINE สำเร็จ'
             });
         } catch (error: any) {
             return reply.status(500).send({
                 success: false,
-                error: error.message
+                error: 'ไม่สามารถยกเลิกการเชื่อมต่อบัญชี LINE ได้'
             });
         }
     },
@@ -635,7 +626,7 @@ export const lineController = {
         } catch (error: any) {
             return reply.status(500).send({
                 success: false,
-                error: error.message
+                error: 'ไม่สามารถตรวจสอบสถานะการเชื่อมต่อได้'
             });
         }
     },
@@ -669,7 +660,7 @@ export const lineController = {
             return reply.send({ success: true, message: 'Test message sent' });
         } catch (error: any) {
             console.error('Error sending test message:', error);
-            return reply.status(500).send({ success: false, error: error.message });
+            return ResponseUtil.error(reply, 'ไม่สามารถส่งข้อความทดสอบได้', 500, 'TEST_MESSAGE_ERROR');
         }
     }
 };
