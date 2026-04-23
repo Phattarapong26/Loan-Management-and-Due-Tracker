@@ -273,15 +273,16 @@ export class CustomerController {
      * Create customer from document (parsed business profile)
      */
     createFromDocument = async (
-        request: FastifyRequest<{ Body: { documentId: string; businessProfile: any } }>,
+        request: FastifyRequest<{ Body: { documentId: string; businessProfile: any; branchId?: string; officerId?: string } }>,
         reply: FastifyReply
     ) => {
         try {
-            const branchId = request.user!.branchId;
+            // Admin can pass branchId in body; others use their own branchId
+            const branchId = request.body.branchId || request.user!.branchId;
             if (!branchId) {
                 return ResponseUtil.error(
                     reply,
-                    'Branch ID is required',
+                    'Branch ID is required. Admin must provide branchId in request body.',
                     400,
                     'BRANCH_ID_REQUIRED'
                 );
@@ -291,7 +292,8 @@ export class CustomerController {
                 request.body.documentId,
                 request.body.businessProfile,
                 request.user!.userId,
-                branchId
+                branchId,
+                request.body.officerId
             );
 
             return ResponseUtil.success(reply, customer, 201);

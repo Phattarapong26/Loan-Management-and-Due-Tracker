@@ -12,6 +12,7 @@ export class DocumentRepository {
         fileHash: string;
         uploadedBy: string;
         branchId?: string;
+        officerId?: string;
     }) {
         // If customerId is provided, verify it exists
         if (input.customerId) {

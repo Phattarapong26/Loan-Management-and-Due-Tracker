@@ -81,10 +81,18 @@ export class DocumentController {
             const customerId = (data.fields?.customerId as any)?.value || null;
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const documentType = (data.fields?.documentType as any)?.value || 'other';
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const officerId = (data.fields?.officerId as any)?.value || null;
+            // Admin can pass branchId explicitly; fallback to user's own branchId
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const branchIdFromField = (data.fields?.branchId as any)?.value || null;
+            const effectiveBranchId = branchIdFromField || request.user!.branchId || undefined;
 
             console.log('[Document Upload] Parsed fields:', {
                 customerId,
                 documentType,
+                officerId,
+                branchId: effectiveBranchId,
                 fileSize: buffer.length,
                 detectedMimetype: detectedType.mime
             });
@@ -103,7 +111,8 @@ export class DocumentController {
                 file,
                 input,
                 request.user!.userId,
-                request.user!.branchId || undefined
+                effectiveBranchId,
+                officerId || undefined
             );
 
             console.log('[Document Upload] SUCCESS: Document uploaded:', document.id);

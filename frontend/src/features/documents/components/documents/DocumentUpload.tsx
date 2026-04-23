@@ -39,6 +39,8 @@ interface UploadedFile {
 
 interface DocumentUploadProps {
   customerId?: string;
+  officerId?: string;
+  branchId?: string;
   onUploadComplete?: (documentId: string) => void;
   onReviewRequest?: (documentId: string, parsedData: ParsedBusinessProfile) => void;
 }
@@ -53,7 +55,7 @@ const ACCEPTED_FILE_TYPES = {
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
-export function DocumentUpload({ customerId, onUploadComplete, onReviewRequest }: DocumentUploadProps) {
+export function DocumentUpload({ customerId, officerId, branchId, onUploadComplete, onReviewRequest }: DocumentUploadProps) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [reviewingFile, setReviewingFile] = useState<UploadedFile | null>(null);
@@ -190,13 +192,19 @@ export function DocumentUpload({ customerId, onUploadComplete, onReviewRequest }
       const finalParsedData = parsedData;
 
       // Upload to backend (for storage only)
-      const uploadFields: { documentType: string; customerId?: string } = {
+      const uploadFields: { documentType: string; customerId?: string; officerId?: string; branchId?: string } = {
         documentType: getDocumentType(file),
       };
 
       // Only include customerId if it's provided
       if (customerId) {
         uploadFields.customerId = customerId;
+      }
+      if (officerId) {
+        uploadFields.officerId = officerId;
+      }
+      if (branchId) {
+        uploadFields.branchId = branchId;
       }
 
       const { data: docData, error: uploadError } = await documentsApi.upload(
@@ -363,6 +371,8 @@ export function DocumentUpload({ customerId, onUploadComplete, onReviewRequest }
         const { data: newCustomer, error: customerError } = await customersApi.createFromDocument({
           documentId: reviewingFile.documentId,
           businessProfile: validatedData,
+          ...(officerId && { officerId }),
+          ...(branchId && { branchId }),
         });
 
         if (customerError || !newCustomer) {

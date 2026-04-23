@@ -34,7 +34,8 @@ export class DocumentService {
         file: { filename: string; mimetype: string; data: Buffer },
         input: CreateDocumentInput,
         userId: string,
-        branchId?: string
+        branchId?: string,
+        officerId?: string
     ) {
         // Validate file type
         const allowedMimeTypes = [
@@ -79,6 +80,7 @@ export class DocumentService {
             fileHash,
             uploadedBy: userId,
             branchId,
+            officerId,
         });
 
         return document;

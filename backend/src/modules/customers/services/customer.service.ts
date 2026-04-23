@@ -378,7 +378,8 @@ export class CustomerService {
         documentId: string,
         businessProfile: BusinessProfile,
         createdBy: string,
-        branchId: string
+        branchId: string,
+        officerId?: string
     ) {
         console.log(`[Customer Service] Creating customer from document: ${documentId}`);
 
@@ -398,11 +399,12 @@ export class CustomerService {
             branchId,
             customerCode,
             businessName: companyInfo.companyName || 'Unknown Company',
-            taxId: companyInfo.registrationNumber || companyInfo.taxId || '0000000000000', // Fallback to placeholder tax ID
+            taxId: companyInfo.registrationNumber || companyInfo.taxId || '0000000000000',
             phone: companyInfo.phoneNumber || companyInfo.phone || '-',
             email: companyInfo.email || undefined,
             address: companyInfo.address || undefined,
             createdBy,
+            ...(officerId && { officerId }),
         };
 
         // Create customer

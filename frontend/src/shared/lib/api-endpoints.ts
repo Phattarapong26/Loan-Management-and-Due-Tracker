@@ -344,7 +344,7 @@ export const customersApi = {
     updateWithAIData: (id: string, aiData: Record<string, unknown>, confidenceScore: number, warnings: string[]) =>
         apiClient.post<{ customer: Customer; message: string }>(`/api/customers/${id}/ai-data`, { aiData, confidenceScore, warnings }),
 
-    createFromDocument: (data: { documentId: string; businessProfile: Record<string, unknown> }) =>
+    createFromDocument: (data: { documentId: string; businessProfile: Record<string, unknown>; branchId?: string; officerId?: string }) =>
         apiClient.post<Customer>('/api/customers/from-document', data),
 };
 
@@ -492,7 +492,7 @@ export const documentsApi = {
     getById: (id: string) =>
         apiClient.get<Document>(`/api/documents/${id}`),
 
-    upload: (file: File, additionalFields: { customerId?: string; documentType: string }, onProgress?: (progress: number) => void) =>
+    upload: (file: File, additionalFields: { customerId?: string; documentType: string; officerId?: string; branchId?: string }, onProgress?: (progress: number) => void) =>
         apiClient.uploadFile<Document>('/api/documents/upload', file, additionalFields, onProgress),
 
     getFile: (id: string) =>

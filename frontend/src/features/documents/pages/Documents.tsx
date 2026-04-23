@@ -619,61 +619,19 @@ export default function Documents() {
           <DialogHeader>
             <DialogTitle>อัพโหลดเอกสาร</DialogTitle>
             <DialogDescription>
-              เลือกลูกค้าและอัพโหลดไฟล์ Excel เพื่อ parse ข้อมูลอัตโนมัติ
+              อัพโหลดไฟล์ Excel เพื่อ parse ข้อมูลอัตโนมัติ
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            {/* Customer Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="customer">ลูกค้า (ถ้าต้องการผูกเอกสารกับลูกค้าที่มีอยู่)</Label>
-              <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
-                <SelectTrigger id="customer">
-                  <SelectValue placeholder="เลือกลูกค้า (ไม่บังคับ)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {isLoadingCustomers ? (
-                    <div className="p-4 text-center">
-                      <Loader className="h-4 w-4 animate-spin mx-auto" />
-                    </div>
-                  ) : customers.length === 0 ? (
-                    <div className="p-4 text-center text-sm text-muted-foreground">
-                      ไม่พบลูกค้า
-                    </div>
-                  ) : (
-                    <>
-                      <SelectItem value="none">ไม่ระบุ (เลือกทีหลัง)</SelectItem>
-                      {customers.map((customer: Customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{customer.businessName}</span>
-                            <span className="text-xs text-muted-foreground">
-                              เลขประจำตัวผู้เสียภาษี: {customer.taxId}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                หากไม่เลือก คุณสามารถสร้างลูกค้าใหม่หรือผูกกับลูกค้าที่มีอยู่ได้หลังจาก parse เสร็จ
-              </p>
-            </div>
-
-            {/* Document Upload Component */}
+          <div className="py-4">
             <DocumentUpload
-              customerId={selectedCustomerId && selectedCustomerId !== 'none' ? selectedCustomerId : undefined}
               onReviewRequest={(documentId, parsedData) => {
-                // Close upload dialog and show review modal
                 setIsUploadDialogOpen(false);
                 setUploadReviewData({ documentId, parsedData });
                 setIsReviewModalOpen(true);
               }}
               onUploadComplete={(documentId) => {
                 setIsUploadDialogOpen(false);
-                setSelectedCustomerId('');
                 refetchDocs();
                 toast.success('อัพโหลดเอกสารสำเร็จ');
               }}
@@ -695,7 +653,7 @@ export default function Documents() {
               onCancel={handleReviewCancel}
               existingCustomers={customers.map((c: Customer) => ({
                 id: c.id,
-                name: c.businessName || c.name || 'ไม่ระบุชื่อ',
+                name: c.businessName || 'ไม่ระบุชื่อ',
                 taxId: c.taxId,
               }))}
             />
@@ -715,7 +673,7 @@ export default function Documents() {
               }}
               existingCustomers={customers.map((c: Customer) => ({
                 id: c.id,
-                name: c.businessName || c.name || 'ไม่ระบุชื่อ',
+                name: c.businessName || 'ไม่ระบุชื่อ',
                 taxId: c.taxId,
               }))}
             />
