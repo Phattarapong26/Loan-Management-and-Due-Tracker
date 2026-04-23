@@ -41,6 +41,7 @@ interface DocumentUploadProps {
   customerId?: string;
   officerId?: string;
   branchId?: string;
+  officers?: Array<{ id: string; firstName: string; lastName: string }>;
   onUploadComplete?: (documentId: string) => void;
   onReviewRequest?: (documentId: string, parsedData: ParsedBusinessProfile) => void;
 }
@@ -55,7 +56,7 @@ const ACCEPTED_FILE_TYPES = {
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
-export function DocumentUpload({ customerId, officerId, branchId, onUploadComplete, onReviewRequest }: DocumentUploadProps) {
+export function DocumentUpload({ customerId, officerId, branchId, officers = [], onUploadComplete, onReviewRequest }: DocumentUploadProps) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [reviewingFile, setReviewingFile] = useState<UploadedFile | null>(null);
@@ -345,12 +346,15 @@ export function DocumentUpload({ customerId, officerId, branchId, onUploadComple
   const handleReviewConfirm = async (
     editedData: ParsedBusinessProfile,
     action: 'create' | 'link',
-    customerId?: string
+    customerId?: string,
+    officerIdFromModal?: string
   ) => {
     if (!reviewingFile?.documentId) return;
 
     try {
       let targetCustomerId = customerId;
+      // Use officerId from modal (admin selected) or from props (passed from parent page)
+      const effectiveOfficerId = officerIdFromModal || officerId;
 
       // If creating new customer, call customer creation API first
       if (action === 'create') {
@@ -371,7 +375,7 @@ export function DocumentUpload({ customerId, officerId, branchId, onUploadComple
         const { data: newCustomer, error: customerError } = await customersApi.createFromDocument({
           documentId: reviewingFile.documentId,
           businessProfile: validatedData,
-          ...(officerId && { officerId }),
+          ...(effectiveOfficerId && { officerId: effectiveOfficerId }),
           ...(branchId && { branchId }),
         });
 
@@ -679,6 +683,8 @@ export function DocumentUpload({ customerId, officerId, branchId, onUploadComple
             onConfirm={handleReviewConfirm}
             onCancel={handleReviewCancel}
             existingCustomers={existingCustomers}
+            officers={officers}
+            isAdmin={user?.role === 'admin'}
           />
         )}
       </AnimatePresence>

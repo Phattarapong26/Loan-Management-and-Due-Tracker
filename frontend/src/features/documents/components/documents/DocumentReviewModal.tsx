@@ -9,7 +9,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, CheckCircle2, Pencil, Save, AlertTriangle, ChevronDown, 
-  ChevronUp, Layers, Loader, FileText, Search
+  ChevronUp, Layers, Loader, FileText, Search, UserCheck
 } from "lucide-react";
 import { EnhancedDataViewer } from './EnhancedDataViewer';
 import { DebugDataViewer } from './DebugDataViewer';
@@ -56,6 +56,8 @@ export function DocumentReviewModal({
   onSaveDraft,
   onCancel,
   existingCustomers = [],
+  officers = [],
+  isAdmin = false,
 }: DocumentReviewModalProps) {
   // console.log('[DocumentReviewModal] Initial profile:', initialProfile);
 
@@ -64,6 +66,7 @@ export function DocumentReviewModal({
   const [isSaving, setIsSaving] = useState(false);
   const [saveAction, setSaveAction] = useState<'create' | 'link'>('create');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [selectedOfficerId, setSelectedOfficerId] = useState<string>('');
   const [showSheetInfo, setShowSheetInfo] = useState(false);
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
 
@@ -89,7 +92,12 @@ export function DocumentReviewModal({
 
     setIsSaving(true);
     try {
-      await onConfirm(profile, saveAction, selectedCustomerId || undefined);
+      await onConfirm(
+        profile, 
+        saveAction, 
+        selectedCustomerId || undefined,
+        selectedOfficerId && selectedOfficerId !== 'none' ? selectedOfficerId : undefined
+      );
     } catch (error) {
       toast.error("เกิดข้อผิดพลาดในการบันทึก");
     } finally {
@@ -267,6 +275,27 @@ export function DocumentReviewModal({
                 </button>
               </div>
             </div>
+
+            {/* Admin: Officer selection when creating new customer */}
+            {isAdmin && saveAction === 'create' && officers.length > 0 && (
+              <div className="flex items-center gap-3">
+                <UserCheck className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-sm text-muted-foreground whitespace-nowrap">ผูกกับพนักงาน:</span>
+                <Select value={selectedOfficerId} onValueChange={setSelectedOfficerId}>
+                  <SelectTrigger className="w-[280px] h-9">
+                    <SelectValue placeholder="เลือกพนักงาน (ไม่บังคับ)..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— ไม่ระบุพนักงาน —</SelectItem>
+                    {officers.map((officer) => (
+                      <SelectItem key={officer.id} value={officer.id}>
+                        {officer.firstName} {officer.lastName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Customer Search & Select (shown when link action is selected) */}
             {saveAction === 'link' && (

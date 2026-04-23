@@ -389,6 +389,7 @@ export default function DocumentUploadWithCustomer() {
               customerId={selectedCustomerId}
               officerId={selectedOfficerId && selectedOfficerId !== 'none' ? selectedOfficerId : undefined}
               branchId={selectedBranchId || user?.branchId}
+              officers={officers}
               onUploadComplete={handleUploadComplete}
             />
           ) : (

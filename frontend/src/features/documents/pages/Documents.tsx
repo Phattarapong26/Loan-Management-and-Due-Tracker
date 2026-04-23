@@ -60,7 +60,7 @@ import {
   Loader,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { documentsApi, customersApi, businessProfilesApi, branchesApi, Branch } from '@/shared/lib/api-endpoints';
+import { documentsApi, customersApi, businessProfilesApi, branchesApi, usersApi, Branch } from '@/shared/lib/api-endpoints';
 import { ParsedBusinessProfile } from '../utils/parsers';
 import { DocumentReviewModal } from '../components/documents/DocumentReviewModal';
 import { DocumentUpload } from '../components/documents/DocumentUpload';
@@ -130,7 +130,7 @@ const formatDate = (dateString: string): string => {
 };
 
 export default function Documents() {
-  const { currentRole } = useAuth();
+  const { currentRole, user } = useAuth();
   const isAdmin = currentRole === 'admin';
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -213,6 +213,28 @@ export default function Documents() {
 
   const documents = (documentsData as any)?.documents || [];
   const customers = (customersData as any)?.customers || [];
+
+  // Fetch officers for admin (when branch is selected)
+  const { data: officersData } = useQuery({
+    queryKey: ['officers', branchFilter],
+    queryFn: async () => {
+      const response = await usersApi.list({
+        branchId: branchFilter !== 'all' ? branchFilter : undefined,
+        role: 'OFFICER',
+        limit: 100,
+      });
+      return response.data;
+    },
+    enabled: isAdmin,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const officers: Array<{ id: string; firstName: string; lastName: string }> =
+    ((officersData as any)?.users || []).map((u: any) => ({
+      id: u.id,
+      firstName: u.firstName || '',
+      lastName: u.lastName || '',
+    }));
   
   // Get pagination info
   const totalItems = (documentsData as any)?.total || 0;
@@ -240,7 +262,8 @@ export default function Documents() {
   const handleReviewConfirm = async (
     editedData: ParsedBusinessProfile,
     action: 'create' | 'link',
-    customerId?: string
+    customerId?: string,
+    officerIdFromModal?: string
   ) => {
     const documentId = selectedDoc?.id || uploadReviewData?.documentId;
     if (!documentId) return;
@@ -249,7 +272,6 @@ export default function Documents() {
       let targetCustomerId = customerId;
 
       if (action === 'create') {
-        // Validate and fix the business profile data structure
         const validatedData = {
           ...editedData,
           companyInfo: {
@@ -265,6 +287,8 @@ export default function Documents() {
         const { data: newCustomer, error: customerError } = await customersApi.createFromDocument({
           documentId: documentId,
           businessProfile: validatedData,
+          ...(branchFilter !== 'all' && { branchId: branchFilter }),
+          ...(officerIdFromModal && officerIdFromModal !== 'none' && { officerId: officerIdFromModal }),
         });
 
         if (customerError || !newCustomer) {
@@ -384,7 +408,15 @@ export default function Documents() {
             อัพโหลดเอกสารและวิเคราะห์ข้อมูลจากไฟล์ Excel
           </p>
         </div>
-        <Button onClick={() => setIsUploadDialogOpen(true)}>
+        <Button
+          onClick={() => {
+            if (isAdmin && branchFilter === 'all') {
+              toast.warning('กรุณาเลือกสาขาก่อนอัพโหลดเอกสาร');
+              return;
+            }
+            setIsUploadDialogOpen(true);
+          }}
+        >
           <Upload className="h-4 w-4 mr-2" />
           อัพโหลดเอกสาร
         </Button>
@@ -485,7 +517,13 @@ export default function Documents() {
               <FolderOpen className="h-16 w-16 text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium mb-2">ยังไม่มีเอกสาร</h3>
               <p className="text-muted-foreground mb-4">เริ่มต้นโดยการอัพโหลดเอกสารแรกของคุณ</p>
-              <Button onClick={() => setIsUploadDialogOpen(true)}>
+              <Button onClick={() => {
+                if (isAdmin && branchFilter === 'all') {
+                  toast.warning('กรุณาเลือกสาขาก่อนอัพโหลดเอกสาร');
+                  return;
+                }
+                setIsUploadDialogOpen(true);
+              }}>
                 <Upload className="h-4 w-4 mr-2" />
                 อัพโหลดเอกสาร
               </Button>
@@ -625,6 +663,9 @@ export default function Documents() {
 
           <div className="py-4">
             <DocumentUpload
+              branchId={isAdmin
+                ? (branchFilter !== 'all' ? branchFilter : undefined)
+                : (user?.branchId || undefined)}
               onReviewRequest={(documentId, parsedData) => {
                 setIsUploadDialogOpen(false);
                 setUploadReviewData({ documentId, parsedData });
@@ -656,6 +697,8 @@ export default function Documents() {
                 name: c.businessName || 'ไม่ระบุชื่อ',
                 taxId: c.taxId,
               }))}
+              officers={officers}
+              isAdmin={isAdmin}
             />
           )}
           
@@ -676,6 +719,8 @@ export default function Documents() {
                 name: c.businessName || 'ไม่ระบุชื่อ',
                 taxId: c.taxId,
               }))}
+              officers={officers}
+              isAdmin={isAdmin}
             />
           )}
         </>

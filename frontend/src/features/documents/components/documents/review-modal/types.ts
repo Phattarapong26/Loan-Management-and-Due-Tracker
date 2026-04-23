@@ -32,10 +32,12 @@ export interface SectionConfig {
 export interface DocumentReviewModalProps {
   documentId: string;
   parsedData: ParsedBusinessProfile;
-  onConfirm: (editedData: ParsedBusinessProfile, action: 'create' | 'link', customerId?: string) => void;
+  onConfirm: (editedData: ParsedBusinessProfile, action: 'create' | 'link', customerId?: string, officerId?: string) => void;
   onSaveDraft?: (editedData: ParsedBusinessProfile) => Promise<void>;
   onCancel: () => void;
   existingCustomers?: Array<{ id: string; name: string; taxId?: string }>;
+  officers?: Array<{ id: string; firstName: string; lastName: string }>;
+  isAdmin?: boolean;
 }
 
 export interface SectionCounts {
