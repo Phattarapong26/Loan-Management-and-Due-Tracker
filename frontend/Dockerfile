@@ -26,4 +26,5 @@ COPY --from=builder /app/dist ./dist
 ENV PORT=3000
 EXPOSE 3000
 
-CMD ["sh", "-c", "serve -s dist -p ${PORT:-8080}"]
+# -s: SPA mode, --no-clipboard: don't copy URL, uses serve.json for cache headers
+CMD ["sh", "-c", "serve dist -p ${PORT:-8080} --no-clipboard"]
