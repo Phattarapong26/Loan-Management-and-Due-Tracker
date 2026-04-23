@@ -250,13 +250,14 @@ export default function Customers() {
 
   // Fetch customers
   const { data: customersData, isLoading, error } = useQuery({
-    queryKey: ['customers', { search: searchTerm, status: statusFilter, branch: branchFilter, page, pageSize }],
+    queryKey: ['customers', { search: searchTerm, status: statusFilter, branch: isAdmin ? branchFilter : (user?.branchId || 'na'), officer: isAdmin ? 'all' : (user?.id || 'na'), page, pageSize }],
     queryFn: async () => {
       const result = await customersApi.list({
         ...getPaginationParams(),
         search: searchTerm || undefined,
         status: statusFilter !== 'all' ? statusFilter.toUpperCase() : undefined,
-        branchId: isAdmin && branchFilter !== 'all' ? branchFilter : undefined,
+        branchId: isAdmin ? (branchFilter !== 'all' ? branchFilter : undefined) : user?.branchId,
+        officerId: isAdmin ? undefined : user?.id,
       });
       
       // Handle case where no customers exist (should return empty data, not error)
@@ -768,10 +769,6 @@ export default function Customers() {
                   <button type="button" onClick={() => setLinkMode('new')}
                     className={`flex-1 text-sm py-1.5 rounded-md transition-colors ${linkMode === 'new' ? 'bg-white shadow font-medium' : 'text-muted-foreground'}`}>
                     สร้างลูกค้าใหม่
-                  </button>
-                  <button type="button" onClick={() => setLinkMode('existing')}
-                    className={`flex-1 text-sm py-1.5 rounded-md transition-colors ${linkMode === 'existing' ? 'bg-white shadow font-medium' : 'text-muted-foreground'}`}>
-                    ผูกกับลูกค้าเดิม
                   </button>
                 </div>
               )}

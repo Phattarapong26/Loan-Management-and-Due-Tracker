@@ -166,12 +166,13 @@ export default function Loans() {
 
   // Fetch loans (all statuses for loan application management)
   const { data: loansData, isLoading, error } = useQuery({
-    queryKey: ['loans', { search: searchTerm, status: statusFilter, branch: branchFilter, page, pageSize }],
+    queryKey: ['loans', { search: searchTerm, status: statusFilter, branch: isAdmin ? branchFilter : (user?.branchId || 'na'), officer: isAdmin ? 'all' : (user?.id || 'na'), page, pageSize }],
     queryFn: async () => {
       const result = await loansApi.list({
         ...getPaginationParams(),
         status: statusFilter !== 'all' ? statusFilter.toUpperCase().replace('_', '_') : undefined,
-        branchId: isAdmin && branchFilter !== 'all' ? branchFilter : undefined,
+        branchId: isAdmin ? (branchFilter !== 'all' ? branchFilter : undefined) : user?.branchId,
+        officerId: isAdmin ? undefined : user?.id,
       });
       if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
@@ -180,10 +181,11 @@ export default function Loans() {
 
   // Fetch loan statistics for all loans (not filtered by pagination)
   const { data: statsData, isLoading: isLoadingStats } = useQuery({
-    queryKey: ['loan-statistics', 'all', branchFilter],
+    queryKey: ['loan-statistics', 'all', isAdmin ? branchFilter : (user?.branchId || 'na'), isAdmin ? 'all' : (user?.id || 'na')],
     queryFn: async () => {
       const result = await loansApi.getStatistics({
-        branchId: isAdmin && branchFilter !== 'all' ? branchFilter : undefined,
+        branchId: isAdmin ? (branchFilter !== 'all' ? branchFilter : undefined) : user?.branchId,
+        officerId: isAdmin ? undefined : user?.id,
       });
       if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;

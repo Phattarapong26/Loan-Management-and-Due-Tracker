@@ -1474,7 +1474,7 @@ export async function registerRoutes(app: FastifyInstance) {
             preHandler: [
                 authenticate,
                 requireBranch,
-                authorize('ADMIN'),
+                authorize('ADMIN', 'MANAGER', 'OFFICER'),
                 validateBody(updateUserSchema),
             ],
         },

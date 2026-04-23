@@ -163,12 +163,19 @@ export default function CollectionsReminders() {
   // Fetch bucket roll rates
   const { data: bucketRollRates, isLoading: isLoadingBucketRollRates } =
     useQuery({
-      queryKey: ["bucketRollRates", ROLL_INTERVAL, ROLL_POINTS, isAdmin ? rollBranchId : "na", isAdmin ? rollOfficerId : "na", isAdmin ? rollProductId : "na"],
+      queryKey: ["bucketRollRates", ROLL_INTERVAL, ROLL_POINTS, isAdmin ? rollBranchId : (user?.branchId || "na"), isAdmin ? rollOfficerId : (user?.id || "na"), isAdmin ? rollProductId : "na"],
       queryFn: async () => {
         const params: any = { interval: ROLL_INTERVAL, points: ROLL_POINTS };
-        if (isAdmin && rollBranchId !== "all") params.branchId = rollBranchId;
-        if (isAdmin && rollOfficerId !== "all") params.officerId = rollOfficerId;
-        if (isAdmin && rollProductId !== "all") params.productId = rollProductId;
+        if (isAdmin) {
+          // Admin can filter by any branch/officer
+          if (rollBranchId !== "all") params.branchId = rollBranchId;
+          if (rollOfficerId !== "all") params.officerId = rollOfficerId;
+          if (rollProductId !== "all") params.productId = rollProductId;
+        } else {
+          // Officer/Manager: filter to own branch and own data only
+          if (user?.branchId) params.branchId = user.branchId;
+          if (user?.id) params.officerId = user.id;
+        }
         const response = await collectionsApi.getBucketRollRates(params);
         // console.log('[CollectionsReminders] Bucket roll rates:', response.data);
         // console.log('[CollectionsReminders] Summary:', response.data?.summary);

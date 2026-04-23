@@ -91,9 +91,20 @@ export class UserController {
         reply: FastifyReply
     ) => {
         try {
+            const targetUserId = request.params.id;
+            const currentUser = (request as any).user;
+            const currentUserId = currentUser?.userId;
+            const currentUserRole = currentUser?.role;
+
+            // Only admin can update any user
+            // Other roles can only update their own profile (self-update)
+            if (currentUserRole !== 'ADMIN' && currentUserId !== targetUserId) {
+                return ResponseUtil.error(reply, 'คุณไม่มีสิทธิ์แก้ไขข้อมูลผู้ใช้คนอื่น', 403);
+            }
+
             const result = await this.userService.updateUser(
                 request,
-                request.params.id,
+                targetUserId,
                 request.body
             );
 
