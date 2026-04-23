@@ -136,6 +136,9 @@ export class CollectionFilterService {
             // Get authorization filter
             const authFilter = AuthorizationService.getUserFilter(user);
             
+            // Debug: Log auth filter
+            console.log('[Collection Dashboard] Auth Filter:', JSON.stringify(authFilter));
+            
             // Build WHERE clause based on user permissions
             let whereConditions: string[] = ["ps.status IN ('UNPAID', 'OVERDUE', 'PARTIAL')"];
             let queryParams: any[] = [];
@@ -144,10 +147,14 @@ export class CollectionFilterService {
                 // Officer level - only their own customers
                 queryParams.push(authFilter.createdBy.in);
                 whereConditions.push('l.officer_id = ANY($' + queryParams.length + ')');
+                console.log('[Collection Dashboard] Officer filter - officer_ids:', authFilter.createdBy.in);
             } else if (authFilter.branchId?.in) {
                 // Manager level - their branch only
                 queryParams.push(authFilter.branchId.in);
                 whereConditions.push('l.branch_id = ANY($' + queryParams.length + ')');
+                console.log('[Collection Dashboard] Manager filter - branch_ids:', authFilter.branchId.in);
+            } else {
+                console.log('[Collection Dashboard] Admin filter - no restrictions');
             }
             // Admin level - no additional filter needed
 

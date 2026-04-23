@@ -25,6 +25,13 @@ export class CollectionController {
                 return ResponseUtil.error(reply, 'Unauthorized', 401);
             }
             
+            // Debug: Log user info for troubleshooting
+            console.log('[Collection Dashboard] User:', JSON.stringify({
+                userId: user.userId,
+                role: user.role,
+                branchId: user.branchId
+            }));
+            
             const dashboard = await this.collectionService.getCollectionDashboard(user);
             return ResponseUtil.success(reply, dashboard);
         } catch (error: any) {
