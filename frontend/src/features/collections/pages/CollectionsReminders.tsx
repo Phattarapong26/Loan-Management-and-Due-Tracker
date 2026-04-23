@@ -1117,28 +1117,29 @@ export default function CollectionsReminders() {
                       ลูกหนี้เสีย (NPL) - เกิน 30 วัน
                     </CardTitle>
                     <CardDescription>
-                      รายการที่ต้องเร่งติดตามด่วนที่สุด - เครดิตอยู่ในกลุ่มเสี่ยง/วิกฤต (แสดง {ITEMS_PER_PAGE} รายการต่อหน้า)
+                      รายการที่ต้องเร่งติดตามด่วนที่สุด - เครดิตอยู่ในกลุ่มเสี่ยง/วิกฤต (แสดง {ITEMS_PER_PAGE} ลูกค้าต่อหน้า)
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {(() => {
                       const filteredSchedules = filterSchedules(criticalOverdueSchedules);
-                      const totalItems = filteredSchedules.length;
-                      const startIndex = (criticalPage - 1) * ITEMS_PER_PAGE;
-                      const endIndex = startIndex + ITEMS_PER_PAGE;
-                      const paginatedSchedules = filteredSchedules.slice(startIndex, endIndex);
-
                       return (
                         <div className="space-y-6">
                           <CustomerTable
-                            customers={paginatedSchedules}
+                            customers={filteredSchedules}
                             variant="critical"
                             isLoading={isLoadingCollections}
+                            page={criticalPage}
+                            pageSize={ITEMS_PER_PAGE}
+                            onTotalGroups={(total) => {
+                              const maxPage = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
+                              if (criticalPage > maxPage) setCriticalPage(1);
+                            }}
                           />
                           <PaginationControls
                             currentPage={criticalPage}
                             setPage={setCriticalPage}
-                            totalItems={totalItems}
+                            totalItems={new Set(filteredSchedules.map(s => s.customerId)).size}
                           />
                         </div>
                       );
@@ -1153,28 +1154,29 @@ export default function CollectionsReminders() {
                   <CardHeader>
                     <CardTitle>รายการเกินกำหนดชำระ (1-29 วัน)</CardTitle>
                     <CardDescription>
-                      งวดชำระที่เลยกำหนดและต้องติดตาม (แสดง {ITEMS_PER_PAGE} รายการต่อหน้า)
+                      งวดชำระที่เลยกำหนดและต้องติดตาม (แสดง {ITEMS_PER_PAGE} ลูกค้าต่อหน้า)
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {(() => {
                       const filteredSchedules = filterSchedules(collectionDashboard?.overdue || []);
-                      const totalItems = filteredSchedules.length;
-                      const startIndex = (overduePage - 1) * ITEMS_PER_PAGE;
-                      const endIndex = startIndex + ITEMS_PER_PAGE;
-                      const paginatedSchedules = filteredSchedules.slice(startIndex, endIndex);
-
                       return (
                         <div className="space-y-6">
                           <CustomerTable
-                            customers={paginatedSchedules}
+                            customers={filteredSchedules}
                             variant="overdue"
                             isLoading={isLoadingCollections}
+                            page={overduePage}
+                            pageSize={ITEMS_PER_PAGE}
+                            onTotalGroups={(total) => {
+                              const maxPage = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
+                              if (overduePage > maxPage) setOverduePage(1);
+                            }}
                           />
                           <PaginationControls
                             currentPage={overduePage}
                             setPage={setOverduePage}
-                            totalItems={totalItems}
+                            totalItems={new Set(filteredSchedules.map(s => s.customerId)).size}
                           />
                         </div>
                       );
@@ -1192,28 +1194,29 @@ export default function CollectionsReminders() {
                       ครบกำหนดชำระวันนี้
                     </CardTitle>
                     <CardDescription>
-                      รายการที่ต้องติดตามวันนี้ - ลูกค้าควรชำระภายในวันนี้ (แสดง {ITEMS_PER_PAGE} รายการต่อหน้า)
+                      รายการที่ต้องติดตามวันนี้ - ลูกค้าควรชำระภายในวันนี้ (แสดง {ITEMS_PER_PAGE} ลูกค้าต่อหน้า)
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {(() => {
                       const filteredSchedules = filterSchedules(todaySchedules);
-                      const totalItems = filteredSchedules.length;
-                      const startIndex = (todayPage - 1) * ITEMS_PER_PAGE;
-                      const endIndex = startIndex + ITEMS_PER_PAGE;
-                      const paginatedSchedules = filteredSchedules.slice(startIndex, endIndex);
-
                       return (
                         <div className="space-y-6">
                           <CustomerTable
-                            customers={paginatedSchedules}
+                            customers={filteredSchedules}
                             variant="today"
                             isLoading={isLoadingCollections}
+                            page={todayPage}
+                            pageSize={ITEMS_PER_PAGE}
+                            onTotalGroups={(total) => {
+                              const maxPage = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
+                              if (todayPage > maxPage) setTodayPage(1);
+                            }}
                           />
                           <PaginationControls
                             currentPage={todayPage}
                             setPage={setTodayPage}
-                            totalItems={totalItems}
+                            totalItems={new Set(filteredSchedules.map(s => s.customerId)).size}
                           />
                         </div>
                       );
@@ -1231,28 +1234,29 @@ export default function CollectionsReminders() {
                       ใกล้ครบกำหนด (1-7 วัน)
                     </CardTitle>
                     <CardDescription>
-                      รายการที่จะครบกำหนดในสัปดาห์นี้ - ควรแจ้งเตือนล่วงหน้า (แสดง {ITEMS_PER_PAGE} รายการต่อหน้า)
+                      รายการที่จะครบกำหนดในสัปดาห์นี้ - ควรแจ้งเตือนล่วงหน้า (แสดง {ITEMS_PER_PAGE} ลูกค้าต่อหน้า)
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {(() => {
                       const filteredSchedules = filterSchedules(dueSoonSchedules);
-                      const totalItems = filteredSchedules.length;
-                      const startIndex = (soonPage - 1) * ITEMS_PER_PAGE;
-                      const endIndex = startIndex + ITEMS_PER_PAGE;
-                      const paginatedSchedules = filteredSchedules.slice(startIndex, endIndex);
-
                       return (
                         <div className="space-y-6">
                           <CustomerTable
-                            customers={paginatedSchedules}
+                            customers={filteredSchedules}
                             variant="soon"
                             isLoading={isLoadingCollections}
+                            page={soonPage}
+                            pageSize={ITEMS_PER_PAGE}
+                            onTotalGroups={(total) => {
+                              const maxPage = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
+                              if (soonPage > maxPage) setSoonPage(1);
+                            }}
                           />
                           <PaginationControls
                             currentPage={soonPage}
                             setPage={setSoonPage}
-                            totalItems={totalItems}
+                            totalItems={new Set(filteredSchedules.map(s => s.customerId)).size}
                           />
                         </div>
                       );
