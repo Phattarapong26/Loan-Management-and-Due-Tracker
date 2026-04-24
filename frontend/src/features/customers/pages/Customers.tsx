@@ -489,6 +489,16 @@ export default function Customers() {
       }
     }
 
+    // Validate officer selection for Manager
+    if (currentRole === 'branch_manager' && !formData.officerId) {
+      alertDialog.error({
+        title: 'กรุณาเลือกเจ้าหน้าที่',
+        description: 'ผู้จัดการสาขาต้องเลือกเจ้าหน้าที่ที่รับผิดชอบลูกค้ารายนี้',
+        confirmText: 'ตกลง',
+      });
+      return;
+    }
+
     try {
       const payload: CustomerFormData = {
         businessName: formData.businessName.trim(),
@@ -740,8 +750,8 @@ export default function Customers() {
             <Download className="h-4 w-4 mr-2" />
             {isExporting ? 'กำลังส่งออก...' : 'ส่งออก'}
           </Button>
-          {/* Only Loan Officer and Admin can add customers */}
-          {(currentRole === 'loan_officer' || currentRole === 'admin') && (
+          {/* Loan Officer, Manager and Admin can add customers */}
+          {(currentRole === 'loan_officer' || currentRole === 'admin' || currentRole === 'branch_manager') && (
             <Dialog open={isAddDialogOpen} onOpenChange={handleDialogOpenChange}>
               <DialogTrigger asChild>
                 <Button>
@@ -803,6 +813,10 @@ export default function Customers() {
                       <p className="text-xs text-muted-foreground">
                         เลือกสาขาที่ต้องการสร้างลูกค้า
                       </p>
+                    ) : currentRole === 'branch_manager' ? (
+                      <p className="text-xs text-muted-foreground">
+                        ลูกค้าจะถูกสร้างในสาขา: <span className="font-medium">{getCurrentBranchName()}</span>
+                      </p>
                     ) : (
                       <p className="text-xs text-muted-foreground">
                         ลูกค้าจะถูกสร้างในสาขา: <span className="font-medium">{getCurrentBranchName()}</span>
@@ -810,7 +824,7 @@ export default function Customers() {
                       </p>
                     )}
                   </div>
-                  {currentRole !== 'admin' && (
+                  {currentRole === 'loan_officer' && (
                     <div className="flex items-center justify-between text-sm pt-2 border-t">
                       <span className="text-muted-foreground">เจ้าหน้าที่:</span>
                       <span className="font-medium">{getCurrentOfficerName()}</span>
