@@ -49,6 +49,7 @@ export class PaymentReminderJob {
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+        const todayStr = today.toISOString().slice(0, 10); // YYYY-MM-DD for dedup key
 
         const overduePayments = await this.paymentScheduleRepository.findOverdueUnpaid(today);
 
@@ -68,7 +69,7 @@ export class PaymentReminderJob {
                     daysOverdue,
                 });
 
-                // ส่ง LINE ให้ลูกค้าโดยตรง (วันละ 1 ครั้ง)
+                // ส่ง LINE ให้ลูกค้าโดยตรง — วันละ 1 ครั้งเท่านั้น (dedup by date)
                 try {
                     const customerUser = await prisma.user.findFirst({
                         where: {
@@ -79,6 +80,20 @@ export class PaymentReminderJob {
                     });
 
                     if (customerUser?.lineUserId) {
+                        // Check dedup: ส่งไปแล้ววันนี้หรือยัง
+                        const alreadySentToday = await prisma.notification.findFirst({
+                            where: {
+                                dedupKey: `LINE_OVERDUE_${schedule.loanId}_${todayStr}`,
+                                createdAt: { gte: today },
+                            },
+                            select: { id: true },
+                        });
+
+                        if (alreadySentToday) {
+                            logger.info({ loanId: schedule.loanId }, '[PaymentReminder] LINE overdue already sent today — skipped');
+                            continue;
+                        }
+
                         const { LineService } = await import('@line/services/core/line.service');
                         const lineService = new LineService();
                         const dueDate = new Date(schedule.paymentDate).toLocaleDateString('th-TH', {
@@ -139,6 +154,20 @@ export class PaymentReminderJob {
                                 },
                             },
                         ]);
+
+                        // บันทึก dedup record หลังส่งสำเร็จ
+                        await prisma.notification.create({
+                            data: {
+                                userId: customerUser.lineUserId, // ใช้ lineUserId เป็น ref
+                                type: 'PAYMENT_OVERDUE' as any,
+                                title: `LINE overdue sent`,
+                                message: `LINE overdue alert sent for loan ${schedule.loanId}`,
+                                dedupKey: `LINE_OVERDUE_${schedule.loanId}_${todayStr}`,
+                                priority: 'HIGH' as any,
+                                audienceRoles: [],
+                            },
+                        });
+
                         logger.info({ customerId: schedule.loan.customerId, daysOverdue }, '[PaymentReminder] LINE overdue alert sent to customer');
                     }
                 } catch (lineErr) {
@@ -156,11 +185,31 @@ export class PaymentReminderJob {
         logger.info('[PaymentReminder] Checking NPL loans...');
 
         const nplLoans = await this.loanRepository.findNPLLoans();
+        const todayStr = new Date().toISOString().slice(0, 10);
 
         logger.info({ count: nplLoans.length }, '[PaymentReminder] Found NPL loans');
 
         for (const loan of nplLoans) {
             try {
+                // Dedup: ส่ง NPL alert วันละ 1 ครั้งต่อสัญญา
+                const alreadySentToday = await prisma.notification.findFirst({
+                    where: {
+                        dedupKey: `NPL_ALERT_${loan.id}_${todayStr}`,
+                        createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+                    },
+                    select: { id: true },
+                });
+
+                if (alreadySentToday) {
+                    logger.info({ loanId: loan.id }, '[PaymentReminder] NPL alert already sent today — skipped');
+                    continue;
+                }
+
+                // Update status BEFORE sending notification (fix: prevent orphaned status)
+                if (loan.status !== 'NPL') {
+                    await this.loanRepository.updateStatus(loan.id, 'NPL');
+                }
+
                 await notificationHelper.sendNPLAlert({
                     loanId: loan.id,
                     branchId: loan.branchId,
@@ -169,9 +218,6 @@ export class PaymentReminderJob {
                     outstandingAmount: Number(loan.outstandingBalance),
                 });
 
-                if (loan.status !== 'NPL') {
-                    await this.loanRepository.updateStatus(loan.id, 'NPL');
-                }
             } catch (error) {
                 logger.error({ loanId: loan.id, error }, '[PaymentReminder] Failed to send NPL alert');
             }

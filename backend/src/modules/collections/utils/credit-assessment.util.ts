@@ -43,6 +43,7 @@ function isHighRiskIndustry(code?: string): boolean {
 }
 
 function scoreNCB(f: CreditFactors): number {
+    // NCB bureau data only — loan system status handled in scoreOverdue
     if (f.nplStatus) return -30;
     const u = f.creditUtilization;
     if (u === undefined || u === null || !Number.isFinite(u)) return 0;
@@ -62,12 +63,19 @@ function scoreDSCR(f: CreditFactors): number {
 }
 
 function scoreOverdue(f: CreditFactors): number {
+    // loanStatus penalty — only here, not in scoreNCB
+    const loanStatus = f.loanStatus ? String(f.loanStatus).toUpperCase() : '';
+    // NPL = confirmed non-performing → max penalty regardless of overdueDays
+    if (loanStatus === 'NPL') return -30;
+    // DEFAULTED = legal/write-off status, penalize based on actual overdue days
+    // (don't double-penalize if overdueDays is already 0 after restructuring)
+
     // Penalize only when truly overdue (schedule or loan-level)
     const scheduleOverdueDays = f.daysUntilDue < 0 ? Math.abs(f.daysUntilDue) : 0;
     const loanOverdueDays = f.loanOverdueDays && Number.isFinite(f.loanOverdueDays) ? Math.max(0, f.loanOverdueDays) : 0;
     const overdueDays = Math.max(scheduleOverdueDays, loanOverdueDays);
 
-    if (overdueDays === 0) return 30;
+    if (overdueDays === 0) return loanStatus === 'DEFAULTED' ? -10 : 30; // DEFAULTED ไม่ได้ +30 แม้ไม่มี overdue
     if (overdueDays <= 7) return 20;
     if (overdueDays <= 30) return 0;
     if (overdueDays <= 60) return -20;
@@ -294,8 +302,13 @@ export function computeCreditAssessment(factors: CreditFactors): CreditAssessmen
         grade = 'CRITICAL';
     }
 
-    const reasons = buildReasons(factors, healthScore);
+    // Cap healthScore to match grade — prevents "วิกฤต (75)" contradiction
+    const cappedScore = grade === 'CRITICAL' ? Math.min(healthScore, 29)
+        : grade === 'RISKY' ? Math.min(healthScore, 49)
+        : healthScore;
+
+    const reasons = buildReasons(factors, cappedScore);
     const nextActions = buildNextActions(grade, factors);
 
-    return { grade, score: healthScore, reasons, nextActions };
+    return { grade, score: cappedScore, reasons, nextActions };
 }

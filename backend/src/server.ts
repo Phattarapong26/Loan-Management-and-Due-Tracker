@@ -20,7 +20,6 @@ import { startAllPaymentTimelineJobs } from '@jobs/schedulers/payment-timeline.j
 import { paymentSyncJob } from '@jobs/schedulers/payment-sync.job';
 import { pdfCleanupJob } from '@jobs/schedulers/pdf-cleanup.job';
 import { secureDocumentCleanupJob } from '@jobs/schedulers/secure-document-cleanup.job';
-import { startLineDataBackfillJob } from '@jobs/schedulers/line-data-backfill.job';
 import { startLineBackfillJob } from '@jobs/schedulers/line-backfill.job';
 import '@loans/workers/loan.worker'; // Initialize loan worker
 import '@payments/workers/payment.worker'; // Initialize payment worker
@@ -149,15 +148,8 @@ async function start() {
             logger.error({ error }, '⚠️ Failed to initialize payment timeline jobs (non-fatal)');
         }
 
-        // LINE data backfill job (daily at 03:00 AM - low traffic)
-        try {
-            startLineDataBackfillJob();
-            logger.info(`✅ LINE data backfill job initialized (daily 03:00 AM)`);
-        } catch (error) {
-            logger.error({ error }, '⚠️ Failed to initialize LINE data backfill job (non-fatal)');
-        }
-
-        // LINE backfill job (daily 02:30 AM - timeline events, receipts, contract PDFs)
+        // LINE backfill job (daily 02:30 AM - timelines, receipts, contract PDFs, invoices)
+        // Consolidated from two separate jobs to prevent double-processing
         try {
             startLineBackfillJob();
             logger.info('✅ LINE backfill job initialized (daily 02:30)');

@@ -58,7 +58,7 @@ export class BucketRollRatesController {
             return ResponseUtil.success(reply, analysis);
         } catch (error: any) {
             console.error('Error in getBucketRollRatesAnalysis:', error);
-            return ResponseUtil.error(reply, error.message || 'Failed to get bucket roll rates analysis', 500);
+            return ResponseUtil.error(reply, 'ไม่สามารถโหลดข้อมูลการวิเคราะห์การเปลี่ยนแปลง Bucket ได้', 500, 'LOAD_ERROR');
         }
     };
 }

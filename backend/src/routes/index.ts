@@ -958,7 +958,7 @@ export async function registerRoutes(app: FastifyInstance) {
 
                 return ResponseUtil.success(reply, settings);
             } catch (error: any) {
-                return ResponseUtil.error(reply, error.message, 500);
+                return ResponseUtil.error(reply, 'ไม่สามารถโหลดข้อมูลการตั้งค่าได้', 500, 'LOAD_ERROR');
             }
         }
     );
@@ -1000,7 +1000,7 @@ export async function registerRoutes(app: FastifyInstance) {
 
                 return ResponseUtil.success(reply, { message: 'Settings updated successfully' });
             } catch (error: any) {
-                return ResponseUtil.error(reply, error.message, 500);
+                return ResponseUtil.error(reply, 'ไม่สามารถบันทึกการตั้งค่าได้ กรุณาลองใหม่อีกครั้ง', 500, 'INTERNAL_ERROR');
             }
         }
     );
@@ -1036,7 +1036,7 @@ export async function registerRoutes(app: FastifyInstance) {
 
                 return ResponseUtil.success(reply, settings);
             } catch (error: any) {
-                return ResponseUtil.error(reply, error.message, 500);
+                return ResponseUtil.error(reply, 'ไม่สามารถโหลดการตั้งค่าการแจ้งเตือนได้', 500, 'LOAD_ERROR');
             }
         }
     );
@@ -1079,7 +1079,7 @@ export async function registerRoutes(app: FastifyInstance) {
 
                 return ResponseUtil.success(reply, { message: 'Notification settings updated successfully' });
             } catch (error: any) {
-                return ResponseUtil.error(reply, error.message, 500);
+                return ResponseUtil.error(reply, 'ไม่สามารถบันทึกการตั้งค่าการแจ้งเตือนได้ กรุณาลองใหม่อีกครั้ง', 500, 'INTERNAL_ERROR');
             }
         }
     );
@@ -1113,7 +1113,7 @@ export async function registerRoutes(app: FastifyInstance) {
 
                 return ResponseUtil.success(reply, settings);
             } catch (error: any) {
-                return ResponseUtil.error(reply, error.message, 500);
+                return ResponseUtil.error(reply, 'ไม่สามารถโหลดการตั้งค่าความปลอดภัยได้', 500, 'LOAD_ERROR');
             }
         }
     );
@@ -1155,7 +1155,7 @@ export async function registerRoutes(app: FastifyInstance) {
 
                 return ResponseUtil.success(reply, { message: 'Security settings updated successfully' });
             } catch (error: any) {
-                return ResponseUtil.error(reply, error.message, 500);
+                return ResponseUtil.error(reply, 'ไม่สามารถบันทึกการตั้งค่าความปลอดภัยได้ กรุณาลองใหม่อีกครั้ง', 500, 'INTERNAL_ERROR');
             }
         }
     );
@@ -1359,7 +1359,7 @@ export async function registerRoutes(app: FastifyInstance) {
                 });
                 return ResponseUtil.success(reply, branches);
             } catch (error: any) {
-                return ResponseUtil.error(reply, error.message || 'Failed to fetch branches', 500);
+                return ResponseUtil.error(reply, 'ไม่สามารถโหลดข้อมูลสาขาได้', 500, 'LOAD_ERROR');
             }
         }
     );
@@ -2753,7 +2753,7 @@ export async function registerRoutes(app: FastifyInstance) {
                 });
             } catch (error: any) {
                 logger.error({ error }, 'Manual LINE data backfill failed');
-                return ResponseUtil.error(reply, error.message || 'Backfill failed', 500);
+                return ResponseUtil.error(reply, 'ไม่สามารถประมวลผลข้อมูล LINE ได้ กรุณาลองใหม่อีกครั้ง', 500, 'INTERNAL_ERROR');
             }
         }
     );

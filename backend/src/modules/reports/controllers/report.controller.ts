@@ -44,7 +44,7 @@ export class ReportController {
 
             return ResponseUtil.success(reply, result);
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 400);
+            return ResponseUtil.error(reply, 'ไม่สามารถสร้างรายงานสรุปสาขาได้ กรุณาตรวจสอบเงื่อนไขการค้นหา', 400, 'VALIDATION_ERROR');
         }
     };
 
@@ -74,7 +74,7 @@ export class ReportController {
 
             return ResponseUtil.success(reply, result);
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 400);
+            return ResponseUtil.error(reply, 'ไม่สามารถสร้างรายงาน NPL ได้ กรุณาตรวจสอบเงื่อนไขการค้นหา', 400, 'VALIDATION_ERROR');
         }
     };
 
@@ -104,7 +104,7 @@ export class ReportController {
 
             return ResponseUtil.success(reply, result);
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 400);
+            return ResponseUtil.error(reply, 'ไม่สามารถสร้างรายงานผลงานเจ้าหน้าที่ได้ กรุณาตรวจสอบเงื่อนไขการค้นหา', 400, 'VALIDATION_ERROR');
         }
     };
 
@@ -139,7 +139,7 @@ export class ReportController {
 
             return ResponseUtil.success(reply, result);
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 400);
+            return ResponseUtil.error(reply, 'ไม่สามารถสร้างรายงานสินเชื่อได้ กรุณาตรวจสอบเงื่อนไขการค้นหา', 400, 'VALIDATION_ERROR');
         }
     };
 
@@ -174,7 +174,7 @@ export class ReportController {
 
             return ResponseUtil.success(reply, result);
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 400);
+            return ResponseUtil.error(reply, 'ไม่สามารถสร้างรายงานการชำระเงินได้ กรุณาตรวจสอบเงื่อนไขการค้นหา', 400, 'VALIDATION_ERROR');
         }
     };
 }

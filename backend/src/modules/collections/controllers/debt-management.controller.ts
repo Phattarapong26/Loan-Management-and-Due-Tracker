@@ -24,7 +24,7 @@ export class DebtManagementController {
       return ResponseUtil.success(reply, result);
     } catch (error: any) {
       logger.error({ error }, 'Error in getSummary');
-      return ResponseUtil.error(reply, error.message, 500);
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดสรุปข้อมูลการจัดการหนี้ได้', 500, 'LOAD_ERROR');
     }
   }
 
@@ -42,7 +42,7 @@ export class DebtManagementController {
       return ResponseUtil.success(reply, result);
     } catch (error: any) {
       logger.error({ error }, 'Error in getContractSizeDistribution');
-      return ResponseUtil.error(reply, error.message, 500);
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดข้อมูลการกระจายตามขนาดสัญญาได้', 500, 'LOAD_ERROR');
     }
   }
 
@@ -60,7 +60,7 @@ export class DebtManagementController {
       return ResponseUtil.success(reply, result);
     } catch (error: any) {
       logger.error({ error }, 'Error in getLoanTypeDistribution');
-      return ResponseUtil.error(reply, error.message, 500);
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดข้อมูลการกระจายตามประเภทสินเชื่อได้', 500, 'LOAD_ERROR');
     }
   }
 }

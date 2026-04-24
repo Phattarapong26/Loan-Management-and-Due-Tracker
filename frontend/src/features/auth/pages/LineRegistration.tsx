@@ -96,8 +96,17 @@ export default function LineRegistration(): JSX.Element {
       window.history.replaceState({}, '', '/line-registration');
     },
     onError: (err: unknown) => {
-      const message = (err as Error)?.message ?? 'เกิดข้อผิดพลาดในการเชื่อมต่อ LINE';
-      toast.error(message);
+      const errorMsg = (err as Error)?.message ?? '';
+      // Map technical errors to user-friendly messages
+      let userMessage = 'ไม่สามารถเชื่อมต่อ LINE ได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('already linked') || errorMsg.includes('ALREADY_LINKED')) {
+        userMessage = 'บัญชี LINE นี้เชื่อมต่อกับผู้ใช้อื่นแล้ว กรุณาใช้บัญชี LINE อื่น';
+      } else if (errorMsg.includes('not found') || errorMsg.includes('NOT_FOUND')) {
+        userMessage = 'ไม่พบบัญชี LINE นี้ในระบบ กรุณาตรวจสอบ LINE ID แล้วลองใหม่อีกครั้ง';
+      } else if (errorMsg.includes('session') || errorMsg.includes('unauthorized') || errorMsg.includes('401')) {
+        userMessage = 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่อีกครั้ง';
+      }
+      toast.error(userMessage);
       setIsAutoLinking(false);
     },
   });
@@ -141,8 +150,13 @@ export default function LineRegistration(): JSX.Element {
       toast.success('ยกเลิกการเชื่อมต่อ LINE แล้ว');
     },
     onError: (err: unknown) => {
-      const message = (err as Error)?.message ?? 'เกิดข้อผิดพลาดในการยกเลิกการเชื่อมต่อ';
-      toast.error(message);
+      const errorMsg = (err as Error)?.message ?? '';
+      // Map technical errors to user-friendly messages
+      let userMessage = 'ไม่สามารถยกเลิกการเชื่อมต่อ LINE ได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('session') || errorMsg.includes('unauthorized') || errorMsg.includes('401')) {
+        userMessage = 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่อีกครั้ง';
+      }
+      toast.error(userMessage);
     },
   });
 

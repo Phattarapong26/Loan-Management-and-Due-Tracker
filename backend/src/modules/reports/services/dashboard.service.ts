@@ -90,6 +90,7 @@ interface BranchManagerDashboard {
     nplRatio: number;
     pendingApprovals: number;
     collectionRate: number;
+    disbursementRate: number;
     highRiskLoans: number;
     officerPerformance: OfficerPerformance[];
 }
@@ -455,14 +456,15 @@ export class DashboardService {
     async getBranchManagerDashboard(branchId?: string): Promise<BranchManagerDashboard> {
         const branchWhere = branchId ? { branchId } : {};
 
+        // totalLoans = active portfolio only (DISBURSED + ACTIVE + NPL) — exclude APPROVED (not yet disbursed)
         const [totalLoans, outstandingResult, nplLoans, pendingApprovals] = await Promise.all([
             this.dashboardRepository.countLoans({
                 ...branchWhere,
-                status: { in: ['APPROVED', 'DISBURSED', 'ACTIVE', 'NPL'] },
+                status: { in: ['DISBURSED', 'ACTIVE', 'NPL'] },
             }),
             this.dashboardRepository.aggregateLoanBalance({
                 ...branchWhere,
-                status: { in: ['APPROVED', 'DISBURSED', 'ACTIVE', 'NPL'] },
+                status: { in: ['DISBURSED', 'ACTIVE', 'NPL'] },
             }),
             this.dashboardRepository.countLoans({
                 ...branchWhere,
@@ -480,14 +482,7 @@ export class DashboardService {
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
-        const [approvedLoans, targetConfig, highRiskLoans] = await Promise.all([
-            this.dashboardRepository.findLoans({
-                where: {
-                    ...branchWhere,
-                    status: { in: ['APPROVED', 'DISBURSED', 'ACTIVE'] },
-                    approvedAt: { gte: monthStart, lte: monthEnd },
-                },
-            }),
+        const [targetConfig, highRiskLoans] = await Promise.all([
             this.dashboardRepository.findSystemConfig('monthly_disbursement_target'),
             this.dashboardRepository.countLoans({
                 ...branchWhere,
@@ -496,6 +491,28 @@ export class DashboardService {
             }),
         ]);
 
+        // collectionRate = actual payment collection rate this month
+        // = total payments received / total scheduled payments due this month
+        const scheduledThisMonth = await this.dashboardRepository.aggregatePaymentSchedules({
+            loan: { ...branchWhere, status: { in: ['ACTIVE', 'DISBURSED', 'NPL'] } },
+            paymentDate: { gte: monthStart, lte: monthEnd },
+        });
+        const collectedThisMonth = await this.dashboardRepository.aggregatePayments({
+            paymentDate: { gte: monthStart, lte: monthEnd },
+            loan: { ...branchWhere },
+        });
+        const totalScheduled = Number(scheduledThisMonth || 0);
+        const totalCollected = Number(collectedThisMonth || 0);
+        const collectionRate = totalScheduled > 0 ? (totalCollected / totalScheduled) * 100 : 0;
+
+        // disbursementRate = new loans this month vs target (kept for reference)
+        const approvedLoans = await this.dashboardRepository.findLoans({
+            where: {
+                ...branchWhere,
+                status: { in: ['APPROVED', 'DISBURSED', 'ACTIVE'] },
+                approvedAt: { gte: monthStart, lte: monthEnd },
+            },
+        });
         const disbursedAmount = approvedLoans.reduce((sum: number, loan: any) => sum + Number(loan.principal || 0), 0);
         const monthlyTarget = targetConfig ? parseFloat(targetConfig.value) : 5000000;
         const disbursementRate = monthlyTarget > 0 ? (disbursedAmount / monthlyTarget) * 100 : 0;
@@ -507,7 +524,8 @@ export class DashboardService {
             outstandingBalance: Number(outstandingBalance),
             nplRatio: Number(nplRatio.toFixed(2)),
             pendingApprovals,
-            collectionRate: Number(disbursementRate.toFixed(2)),
+            collectionRate: Number(collectionRate.toFixed(2)),
+            disbursementRate: Number(disbursementRate.toFixed(2)),
             highRiskLoans,
             officerPerformance,
         };

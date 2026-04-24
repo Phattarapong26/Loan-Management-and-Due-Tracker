@@ -65,8 +65,15 @@ export function LoanProducts(): JSX.Element {
         await loadBudgets(productsArray.map(p => p.id));
       }
     } catch (err: unknown) {
-      const message = (err as Error)?.message ?? 'ไม่สามารถโหลดข้อมูลสินเชื่อได้';
-      toast({ title: 'เกิดข้อผิดพลาด', description: message, variant: 'destructive' });
+      const errorMsg = (err as Error)?.message ?? '';
+      // Map technical errors to user-friendly messages
+      let userMessage = 'ไม่สามารถโหลดข้อมูลสินเชื่อได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('network') || errorMsg.includes('fetch') || errorMsg.includes('connection')) {
+        userMessage = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต';
+      } else if (errorMsg.includes('session') || errorMsg.includes('unauthorized') || errorMsg.includes('401')) {
+        userMessage = 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่อีกครั้ง';
+      }
+      toast({ title: 'เกิดข้อผิดพลาด', description: userMessage, variant: 'destructive' });
       setProducts([]);
       setPagination({ total: 0, totalPages: 0 });
     } finally {
@@ -144,8 +151,17 @@ export function LoanProducts(): JSX.Element {
       await loadProducts();
       await loadStats();
     } catch (err: unknown) {
-      const message = (err as Error)?.message ?? 'ไม่สามารถลบสินเชื่อได้';
-      toast({ title: 'เกิดข้อผิดพลาด', description: message, variant: 'destructive' });
+      const errorMsg = (err as Error)?.message ?? '';
+      // Map technical errors to user-friendly messages
+      let userMessage = 'ไม่สามารถลบสินเชื่อได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('in use') || errorMsg.includes('referenced') || errorMsg.includes('foreign key')) {
+        userMessage = 'ไม่สามารถลบสินเชื่อนี้ได้เนื่องจากมีการใช้งานอยู่ในระบบ';
+      } else if (errorMsg.includes('permission') || errorMsg.includes('forbidden') || errorMsg.includes('403')) {
+        userMessage = 'คุณไม่มีสิทธิ์ลบสินเชื่อนี้';
+      } else if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+        userMessage = 'ไม่พบสินเชื่อที่ต้องการลบ อาจถูกลบไปแล้ว';
+      }
+      toast({ title: 'เกิดข้อผิดพลาด', description: userMessage, variant: 'destructive' });
     } finally {
       setDeleteDialogOpen(false);
       setProductToDelete(null);

@@ -215,9 +215,16 @@ export default function OfficerPerformance() {
       setSelectedOfficer(null);
       setTargetAmount('');
     } catch (error: unknown) {
+      const errorMsg = (error as Error)?.message ?? '';
+      let userMessage = 'ไม่สามารถบันทึกเป้าหมายได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('permission') || errorMsg.includes('forbidden') || errorMsg.includes('403')) {
+        userMessage = 'คุณไม่มีสิทธิ์กำหนดเป้าหมายให้เจ้าหน้าที่นี้';
+      } else if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+        userMessage = 'ไม่พบเจ้าหน้าที่ในระบบ';
+      }
       toast({
         title: 'เกิดข้อผิดพลาด',
-        description: (error as Error).message || 'ไม่สามารถบันทึกเป้าหมายได้',
+        description: userMessage,
         variant: 'destructive',
       });
     }

@@ -140,7 +140,14 @@ export function LineAuditDialog({
       setForceDisconnect(false);
     },
     onError: (error: Error) => {
-      toast.error(`ไม่สามารถตัดการเชื่อมต่อได้: ${error.message}`);
+      const errorMsg = error?.message ?? '';
+      let userMessage = 'ไม่สามารถตัดการเชื่อมต่อ LINE ได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('permission') || errorMsg.includes('forbidden') || errorMsg.includes('403')) {
+        userMessage = 'คุณไม่มีสิทธิ์ตัดการเชื่อมต่อ LINE นี้';
+      } else if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+        userMessage = 'ไม่พบการเชื่อมต่อ LINE นี้ในระบบ';
+      }
+      toast.error(userMessage);
     },
   });
 

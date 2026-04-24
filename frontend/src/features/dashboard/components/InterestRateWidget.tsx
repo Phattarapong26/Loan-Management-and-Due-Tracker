@@ -32,7 +32,7 @@ export function InterestRateWidget() {
       }
     } catch (error: any) {
       toast.error('ไม่สามารถโหลดอัตราดอกเบี้ยได้', {
-        description: error.message
+        description: 'กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่อีกครั้ง'
       });
     } finally {
       setLoading(false);

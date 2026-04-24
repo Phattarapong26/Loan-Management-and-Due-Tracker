@@ -25,7 +25,7 @@ export class ProductBudgetController {
 
       return ResponseUtil.success(reply, budgets);
     } catch (error: any) {
-      return ResponseUtil.error(reply, error.message || 'Failed to fetch budgets', 500);
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดข้อมูลงบประมาณได้', 500, 'LOAD_ERROR');
     }
   };
 
@@ -38,7 +38,7 @@ export class ProductBudgetController {
       const { fiscalYear, quarter } = request.query as any;
 
       if (!fiscalYear) {
-        return ResponseUtil.error(reply, 'Fiscal year is required', 400);
+        return ResponseUtil.error(reply, 'กรุณาระบุปีงบประมาณ', 400, 'REQUIRED_FIELD');
       }
 
       const budget = await this.service.getBudgetByProduct(
@@ -51,7 +51,7 @@ export class ProductBudgetController {
       // This is expected behavior - not all products have budgets yet
       return ResponseUtil.success(reply, budget || null);
     } catch (error: any) {
-      return ResponseUtil.error(reply, error.message || 'Failed to fetch budget', 500);
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดข้อมูลงบประมาณได้', 500, 'LOAD_ERROR');
     }
   };
 
@@ -63,11 +63,11 @@ export class ProductBudgetController {
       const { productIds, fiscalYear, quarter } = request.body as any;
 
       if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
-        return ResponseUtil.error(reply, 'Product IDs array is required', 400);
+        return ResponseUtil.error(reply, 'กรุณาระบุรหัสสินเชื่ออย่างน้อย 1 รายการ', 400, 'REQUIRED_FIELD');
       }
 
       if (!fiscalYear) {
-        return ResponseUtil.error(reply, 'Fiscal year is required', 400);
+        return ResponseUtil.error(reply, 'กรุณาระบุปีงบประมาณ', 400, 'REQUIRED_FIELD');
       }
 
       const budgets = await this.service.getBudgetsBatch(
@@ -79,7 +79,7 @@ export class ProductBudgetController {
       // Return object with productId as key for easy lookup
       return ResponseUtil.success(reply, budgets);
     } catch (error: any) {
-      return ResponseUtil.error(reply, error.message || 'Failed to fetch budgets', 500);
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดข้อมูลงบประมาณได้', 500, 'LOAD_ERROR');
     }
   };
 
@@ -121,7 +121,7 @@ export class ProductBudgetController {
           hasFiscalYear: !!fiscalYear,
           hasTotalBudgetAmount: !!totalBudgetAmount,
         });
-        return ResponseUtil.error(reply, 'Missing required fields', 400);
+        return ResponseUtil.error(reply, 'กรุณากรอกข้อมูลให้ครบถ้วน (รหัสสินเชื่อ ปีงบประมาณ และวงเงินงบประมาณ)', 400, 'REQUIRED_FIELD');
       }
 
       const budget = await this.service.createBudget({
@@ -145,12 +145,13 @@ export class ProductBudgetController {
       if (error instanceof OptimisticLockError) {
         return ResponseUtil.error(
           reply,
-          'Concurrent modification detected. Please try again.',
-          409
+          'มีผู้ใช้กำลังแก้ไขข้อมูลนี้อยู่ กรุณารีเฟรชและลองใหม่อีกครั้ง',
+          409,
+          'CONCURRENT_MODIFICATION'
         );
       }
       
-      return ResponseUtil.error(reply, error.message || 'Failed to create budget', 400);
+      return ResponseUtil.error(reply, 'ไม่สามารถสร้างงบประมาณได้ กรุณาตรวจสอบข้อมูลและลองใหม่อีกครั้ง', 400, 'VALIDATION_ERROR');
     }
   };
 
@@ -168,7 +169,7 @@ export class ProductBudgetController {
       const { additionalAmount } = request.body as any;
 
       if (!additionalAmount || additionalAmount <= 0) {
-        return ResponseUtil.error(reply, 'Invalid additional amount', 400);
+        return ResponseUtil.error(reply, 'กรุณาระบุจำนวนเงินเพิ่มเติมที่ถูกต้อง', 400, 'VALIDATION_ERROR');
       }
 
       const budget = await this.service.addBudget(
@@ -183,12 +184,13 @@ export class ProductBudgetController {
       if (error instanceof OptimisticLockError) {
         return ResponseUtil.error(
           reply,
-          'Concurrent modification detected. Please try again.',
-          409
+          'มีผู้ใช้กำลังแก้ไขข้อมูลนี้อยู่ กรุณารีเฟรชและลองใหม่อีกครั้ง',
+          409,
+          'CONCURRENT_MODIFICATION'
         );
       }
       
-      return ResponseUtil.error(reply, error.message || 'Failed to add budget', 400);
+      return ResponseUtil.error(reply, 'ไม่สามารถเพิ่มงบประมาณได้ กรุณาลองใหม่อีกครั้ง', 400, 'INTERNAL_ERROR');
     }
   };
 
@@ -201,7 +203,7 @@ export class ProductBudgetController {
       const { loanAmount, fiscalYear, quarter } = request.query as any;
 
       if (!loanAmount) {
-        return ResponseUtil.error(reply, 'Loan amount is required', 400);
+        return ResponseUtil.error(reply, 'กรุณาระบุจำนวนเงินกู้', 400, 'REQUIRED_FIELD');
       }
 
       const result = await this.service.checkBudgetAvailability(
@@ -217,12 +219,13 @@ export class ProductBudgetController {
       if (error instanceof InsufficientBudgetError) {
         return ResponseUtil.error(
           reply,
-          `Insufficient budget. Requested: ${error.requestedAmount}, Available: ${error.availableAmount}`,
-          400
+          `งบประมาณไม่เพียงพอ ต้องการ: ${error.requestedAmount.toLocaleString()} บาท, คงเหลือ: ${error.availableAmount.toLocaleString()} บาท`,
+          400,
+          'BUDGET_EXCEEDED'
         );
       }
       
-      return ResponseUtil.error(reply, error.message || 'Failed to check availability', 500);
+      return ResponseUtil.error(reply, 'ไม่สามารถตรวจสอบงบประมาณได้ กรุณาลองใหม่อีกครั้ง', 500, 'INTERNAL_ERROR');
     }
   };
 
@@ -237,7 +240,7 @@ export class ProductBudgetController {
 
       return ResponseUtil.success(reply, stats);
     } catch (error: any) {
-      return ResponseUtil.error(reply, error.message || 'Failed to fetch statistics', 500);
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดสถิติงบประมาณได้', 500, 'LOAD_ERROR');
     }
   };
 
@@ -252,7 +255,7 @@ export class ProductBudgetController {
 
       return ResponseUtil.success(reply, history);
     } catch (error: any) {
-      return ResponseUtil.error(reply, error.message || 'Failed to fetch history', 500);
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดประวัติการใช้งบประมาณได้', 500, 'LOAD_ERROR');
     }
   };
 }

@@ -725,43 +725,77 @@ export default function BranchManagerDashboard() {
             </div>
           </div>
 
-          {/* Trend Chart (CSS based mock) */}
+   
           <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="font-bold flex items-center gap-2">
-                <TrendingUp size={18} className="text-[#00A950]" /> แนวโน้มการปล่อยสินเชื่อ 90 วัน
-              </h2>
-              <div className="flex gap-2">
-                <span className="text-[10px] text-slate-400 font-bold uppercase">Jan</span>
-                <span className="text-[10px] text-slate-400 font-bold uppercase">Feb</span>
-                <span className="text-[10px] text-slate-400 font-bold uppercase">Mar</span>
-              </div>
-            </div>
-            <div className="flex-1 min-h-[140px] relative flex items-end justify-between px-2 pb-6 border-b border-slate-100">
-              {/* Visual Chart Bars Mockup */}
-              {[40, 65, 55, 85, 75, 95, 80, 100, 90, 110, 105, 120].map((h, i) => (
-                <div
-                  key={i}
-                  className="w-full mx-0.5 group relative flex flex-col items-center justify-end h-full"
-                >
-                  <div
-                    className="w-full bg-[#00A950]/10 rounded-t-sm group-hover:bg-[#00A950] transition-all duration-300"
-                    style={{ height: `${h}%` }}
-                  ></div>
-                </div>
-              ))}
-              {/* Line overlay mock */}
-              <div className="absolute inset-0 top-1/2 border-t border-dashed border-slate-200 pointer-events-none"></div>
-            </div>
-            <div className="mt-4 flex justify-between items-center text-xs">
-              <p className="text-slate-400">จำนวนสินเชื่อที่อนุมัติ (รายเดือน)</p>
-              <p className="text-sm font-bold text-[#00A950]">
-                {collectionRate < 10 
-                  ? `ปล่อยได้ ฿${(outstandingBalance * collectionRate / 100 / 1000).toFixed(0)}K` 
-                  : `${collectionRate > 80 ? '+' : ''}${(collectionRate - 80).toFixed(1)}% Growth`
-                }
-              </p>
-            </div>
+            {/* Build 12-week trend from real allLoansData */}
+            {(() => {
+              const loans = allLoansData || [];
+              const now = new Date();
+              // 12 weekly buckets going back 90 days
+              const weeks = Array.from({ length: 12 }, (_, i) => {
+                const weekEnd = new Date(now);
+                weekEnd.setDate(now.getDate() - i * 7);
+                const weekStart = new Date(weekEnd);
+                weekStart.setDate(weekEnd.getDate() - 6);
+                const count = loans.filter((l: any) => {
+                  const d = new Date(l.createdAt);
+                  return d >= weekStart && d <= weekEnd;
+                }).length;
+                return { count, weekEnd };
+              }).reverse();
+
+              const maxCount = Math.max(...weeks.map(w => w.count), 1);
+              const totalApproved = weeks.reduce((s, w) => s + w.count, 0);
+
+              // Month labels for header
+              const monthSet = new Set<string>();
+              const monthLabels: string[] = [];
+              weeks.forEach(w => {
+                const m = w.weekEnd.toLocaleString('en', { month: 'short' });
+                if (!monthSet.has(m)) { monthSet.add(m); monthLabels.push(m); }
+              });
+
+              return (
+                <>
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="font-bold flex items-center gap-2">
+                      <TrendingUp size={18} className="text-[#00A950]" /> แนวโน้มการปล่อยสินเชื่อ 90 วัน
+                    </h2>
+                    <div className="flex gap-2">
+                      {monthLabels.map(m => (
+                        <span key={m} className="text-[10px] text-slate-400 font-bold uppercase">{m}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex-1 min-h-[140px] relative flex items-end justify-between px-2 pb-6 border-b border-slate-100">
+                    {weeks.map((w, i) => {
+                      const heightPct = maxCount > 0 ? Math.max(4, (w.count / maxCount) * 100) : 4;
+                      return (
+                        <div key={i} className="w-full mx-0.5 group relative flex flex-col items-center justify-end h-full">
+                          <div
+                            className="w-full bg-[#00A950]/10 rounded-t-sm group-hover:bg-[#00A950] transition-all duration-300 relative"
+                            style={{ height: `${heightPct}%` }}
+                          >
+                            {w.count > 0 && (
+                              <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                {w.count}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div className="absolute inset-0 top-1/2 border-t border-dashed border-slate-200 pointer-events-none"></div>
+                  </div>
+                  <div className="mt-4 flex justify-between items-center text-xs">
+                    <p className="text-slate-400">จำนวนสินเชื่อที่อนุมัติ (รายสัปดาห์)</p>
+                    <p className="text-sm font-bold text-[#00A950]">
+                      {totalApproved} สัญญา / 90 วัน
+                    </p>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       </div>

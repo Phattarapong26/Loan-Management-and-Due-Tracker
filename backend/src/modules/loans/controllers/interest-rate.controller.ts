@@ -11,7 +11,7 @@ export class InterestRateController {
       const rates = await interestRateService.getAllRates();
       return ResponseUtil.success(reply, rates);
     } catch (error: any) {
-      return ResponseUtil.error(reply, error.message, 500);
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดอัตราดอกเบี้ยได้', 500, 'LOAD_ERROR');
     }
   };
 
@@ -32,7 +32,7 @@ export class InterestRateController {
 
       if (typeof rate !== 'number' || isNaN(rate)) {
         console.log('[Update MLR] Invalid rate:', { rate, type: typeof rate });
-        return ResponseUtil.error(reply, 'Invalid rate value', 400);
+        return ResponseUtil.error(reply, 'กรุณาระบุค่าอัตราดอกเบี้ยที่ถูกต้อง', 400, 'VALIDATION_ERROR');
       }
 
       await interestRateService.updateMLR(rate, userId);
@@ -43,7 +43,7 @@ export class InterestRateController {
       });
     } catch (error: any) {
       console.error('[Update MLR] Error:', error);
-      return ResponseUtil.error(reply, error.message, 400);
+      return ResponseUtil.error(reply, 'ไม่สามารถอัปเดตอัตรา MLR ได้ กรุณาลองใหม่อีกครั้ง', 400, 'INTERNAL_ERROR');
     }
   };
 
@@ -64,7 +64,7 @@ export class InterestRateController {
 
       if (typeof rate !== 'number' || isNaN(rate)) {
         console.log('[Update MRR] Invalid rate:', { rate, type: typeof rate });
-        return ResponseUtil.error(reply, 'Invalid rate value', 400);
+        return ResponseUtil.error(reply, 'กรุณาระบุค่าอัตราดอกเบี้ยที่ถูกต้อง', 400, 'VALIDATION_ERROR');
       }
 
       await interestRateService.updateMRR(rate, userId);
@@ -75,7 +75,7 @@ export class InterestRateController {
       });
     } catch (error: any) {
       console.error('[Update MRR] Error:', error);
-      return ResponseUtil.error(reply, error.message, 400);
+      return ResponseUtil.error(reply, 'ไม่สามารถอัปเดตอัตรา MRR ได้ กรุณาลองใหม่อีกครั้ง', 400, 'INTERNAL_ERROR');
     }
   };
 
@@ -87,7 +87,7 @@ export class InterestRateController {
       const { formula } = request.body as { formula: string };
       
       if (!formula) {
-        return ResponseUtil.error(reply, 'Formula is required', 400);
+        return ResponseUtil.error(reply, 'กรุณาระบุสูตรการคำนวณ', 400, 'REQUIRED_FIELD');
       }
 
       const rate = await interestRateService.calculateRateFromFormula(formula);
@@ -97,7 +97,7 @@ export class InterestRateController {
         calculatedRate: rate,
       });
     } catch (error: any) {
-      return ResponseUtil.error(reply, error.message, 400);
+      return ResponseUtil.error(reply, 'ไม่สามารถคำนวณอัตราดอกเบี้ยจากสูตรได้ กรุณาตรวจสอบสูตรและลองใหม่อีกครั้ง', 400, 'VALIDATION_ERROR');
     }
   };
 
@@ -113,7 +113,7 @@ export class InterestRateController {
       
       return ResponseUtil.success(reply, history);
     } catch (error: any) {
-      return ResponseUtil.error(reply, error.message, 500);
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดประวัติการเปลี่ยนแปลงอัตราดอกเบี้ยได้', 500, 'LOAD_ERROR');
     }
   };
 }

@@ -71,9 +71,18 @@ export default function ResetPassword() {
                 navigate('/login');
             }, 3000);
         } catch (err: unknown) {
-            const message = (err as Error)?.message ?? (typeof err === 'string' ? err : 'เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน');
-            setError(message);
-            toast.error(message);
+            const errorMsg = (err as Error)?.message ?? '';
+            // Map technical errors to user-friendly messages
+            let userMessage = 'ไม่สามารถรีเซ็ตรหัสผ่านได้ กรุณาลองใหม่อีกครั้ง';
+            if (errorMsg.includes('expired') || errorMsg.includes('หมดอายุ') || errorMsg.includes('invalid token')) {
+                userMessage = 'ลิงก์รีเซ็ตรหัสผ่านหมดอายุแล้ว กรุณาขอลิงก์ใหม่อีกครั้ง';
+            } else if (errorMsg.includes('already used') || errorMsg.includes('ใช้แล้ว')) {
+                userMessage = 'ลิงก์นี้ถูกใช้งานแล้ว กรุณาขอลิงก์ใหม่อีกครั้ง';
+            } else if (errorMsg.includes('not found') || errorMsg.includes('ไม่พบ')) {
+                userMessage = 'ไม่พบผู้ใช้ในระบบ กรุณาตรวจสอบอีเมลและลองใหม่อีกครั้ง';
+            }
+            setError(userMessage);
+            toast.error(userMessage);
         } finally {
             setIsLoading(false);
         }

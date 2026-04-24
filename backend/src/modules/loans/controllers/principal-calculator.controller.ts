@@ -25,7 +25,7 @@ export class PrincipalCalculatorController {
             return ResponseUtil.success(reply, result);
         } catch (error) {
             logger.error({ error }, 'Error calculating current principal');
-            return ResponseUtil.error(reply, error instanceof Error ? error.message : 'Unknown error');
+            return ResponseUtil.error(reply, 'ไม่สามารถคำนวณเงินต้นปัจจุบันได้ กรุณาลองใหม่อีกครั้ง', 500, 'CALCULATION_ERROR');
         }
     }
 
@@ -57,7 +57,7 @@ export class PrincipalCalculatorController {
             return ResponseUtil.success(reply, result);
         } catch (error) {
             logger.error({ error }, 'Error simulating payment impact');
-            return ResponseUtil.error(reply, error instanceof Error ? error.message : 'Unknown error');
+            return ResponseUtil.error(reply, 'ไม่สามารถจำลองผลกระทบการชำระเงินได้ กรุณาลองใหม่อีกครั้ง', 500, 'SIMULATION_ERROR');
         }
     }
 
@@ -84,7 +84,7 @@ export class PrincipalCalculatorController {
             return ResponseUtil.success(reply, results);
         } catch (error) {
             logger.error({ error }, 'Error calculating multiple principals');
-            return ResponseUtil.error(reply, error instanceof Error ? error.message : 'Unknown error');
+            return ResponseUtil.error(reply, 'ไม่สามารถคำนวณเงินต้นหลายรายการพร้อมกันได้ กรุณาลองใหม่อีกครั้ง', 500, 'BULK_CALCULATION_ERROR');
         }
     }
 
@@ -103,7 +103,7 @@ export class PrincipalCalculatorController {
             return ResponseUtil.success(reply, result);
         } catch (error) {
             logger.error({ error }, 'Error getting principal summary');
-            return ResponseUtil.error(reply, error instanceof Error ? error.message : 'Unknown error');
+            return ResponseUtil.error(reply, 'ไม่สามารถดึงข้อมูลสรุปเงินต้นได้ กรุณาลองใหม่อีกครั้ง', 500, 'SUMMARY_ERROR');
         }
     }
 
@@ -137,7 +137,7 @@ export class PrincipalCalculatorController {
             return ResponseUtil.success(reply, overview);
         } catch (error) {
             logger.error({ error }, 'Error getting principal overview');
-            return ResponseUtil.error(reply, error instanceof Error ? error.message : 'Unknown error');
+            return ResponseUtil.error(reply, 'ไม่สามารถดึงข้อมูลภาพรวมเงินต้นได้ กรุณาลองใหม่อีกครั้ง', 500, 'OVERVIEW_ERROR');
         }
     }
 }

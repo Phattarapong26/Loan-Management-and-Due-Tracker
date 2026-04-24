@@ -644,7 +644,7 @@ export class LoanRepository {
         branchId?: string;
         officerId?: string;
         productId?: string;
-    }): Promise<Array<{ id: string }>> {
+    }): Promise<Array<{ id: string; outstandingBalance: any }>> {
         const and: any[] = [];
         if (params.productId) and.push({ loanProductId: params.productId });
         if (params.officerId) {
@@ -659,7 +659,7 @@ export class LoanRepository {
                 status: { in: ['ACTIVE', 'DISBURSED', 'DEFAULTED', 'NPL'] },
                 ...(and.length > 0 ? { AND: and } : {}),
             },
-            select: { id: true },
+            select: { id: true, outstandingBalance: true },
         });
     }
 

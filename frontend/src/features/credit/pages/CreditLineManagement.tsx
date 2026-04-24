@@ -31,7 +31,7 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import axios from 'axios';
+import { apiClient } from '@/shared/lib/api-client';
 import dayjs from 'dayjs';
 
 const { TabPane } = Tabs;
@@ -99,21 +99,28 @@ const CreditLineManagement: React.FC = () => {
     try {
       if (activeTab === 'credit-lines') {
         const [creditLinesRes, statsRes] = await Promise.all([
-          axios.get('/api/credit-lines'),
-          axios.get('/api/credit-lines/statistics'),
+          apiClient.get('/api/credit-lines'),
+          apiClient.get('/api/credit-lines/statistics'),
         ]);
-        setCreditLines(creditLinesRes.data);
-        setStatistics(statsRes.data);
+        setCreditLines(creditLinesRes.data as CreditLine[]);
+        setStatistics(statsRes.data as any);
       } else {
         const [drawdownsRes, statsRes] = await Promise.all([
-          axios.get('/api/drawdowns'),
-          axios.get('/api/drawdowns/statistics'),
+          apiClient.get('/api/drawdowns'),
+          apiClient.get('/api/drawdowns/statistics'),
         ]);
-        setDrawdowns(drawdownsRes.data);
-        setStatistics(statsRes.data);
+        setDrawdowns(drawdownsRes.data as Drawdown[]);
+        setStatistics(statsRes.data as any);
       }
-    } catch (error) {
-      message.error('ไม่สามารถโหลดข้อมูลได้');
+    } catch (error: any) {
+      const errorMsg = error?.response?.data?.error || error?.message || '';
+      let userMessage = 'ไม่สามารถโหลดข้อมูล Credit Line ได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('network') || errorMsg.includes('fetch') || errorMsg.includes('connection')) {
+        userMessage = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต';
+      } else if (errorMsg.includes('session') || errorMsg.includes('unauthorized') || errorMsg.includes('401')) {
+        userMessage = 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่อีกครั้ง';
+      }
+      message.error(userMessage);
     } finally {
       setLoading(false);
     }
@@ -121,7 +128,7 @@ const CreditLineManagement: React.FC = () => {
 
   const handleCreateCreditLine = async (values: any) => {
     try {
-      await axios.post('/api/credit-lines', {
+      await apiClient.post('/api/credit-lines', {
         customerId: values.customerId,
         creditLineNumber: values.creditLineNumber,
         approvedLimit: values.approvedLimit,
@@ -136,14 +143,23 @@ const CreditLineManagement: React.FC = () => {
       form.resetFields();
       loadData();
     } catch (error: any) {
-      message.error(error.response?.data?.error || 'ไม่สามารถสร้างได้');
+      const errorMsg = error?.response?.data?.error || error?.message || '';
+      let userMessage = 'ไม่สามารถสร้าง Credit Line ได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('duplicate') || errorMsg.includes('already exists') || errorMsg.includes('ซ้ำ')) {
+        userMessage = 'หมายเลข Credit Line นี้มีอยู่ในระบบแล้ว';
+      } else if (errorMsg.includes('customer') || errorMsg.includes('ลูกค้า')) {
+        userMessage = 'ไม่พบลูกค้าในระบบ กรุณาตรวจสอบรหัสลูกค้า';
+      } else if (errorMsg.includes('validation') || errorMsg.includes('valid')) {
+        userMessage = 'ข้อมูลไม่ถูกต้อง กรุณาตรวจสอบและลองใหม่อีกครั้ง';
+      }
+      message.error(userMessage);
     }
   };
 
   const handleCreateDrawdown = async (values: any) => {
     if (!selectedCreditLine) return;
     try {
-      await axios.post('/api/drawdowns', {
+      await apiClient.post('/api/drawdowns', {
         creditLineId: selectedCreditLine.id,
         drawdownNumber: values.drawdownNumber,
         amount: values.amount,
@@ -159,37 +175,67 @@ const CreditLineManagement: React.FC = () => {
       drawdownForm.resetFields();
       loadData();
     } catch (error: any) {
-      message.error(error.response?.data?.error || 'ไม่สามารถสร้างได้');
+      const errorMsg = error?.response?.data?.error || error?.message || '';
+      let userMessage = 'ไม่สามารถสร้าง Drawdown ได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('limit') || errorMsg.includes('วงเงิน') || errorMsg.includes('exceeded')) {
+        userMessage = 'จำนวนเงิน Drawdown เกินวงเงิน Credit Line ที่เหลืออยู่';
+      } else if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+        userMessage = 'ไม่พบ Credit Line นี้ในระบบ';
+      } else if (errorMsg.includes('suspended') || errorMsg.includes('inactive')) {
+        userMessage = 'Credit Line นี้อยู่ในสถานะระงับชั่วคราว ไม่สามารถ Drawdown ได้';
+      }
+      message.error(userMessage);
     }
   };
 
   const handleSuspend = async (id: string) => {
     try {
-      await axios.post(`/api/credit-lines/${id}/suspend`);
+      await apiClient.post(`/api/credit-lines/${id}/suspend`);
       message.success('ระงับ Credit Line สำเร็จ');
       loadData();
-    } catch (error) {
-      message.error('ไม่สามารถระงับได้');
+    } catch (error: any) {
+      const errorMsg = error?.response?.data?.error || error?.message || '';
+      let userMessage = 'ไม่สามารถระงับ Credit Line ได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+        userMessage = 'ไม่พบ Credit Line นี้ในระบบ';
+      } else if (errorMsg.includes('already') || errorMsg.includes('แล้ว')) {
+        userMessage = 'Credit Line นี้อยู่ในสถานะระงับอยู่แล้ว';
+      }
+      message.error(userMessage);
     }
   };
 
   const handleActivate = async (id: string) => {
     try {
-      await axios.post(`/api/credit-lines/${id}/activate`);
+      await apiClient.post(`/api/credit-lines/${id}/activate`);
       message.success('เปิดใช้งาน Credit Line สำเร็จ');
       loadData();
-    } catch (error) {
-      message.error('ไม่สามารถเปิดใช้งานได้');
+    } catch (error: any) {
+      const errorMsg = error?.response?.data?.error || error?.message || '';
+      let userMessage = 'ไม่สามารถเปิดใช้งาน Credit Line ได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+        userMessage = 'ไม่พบ Credit Line นี้ในระบบ';
+      } else if (errorMsg.includes('expired') || errorMsg.includes('หมดอายุ')) {
+        userMessage = 'Credit Line นี้หมดอายุแล้ว ไม่สามารถเปิดใช้งานได้';
+      }
+      message.error(userMessage);
     }
   };
 
   const handleRepayDrawdown = async (id: string) => {
     try {
-      await axios.post(`/api/drawdowns/${id}/repay`);
+      await apiClient.post(`/api/drawdowns/${id}/repay`);
       message.success('ชำระคืน Drawdown สำเร็จ');
       loadData();
-    } catch (error) {
-      message.error('ไม่สามารถชำระคืนได้');
+    } catch (error: any) {
+      const errorMsg = error?.response?.data?.error || error?.message || '';
+      let userMessage = 'ไม่สามารถชำระคืน Drawdown ได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+        userMessage = 'ไม่พบ Drawdown นี้ในระบบ';
+      } else if (errorMsg.includes('already') || errorMsg.includes('repaid') || errorMsg.includes('ชำระแล้ว')) {
+        userMessage = 'Drawdown นี้ถูกชำระคืนแล้ว';
+      }
+      message.error(userMessage);
     }
   };
 
@@ -621,7 +667,7 @@ const CreditLineManagement: React.FC = () => {
                   style={{ width: '100%' }}
                   min={0}
                   formatter={(value) => `฿ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                  parser={(value) => value!.replace(/฿\s?|(,*)/g, '')}
+                  parser={(value) => value ? Number(value.replace(/฿\s?|(,*)/g, '')) : 0}
                 />
               </Form.Item>
             </Col>
@@ -732,7 +778,7 @@ const CreditLineManagement: React.FC = () => {
                   min={0}
                   max={selectedCreditLine.available_balance}
                   formatter={(value) => `฿ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                  parser={(value) => value!.replace(/฿\s?|(,*)/g, '')}
+                  parser={(value) => value ? Number(value.replace(/฿\s?|(,*)/g, '')) : 0}
                 />
               </Form.Item>
               <Form.Item

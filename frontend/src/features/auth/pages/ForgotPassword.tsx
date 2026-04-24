@@ -26,8 +26,15 @@ export default function ForgotPassword() {
             setIsSent(true);
             toast.success('ลิงก์รีเซ็ตรหัสผ่านถูกส่งไปยังอีเมลของคุณแล้ว');
         } catch (error: unknown) {
-            const message = (error as Error)?.message ?? (typeof error === 'string' ? error : 'เกิดข้อผิดพลาดในการส่งลิงก์รีเซ็ต');
-            toast.error(message);
+            const errorMsg = (error as Error)?.message ?? '';
+            // Map technical errors to user-friendly messages
+            let userMessage = 'เกิดข้อผิดพลาดในการส่งลิงก์รีเซ็ต กรุณาลองใหม่อีกครั้ง';
+            if (errorMsg.includes('not found') || errorMsg.includes('ไม่พบ')) {
+                userMessage = 'ไม่พบอีเมลนี้ในระบบ กรุณาตรวจสอบอีเมลและลองใหม่อีกครั้ง';
+            } else if (errorMsg.includes('rate limit') || errorMsg.includes('too many')) {
+                userMessage = 'คุณส่งคำขอบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่อีกครั้ง';
+            }
+            toast.error(userMessage);
         } finally {
             setIsLoading(false);
         }

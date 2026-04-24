@@ -358,6 +358,9 @@ export class CollectionFilterService {
             };
             const credit = computeCreditAssessment({
                 daysUntilDue,
+                loanStatus: (schedule.loan as any)?.status,
+                loanOverdueDays: (schedule.loan as any)?.overdueDays ?? 0,
+                scheduleStatus: schedule.status,
             });
             base.creditGrade = credit.grade;
             base.creditScore = credit.score;
@@ -409,6 +412,9 @@ export class CollectionFilterService {
             };
             const credit = computeCreditAssessment({
                 daysUntilDue,
+                loanStatus: (schedule.loan as any)?.status,
+                loanOverdueDays: (schedule.loan as any)?.overdueDays ?? 0,
+                scheduleStatus: schedule.status,
             });
             base.creditGrade = credit.grade;
             base.creditScore = credit.score;

@@ -58,7 +58,9 @@ export default function OverpaymentCalculator() {
         const res = await fetch(url);
         const json = await res.json().catch(() => null);
         if (!res.ok || !json?.success) {
-          throw new Error(json?.error || `HTTP ${res.status}`);
+          // Use user-friendly error message instead of HTTP status code
+          const errorMessage = json?.error?.message || json?.error || 'ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง';
+          throw new Error(errorMessage);
         }
         return json.data as LoanData;
       };

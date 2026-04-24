@@ -173,19 +173,22 @@ export class BucketRollRatesRealtimeService {
         });
 
         const activeLoanIds = activeLoans.map(l => l.id);
+        // Map loan outstanding balance (source of truth for amount in each bucket)
+        const loanOutstandingBalance = new Map<string, number>(
+            activeLoans.map(l => [l.id, Number(l.outstandingBalance || 0)])
+        );
 
         // Get unpaid schedules for active loans (including future dates for proper counting)
         const schedules = await this.paymentScheduleRepository.findUnpaidByLoanIds(activeLoanIds);
 
         // Earliest unpaid schedule per loan (source of truth for "next due" and DPD)
-        const loanEarliestSchedule = new Map<string, { paymentDate: Date; amount: number }>();
+        const loanEarliestSchedule = new Map<string, { paymentDate: Date }>();
         
         schedules.forEach((schedule: any) => {
             const existing = loanEarliestSchedule.get(schedule.loanId);
             if (!existing || new Date(schedule.paymentDate) < new Date(existing.paymentDate)) {
                 loanEarliestSchedule.set(schedule.loanId, {
                     paymentDate: new Date(schedule.paymentDate),
-                    amount: Number(schedule.totalPayment || 0),
                 });
             }
         });
@@ -194,13 +197,15 @@ export class BucketRollRatesRealtimeService {
 
         for (const loanId of activeLoanIds) {
             const earliest = loanEarliestSchedule.get(loanId);
+            // Use outstandingBalance as the amount for each bucket (not installment amount)
+            const amount = loanOutstandingBalance.get(loanId) || 0;
             if (!earliest) {
-                loanBuckets.set(loanId, { bucket: 'CURRENT', amount: 0 });
+                loanBuckets.set(loanId, { bucket: 'CURRENT', amount });
                 continue;
             }
             const daysOverdue = differenceInDays(asOfDate, earliest.paymentDate);
             const bucket = getAgingBucket(daysOverdue);
-            loanBuckets.set(loanId, { bucket, amount: earliest.amount });
+            loanBuckets.set(loanId, { bucket, amount });
         }
 
         // Categorize loans by bucket based on earliest unpaid schedule

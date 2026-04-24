@@ -44,7 +44,7 @@ export class PenaltyController {
             });
 
             if (!loan) {
-                return ResponseUtil.error(reply, 'Loan not found', 404);
+                return ResponseUtil.error(reply, 'ไม่พบสินเชื่อที่ต้องการ', 404, 'NOT_FOUND');
             }
 
             const outstandingBalance = Number(loan.outstandingBalance || 0);
@@ -76,7 +76,7 @@ export class PenaltyController {
                 },
             });
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 500);
+            return ResponseUtil.error(reply, 'ไม่สามารถคำนวณค่าปรับได้ กรุณาลองใหม่อีกครั้ง', 500, 'INTERNAL_ERROR');
         }
     };
 
@@ -99,7 +99,7 @@ export class PenaltyController {
 
             return ResponseUtil.success(reply, penaltyRate);
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 500);
+            return ResponseUtil.error(reply, 'ไม่สามารถโหลดอัตราค่าปรับได้', 500, 'LOAD_ERROR');
         }
     };
 
@@ -118,7 +118,7 @@ export class PenaltyController {
             const rules = await this.penaltyService.getPenaltyRulesForProduct(productId);
             return ResponseUtil.success(reply, { rules, total: rules.length });
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 500);
+            return ResponseUtil.error(reply, 'ไม่สามารถโหลดกฎการคำนวณค่าปรับได้', 500, 'LOAD_ERROR');
         }
     };
 }

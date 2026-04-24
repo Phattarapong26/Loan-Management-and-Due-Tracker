@@ -108,9 +108,16 @@ export default function BranchStaff() {
       handleCloseAddDialog();
     },
     onError: (error: unknown) => {
+      const errorMsg = (error as Error)?.message ?? '';
+      let userMessage = 'ไม่สามารถเพิ่มพนักงานได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('duplicate') || errorMsg.includes('already exists') || errorMsg.includes('อีเมลนี้')) {
+        userMessage = 'อีเมลนี้ถูกใช้งานแล้ว กรุณาใช้อีเมลอื่น';
+      } else if (errorMsg.includes('permission') || errorMsg.includes('forbidden') || errorMsg.includes('403')) {
+        userMessage = 'คุณไม่มีสิทธิ์เพิ่มพนักงาน';
+      }
       toast({
         title: 'เกิดข้อผิดพลาด',
-        description: (error as Error).message || 'ไม่สามารถเพิ่มพนักงานได้',
+        description: userMessage,
         variant: 'destructive',
       });
     },
@@ -132,9 +139,18 @@ export default function BranchStaff() {
       handleCloseEditDialog();
     },
     onError: (error: unknown) => {
+      const errorMsg = (error as Error)?.message ?? '';
+      let userMessage = 'ไม่สามารถอัปเดตข้อมูลพนักงานได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('duplicate') || errorMsg.includes('already exists')) {
+        userMessage = 'ข้อมูลนี้ซ้ำกับพนักงานอื่นในระบบ';
+      } else if (errorMsg.includes('permission') || errorMsg.includes('forbidden') || errorMsg.includes('403')) {
+        userMessage = 'คุณไม่มีสิทธิ์แก้ไขข้อมูลพนักงานนี้';
+      } else if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+        userMessage = 'ไม่พบพนักงานที่ต้องการแก้ไข อาจถูกลบไปแล้ว';
+      }
       toast({
         title: 'เกิดข้อผิดพลาด',
-        description: (error as Error).message || 'ไม่สามารถอัปเดตข้อมูลได้',
+        description: userMessage,
         variant: 'destructive',
       });
     },
@@ -155,9 +171,16 @@ export default function BranchStaff() {
       });
     },
     onError: (error: unknown) => {
+      const errorMsg = (error as Error)?.message ?? '';
+      let userMessage = 'ไม่สามารถเปลี่ยนสถานะพนักงานได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('permission') || errorMsg.includes('forbidden') || errorMsg.includes('403')) {
+        userMessage = 'คุณไม่มีสิทธิ์เปลี่ยนสถานะพนักงานนี้';
+      } else if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+        userMessage = 'ไม่พบพนักงานในระบบ อาจถูกลบไปแล้ว';
+      }
       toast({
         title: 'เกิดข้อผิดพลาด',
-        description: (error as Error).message || 'ไม่สามารถเปลี่ยนสถานะได้',
+        description: userMessage,
         variant: 'destructive',
       });
     },
@@ -184,9 +207,16 @@ export default function BranchStaff() {
       });
     },
     onError: (error: unknown) => {
+      const errorMsg = (error as Error)?.message ?? '';
+      let userMessage = 'ไม่สามารถรีเซ็ตรหัสผ่านได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('permission') || errorMsg.includes('forbidden') || errorMsg.includes('403')) {
+        userMessage = 'คุณไม่มีสิทธิ์รีเซ็ตรหัสผ่านของพนักงานนี้';
+      } else if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+        userMessage = 'ไม่พบพนักงานในระบบ';
+      }
       toast({
         title: 'เกิดข้อผิดพลาด',
-        description: (error as Error).message || 'ไม่สามารถรีเซ็ตรหัสผ่านได้',
+        description: userMessage,
         variant: 'destructive',
       });
     },

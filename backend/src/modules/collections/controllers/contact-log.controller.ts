@@ -35,7 +35,7 @@ export class ContactLogController {
 
             return ResponseUtil.success(reply, result, 201);
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 400);
+            return ResponseUtil.error(reply, 'ไม่สามารถบันทึกบันทึกการติดต่อได้ กรุณาตรวจสอบข้อมูลและลองใหม่อีกครั้ง', 400, 'VALIDATION_ERROR');
         }
     };
 
@@ -51,7 +51,7 @@ export class ContactLogController {
 
             return ResponseUtil.success(reply, result);
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 404);
+            return ResponseUtil.error(reply, 'ไม่พบบันทึกการติดต่อที่ต้องการ', 404, 'NOT_FOUND');
         }
     };
 
@@ -77,7 +77,7 @@ export class ContactLogController {
 
             return ResponseUtil.success(reply, result);
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 400);
+            return ResponseUtil.error(reply, 'ไม่สามารถโหลดรายการบันทึกการติดต่อได้', 500, 'LOAD_ERROR');
         }
     };
 
@@ -103,7 +103,7 @@ export class ContactLogController {
 
             return ResponseUtil.success(reply, result);
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 400);
+            return ResponseUtil.error(reply, 'ไม่สามารถโหลดรายการแจ้งเตือนการติดต่อได้', 500, 'LOAD_ERROR');
         }
     };
 
@@ -131,7 +131,7 @@ export class ContactLogController {
 
             return ResponseUtil.success(reply, result);
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 400);
+            return ResponseUtil.error(reply, 'ไม่สามารถโหลดรายการลูกค้าที่ยังไม่ได้ติดต่อได้', 500, 'LOAD_ERROR');
         }
     };
 }

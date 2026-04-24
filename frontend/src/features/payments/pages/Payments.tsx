@@ -41,6 +41,7 @@ import {
   Receipt,
   CheckCircle2,
   Building2,
+  Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { loansApi, paymentsApi, branchesApi, Branch } from '@/shared/lib/api-endpoints';
@@ -70,8 +71,9 @@ export default function Payments() {
   const alertDialog = useAlertDialog();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [loanStatusFilter, setLoanStatusFilter] = useState<string>('active'); // 'active', 'closed', 'all'
+  const [loanStatusFilter, setLoanStatusFilter] = useState<string>('active');
   const [branchFilter, setBranchFilter] = useState<string>('all');
+  const [officerFilter, setOfficerFilter] = useState<string>('all'); // manager only
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [isRecordDialogOpen, setIsRecordDialogOpen] = useState(false);
@@ -90,7 +92,7 @@ export default function Payments() {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, loanStatusFilter, branchFilter]);
+  }, [searchTerm, statusFilter, loanStatusFilter, branchFilter, officerFilter]);
 
   // Fetch branches for admin filter
   const { data: branchesData } = useQuery({
@@ -107,17 +109,30 @@ export default function Payments() {
 
   const branches: Branch[] = Array.isArray(branchesData) ? branchesData : [];
 
+  // Fetch officers in manager's branch for filter dropdown
+  const { data: filterOfficersData } = useQuery({
+    queryKey: ['filter-officers-payments', user?.branchId],
+    queryFn: async () => {
+      if (!user?.branchId) return [];
+      const result = await branchesApi.getEmployees(user.branchId);
+      if (result.error) return [];
+      return (result.data || []).filter((u: any) => u.role === 'OFFICER');
+    },
+    enabled: isManager && !!user?.branchId,
+    staleTime: 5 * 60 * 1000,
+  });
+
   // Fetch loans based on filter (active, closed, or all)
   const { data: loansData, isLoading, error } = useQuery({
-    queryKey: ['loans-payment-view', { search: searchTerm, status: statusFilter, loanStatus: loanStatusFilter, branch: isAdmin ? branchFilter : (user?.branchId || 'na'), officer: (isAdmin || isManager) ? 'all' : (user?.id || 'na'), page: currentPage, limit: pageSize }],
+    queryKey: ['loans-payment-view', { search: searchTerm, status: statusFilter, loanStatus: loanStatusFilter, branch: isAdmin ? branchFilter : (user?.branchId || 'na'), officer: (isAdmin || isManager) ? (officerFilter !== 'all' ? officerFilter : 'all') : (user?.id || 'na'), page: currentPage, limit: pageSize }],
     queryFn: async () => {
       let statusQuery = '';
       if (loanStatusFilter === 'active') {
-        statusQuery = 'ACTIVE,DISBURSED,DEFAULTED,NPL'; // Active loans with outstanding balance (including defaulted and NPL)
+        statusQuery = 'ACTIVE,DISBURSED,DEFAULTED,NPL';
       } else if (loanStatusFilter === 'closed') {
-        statusQuery = 'CLOSED'; // Closed/paid off loans
+        statusQuery = 'CLOSED';
       } else {
-        statusQuery = 'ACTIVE,DISBURSED,DEFAULTED,NPL,CLOSED'; // All loans
+        statusQuery = 'ACTIVE,DISBURSED,DEFAULTED,NPL,CLOSED';
       }
 
       const result = await loansApi.list({
@@ -125,7 +140,7 @@ export default function Payments() {
         limit: pageSize,
         status: statusQuery,
         branchId: isAdmin ? (branchFilter !== 'all' ? branchFilter : undefined) : user?.branchId,
-        officerId: (isAdmin || isManager) ? undefined : user?.id,
+        officerId: isAdmin ? undefined : isManager ? (officerFilter !== 'all' ? officerFilter : undefined) : user?.id,
       });
       if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
@@ -134,7 +149,7 @@ export default function Payments() {
 
   // Fetch loan statistics based on filter
   const { data: statsData, isLoading: isLoadingStats } = useQuery({
-    queryKey: ['loan-statistics', loanStatusFilter, isAdmin ? branchFilter : (user?.branchId || 'na'), (isAdmin || isManager) ? 'all' : (user?.id || 'na')],
+    queryKey: ['loan-statistics', loanStatusFilter, isAdmin ? branchFilter : (user?.branchId || 'na'), (isAdmin || isManager) ? (officerFilter !== 'all' ? officerFilter : 'all') : (user?.id || 'na')],
     queryFn: async () => {
       let statusQuery = '';
       if (loanStatusFilter === 'active') {
@@ -148,7 +163,7 @@ export default function Payments() {
       const result = await loansApi.getStatistics({
         status: statusQuery,
         branchId: isAdmin ? (branchFilter !== 'all' ? branchFilter : undefined) : user?.branchId,
-        officerId: (isAdmin || isManager) ? undefined : user?.id,
+        officerId: isAdmin ? undefined : isManager ? (officerFilter !== 'all' ? officerFilter : undefined) : user?.id,
       });
       if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
@@ -676,6 +691,22 @@ export default function Payments() {
                     {branches.map((branch: Branch) => (
                       <SelectItem key={branch.id} value={branch.id}>
                         {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {isManager && (
+                <Select value={officerFilter} onValueChange={setOfficerFilter}>
+                  <SelectTrigger className="w-full sm:w-[200px] bg-secondary text-secondary-foreground border-secondary hover:bg-secondary/90">
+                    <Users className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="พนักงานทั้งหมด" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">พนักงานทั้งหมด</SelectItem>
+                    {(filterOfficersData || []).map((officer: any) => (
+                      <SelectItem key={officer.id} value={officer.id}>
+                        {officer.firstName} {officer.lastName}
                       </SelectItem>
                     ))}
                   </SelectContent>

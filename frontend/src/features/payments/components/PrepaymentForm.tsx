@@ -26,7 +26,7 @@ import {
   InfoCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import axios from 'axios';
+import { apiClient } from '@/shared/lib/api-client';
 import dayjs from 'dayjs';
 
 interface Prepayment {
@@ -92,13 +92,20 @@ const PrepaymentForm: React.FC<PrepaymentFormProps> = ({
     setLoading(true);
     try {
       const [prepaymentsRes, totalRes] = await Promise.all([
-        axios.get(`/api/prepayments/loan/${loanId}`),
-        axios.get(`/api/prepayments/loan/${loanId}/total`),
+        apiClient.get(`/api/prepayments/loan/${loanId}`),
+        apiClient.get(`/api/prepayments/loan/${loanId}/total`),
       ]);
-      setPrepayments(prepaymentsRes.data);
-      setTotalStats(totalRes.data);
-    } catch (error) {
-      message.error('ไม่สามารถโหลดข้อมูลได้');
+      setPrepayments(prepaymentsRes.data as Prepayment[]);
+      setTotalStats(totalRes.data as any);
+    } catch (error: any) {
+      const errorMsg = error?.response?.data?.error || error?.message || '';
+      let userMessage = 'ไม่สามารถโหลดข้อมูลการชำระล่วงหน้าได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('network') || errorMsg.includes('connection')) {
+        userMessage = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต';
+      } else if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+        userMessage = 'ไม่พบข้อมูลสินเชื่อนี้ในระบบ';
+      }
+      message.error(userMessage);
     } finally {
       setLoading(false);
     }
@@ -106,23 +113,30 @@ const PrepaymentForm: React.FC<PrepaymentFormProps> = ({
 
   const handleCalculateImpact = async (values: any) => {
     try {
-      const res = await axios.post('/api/prepayments/calculate-impact', {
+      const res = await apiClient.post('/api/prepayments/calculate-impact', {
         loanPrincipal,
         remainingBalance,
         prepaymentAmount: values.amount,
         interestRate,
         remainingMonths,
       });
-      setCalculatedImpact(res.data);
+      setCalculatedImpact(res.data as any);
       message.success('คำนวณเสร็จสิ้น');
-    } catch (error) {
-      message.error('ไม่สามารถคำนวณได้');
+    } catch (error: any) {
+      const errorMsg = error?.response?.data?.error || error?.message || '';
+      let userMessage = 'ไม่สามารถคำนวณผลกระทบการชำระล่วงหน้าได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('validation') || errorMsg.includes('valid')) {
+        userMessage = 'ข้อมูลไม่ถูกต้อง กรุณาตรวจสอบจำนวนเงินและลองใหม่อีกครั้ง';
+      } else if (errorMsg.includes('loan') || errorMsg.includes('สินเชื่อ')) {
+        userMessage = 'ไม่พบข้อมูลสินเชื่อ หรือสินเชื่อไม่เข้าเงื่อนไขการชำระล่วงหน้า';
+      }
+      message.error(userMessage);
     }
   };
 
   const handleCreatePrepayment = async (values: any) => {
     try {
-      await axios.post('/api/prepayments', {
+      await apiClient.post('/api/prepayments', {
         loanId,
         amount: values.amount,
         prepaymentDate: values.prepaymentDate.toDate(),
@@ -136,8 +150,17 @@ const PrepaymentForm: React.FC<PrepaymentFormProps> = ({
       setCalculatedImpact(null);
       form.resetFields();
       loadData();
-    } catch (error) {
-      message.error('ไม่สามารถบันทึกได้');
+    } catch (error: any) {
+      const errorMsg = error?.response?.data?.error || error?.message || '';
+      let userMessage = 'ไม่สามารถบันทึกการชำระล่วงหน้าได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('validation') || errorMsg.includes('valid')) {
+        userMessage = 'ข้อมูลไม่ถูกต้อง กรุณาตรวจสอบและลองใหม่อีกครั้ง';
+      } else if (errorMsg.includes('duplicate') || errorMsg.includes('already exists')) {
+        userMessage = 'มีการบันทึกการชำระล่วงหน้านี้แล้วในระบบ';
+      } else if (errorMsg.includes('loan') || errorMsg.includes('สินเชื่อ')) {
+        userMessage = 'ไม่พบข้อมูลสินเชื่อ หรือสินเชื่ออยู่ในสถานะที่ไม่สามารถชำระล่วงหน้าได้';
+      }
+      message.error(userMessage);
     }
   };
 
@@ -368,7 +391,7 @@ const PrepaymentForm: React.FC<PrepaymentFormProps> = ({
               min={0}
               max={remainingBalance}
               formatter={(value) => `฿ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-              parser={(value) => value!.replace(/฿\s?|(,*)/g, '')}
+              parser={(value): number => value ? Number(value.replace(/฿\s?|(,*)/g, '')) : 0}
             />
           </Form.Item>
 
@@ -458,7 +481,7 @@ const PrepaymentForm: React.FC<PrepaymentFormProps> = ({
               style={{ width: '100%' }}
               min={0}
               formatter={(value) => `฿ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-              parser={(value) => value!.replace(/฿\s?|(,*)/g, '')}
+              parser={(value): number => value ? Number(value.replace(/฿\s?|(,*)/g, '')) : 0}
               onChange={(value) => {
                 if (value) {
                   handleCalculateImpact({ amount: value });
@@ -480,7 +503,7 @@ const PrepaymentForm: React.FC<PrepaymentFormProps> = ({
               style={{ width: '100%' }}
               min={0}
               formatter={(value) => `฿ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-              parser={(value) => value!.replace(/฿\s?|(,*)/g, '')}
+              parser={(value): number => value ? Number(value.replace(/฿\s?|(,*)/g, '')) : 0}
             />
           </Form.Item>
 

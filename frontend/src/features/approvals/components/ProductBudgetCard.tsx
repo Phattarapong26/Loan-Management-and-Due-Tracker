@@ -119,7 +119,7 @@ export function ProductBudgetCard({ productId, productName, budget: propBudget, 
           <div className="text-center py-6">
             <AlertTriangle className="h-8 w-8 text-red-500 mx-auto mb-2" />
             <p className="text-sm text-red-600 mb-2">
-              {error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูล'}
+              {'ไม่สามารถโหลดข้อมูลงบประมาณได้ กรุณาลองใหม่อีกครั้ง'}
             </p>
             {error instanceof Error && error.message.includes('เข้าสู่ระบบ') && (
               <Button 

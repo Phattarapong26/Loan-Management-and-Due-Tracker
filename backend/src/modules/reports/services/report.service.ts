@@ -78,7 +78,7 @@ export class ReportService {
 
         const nplLoans = await this.reportRepository.countLoans({
             ...portfolioWhere,
-            OR: [{ status: 'NPL' }, { status: 'DEFAULTED' }, { overdueDays: { gte: 30 } }],
+            OR: [{ status: 'NPL' }, { status: 'DEFAULTED' }, { overdueDays: { gte: 90 } }],
         });
         const nplRatio = portfolioLoans > 0 ? (nplLoans / portfolioLoans) * 100 : 0;
 
@@ -107,7 +107,7 @@ export class ReportService {
     }
 
     /**
-     * Generate NPL Report (30+ DPD)
+     * Generate NPL Report (90+ DPD — standard NPL threshold)
      */
     async generateNPLReport(params: ReportFilters) {
         const loanWhere = this.buildLoanWhere(params);
@@ -116,7 +116,7 @@ export class ReportService {
         const nplLoans = await this.reportRepository.findLoans({
             where: {
                 ...loanWhere,
-                OR: [{ status: 'NPL' }, { status: 'DEFAULTED' }, { overdueDays: { gte: 30 } }],
+                OR: [{ status: 'NPL' }, { status: 'DEFAULTED' }, { overdueDays: { gte: 90 } }],
                 ...(updatedAtRange ? { updatedAt: updatedAtRange } : {}),
             },
             include: {
@@ -175,7 +175,7 @@ export class ReportService {
                     this.reportRepository.countLoans({ ...officerLoanWhere, status: { in: ['DISBURSED', 'ACTIVE'] } }),
                     this.reportRepository.countLoans({
                         ...officerLoanWhere,
-                        OR: [{ status: 'NPL' }, { status: 'DEFAULTED' }, { overdueDays: { gte: 30 } }],
+                        OR: [{ status: 'NPL' }, { status: 'DEFAULTED' }, { overdueDays: { gte: 90 } }],
                     }),
                 ]);
 

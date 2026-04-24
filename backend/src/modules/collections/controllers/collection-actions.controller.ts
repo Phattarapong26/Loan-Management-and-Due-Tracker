@@ -4,6 +4,7 @@ import { CollectionActionsService, CreateCollectionActionInput, UpdateCollection
 import { CollectionFilterService } from '../services/collection-filter.service';
 import { AuthorizedUser } from '../../../shared/services/authorization.service';
 import { prisma } from '@config/database.config';
+import { ResponseUtil } from '@utils/formatting/response.util';
 
 interface CreateActionRequest {
   Body: CreateCollectionActionInput;
@@ -94,9 +95,7 @@ export class CollectionActionsController {
       });
     } catch (error: any) {
       console.error('Error fetching collection dashboard:', error);
-      return reply.status(500).send({
-        error: { message: error.message || 'Failed to fetch collection dashboard' }
-      });
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดข้อมูลแดชบอร์ดการติดตามลูกหนี้ได้', 500, 'LOAD_ERROR');
     }
   }
 
@@ -118,9 +117,7 @@ export class CollectionActionsController {
       });
     } catch (error: any) {
       console.error('Error creating collection action:', error);
-      return reply.status(500).send({
-        error: { message: error.message || 'Failed to create collection action' }
-      });
+      return ResponseUtil.error(reply, 'ไม่สามารถสร้างรายการติดตามลูกหนี้ได้ กรุณาลองใหม่อีกครั้ง', 500, 'INTERNAL_ERROR');
     }
   }
 
@@ -167,9 +164,7 @@ export class CollectionActionsController {
       });
     } catch (error: any) {
       console.error('Error fetching collection actions:', error);
-      return reply.status(500).send({
-        error: { message: error.message || 'Failed to fetch collection actions' }
-      });
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดรายการติดตามลูกหนี้ได้', 500, 'LOAD_ERROR');
     }
   }
 
@@ -182,9 +177,7 @@ export class CollectionActionsController {
       const action = await this.collectionActionsService.getActionById(id);
 
       if (!action) {
-        return reply.status(404).send({
-          error: { message: 'Collection action not found' }
-        });
+        return ResponseUtil.error(reply, 'ไม่พบรายการติดตามลูกหนี้', 404, 'NOT_FOUND');
       }
 
       return reply.send({
@@ -193,9 +186,7 @@ export class CollectionActionsController {
       });
     } catch (error: any) {
       console.error('Error fetching collection action:', error);
-      return reply.status(500).send({
-        error: { message: error.message || 'Failed to fetch collection action' }
-      });
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดข้อมูลรายการติดตามลูกหนี้ได้', 500, 'LOAD_ERROR');
     }
   }
 
@@ -218,9 +209,7 @@ export class CollectionActionsController {
       });
     } catch (error: any) {
       console.error('Error updating collection action:', error);
-      return reply.status(500).send({
-        error: { message: error.message || 'Failed to update collection action' }
-      });
+      return ResponseUtil.error(reply, 'ไม่สามารถอัปเดตรายการติดตามลูกหนี้ได้ กรุณาลองใหม่อีกครั้ง', 500, 'INTERNAL_ERROR');
     }
   }
 
@@ -246,9 +235,7 @@ export class CollectionActionsController {
       });
     } catch (error: any) {
       console.error('Error approving collection action:', error);
-      return reply.status(400).send({
-        error: { message: error.message || 'Failed to approve collection action' }
-      });
+      return ResponseUtil.error(reply, 'ไม่สามารถอนุมัติรายการติดตามลูกหนี้ได้ กรุณาลองใหม่อีกครั้ง', 400, 'INTERNAL_ERROR');
     }
   }
 
@@ -280,9 +267,7 @@ export class CollectionActionsController {
       });
     } catch (error: any) {
       console.error('Error rejecting collection action:', error);
-      return reply.status(400).send({
-        error: { message: error.message || 'Failed to reject collection action' }
-      });
+      return ResponseUtil.error(reply, 'ไม่สามารถปฏิเสธรายการติดตามลูกหนี้ได้ กรุณาลองใหม่อีกครั้ง', 400, 'INTERNAL_ERROR');
     }
   }
 
@@ -302,9 +287,7 @@ export class CollectionActionsController {
       });
     } catch (error: any) {
       console.error('Error fetching customer collection history:', error);
-      return reply.status(500).send({
-        error: { message: error.message || 'Failed to fetch customer collection history' }
-      });
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดประวัติการติดตามลูกหนี้ได้', 500, 'LOAD_ERROR');
     }
   }
 
@@ -330,9 +313,7 @@ export class CollectionActionsController {
       });
     } catch (error: any) {
       console.error('Error fetching pending approvals:', error);
-      return reply.status(500).send({
-        error: { message: error.message || 'Failed to fetch pending approvals' }
-      });
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดรายการรออนุมัติได้', 500, 'LOAD_ERROR');
     }
   }
 
@@ -355,9 +336,7 @@ export class CollectionActionsController {
       });
     } catch (error: any) {
       console.error('Error fetching collection statistics:', error);
-      return reply.status(500).send({
-        error: { message: error.message || 'Failed to fetch collection statistics' }
-      });
+      return ResponseUtil.error(reply, 'ไม่สามารถโหลดสถิติการติดตามลูกหนี้ได้', 500, 'LOAD_ERROR');
     }
   }
 }

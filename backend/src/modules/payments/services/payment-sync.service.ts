@@ -139,10 +139,10 @@ export class PaymentSyncService {
         if (currentLoan.status === 'ACTIVE' || currentLoan.status === 'NPL') {
           if (maxOverdue >= 90) {
             newStatus = 'NPL';
-          } else if (currentLoan.status === 'NPL' && maxOverdue < 90) {
-            // Recovering — keep NPL until manually resolved
-            newStatus = 'NPL';
+          } else if (maxOverdue >= 30) {
+            newStatus = 'DEFAULTED';
           } else {
+            // maxOverdue < 30 — loan is recovering or current
             newStatus = 'ACTIVE';
           }
         }

@@ -66,6 +66,7 @@ import {
   ChevronsUpDown,
   Loader2,
   Wallet,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { UserAvatar } from '@/shared/components/ui/user-avatar';
@@ -138,6 +139,7 @@ export default function Loans() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
+  const [officerFilter, setOfficerFilter] = useState<string>('all'); // manager only
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
@@ -167,13 +169,13 @@ export default function Loans() {
 
   // Fetch loans (all statuses for loan application management)
   const { data: loansData, isLoading, error } = useQuery({
-    queryKey: ['loans', { search: searchTerm, status: statusFilter, branch: isAdmin ? branchFilter : (user?.branchId || 'na'), officer: (isAdmin || isManager) ? 'all' : (user?.id || 'na'), page, pageSize }],
+    queryKey: ['loans', { search: searchTerm, status: statusFilter, branch: isAdmin ? branchFilter : (user?.branchId || 'na'), officer: (isAdmin || isManager) ? (officerFilter !== 'all' ? officerFilter : 'all') : (user?.id || 'na'), page, pageSize }],
     queryFn: async () => {
       const result = await loansApi.list({
         ...getPaginationParams(),
         status: statusFilter !== 'all' ? statusFilter.toUpperCase().replace('_', '_') : undefined,
         branchId: isAdmin ? (branchFilter !== 'all' ? branchFilter : undefined) : user?.branchId,
-        officerId: (isAdmin || isManager) ? undefined : user?.id,
+        officerId: isAdmin ? undefined : isManager ? (officerFilter !== 'all' ? officerFilter : undefined) : user?.id,
       });
       if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
@@ -182,11 +184,11 @@ export default function Loans() {
 
   // Fetch loan statistics for all loans (not filtered by pagination)
   const { data: statsData, isLoading: isLoadingStats } = useQuery({
-    queryKey: ['loan-statistics', 'all', isAdmin ? branchFilter : (user?.branchId || 'na'), (isAdmin || isManager) ? 'all' : (user?.id || 'na')],
+    queryKey: ['loan-statistics', 'all', isAdmin ? branchFilter : (user?.branchId || 'na'), (isAdmin || isManager) ? (officerFilter !== 'all' ? officerFilter : 'all') : (user?.id || 'na')],
     queryFn: async () => {
       const result = await loansApi.getStatistics({
         branchId: isAdmin ? (branchFilter !== 'all' ? branchFilter : undefined) : user?.branchId,
-        officerId: (isAdmin || isManager) ? undefined : user?.id,
+        officerId: isAdmin ? undefined : isManager ? (officerFilter !== 'all' ? officerFilter : undefined) : user?.id,
       });
       if (result.error) throw new Error(result.error.message ?? String(result.error));
       return result.data;
@@ -207,6 +209,19 @@ export default function Loans() {
   });
 
   const branches: Branch[] = Array.isArray(branchesData) ? branchesData : [];
+
+  // Fetch officers in manager's branch for filter dropdown
+  const { data: filterOfficersData } = useQuery({
+    queryKey: ['filter-officers-loans', user?.branchId],
+    queryFn: async () => {
+      if (!user?.branchId) return [];
+      const { usersApi } = await import('@/shared/lib/api-endpoints');
+      const result = await usersApi.list({ branchId: user.branchId, role: 'OFFICER', status: 'ACTIVE', limit: 100 });
+      return result.data?.users || [];
+    },
+    enabled: isManager && !!user?.branchId,
+    staleTime: 5 * 60 * 1000,
+  });
 
   // Fetch customers for dropdown
   const { data: customersData } = useQuery({
@@ -312,59 +327,61 @@ export default function Loans() {
     },
     onError: (error: ApiError) => {
       let userFriendlyMessage = 'ไม่สามารถสร้างคำขอสินเชื่อได้';
+      let errorTitle = 'ไม่สามารถสร้างคำขอได้';
 
-      if (error.message && error.message.includes('DSCR')) {
-        const dscrMatch = error.message.match(/DSCR ([\d.]+)/);
-        const dscr = dscrMatch ? dscrMatch[1] : 'ต่ำ';
-        userFriendlyMessage = `อัตราส่วนความสามารถในการชำระหนี้ (DSCR) เท่ากับ ${dscr} ซึ่งต่ำกว่าเกณฑ์ที่กำหนด กรุณาปรับปรุงข้อมูลทางการเงินแล้วลองใหม่อีกครั้ง`;
+      const msg = error.message || '';
+      const code = (error as any).code || '';
+
+      if (code === 'BUDGET_EXCEEDED' || msg.includes('BUDGET_EXCEEDED')) {
+        errorTitle = 'งบประมาณไม่เพียงพอ';
+        userFriendlyMessage = 'วงเงินที่ขอเกินงบประมาณคงเหลือของผลิตภัณฑ์สินเชื่อนี้ กรุณาลดจำนวนเงินกู้หรือเลือกผลิตภัณฑ์อื่น';
+      } else if (code === 'CUSTOMER_BLACKLISTED' || msg.includes('CUSTOMER_BLACKLISTED')) {
+        errorTitle = 'ลูกค้าถูกระงับ';
+        userFriendlyMessage = 'ลูกค้ารายนี้ถูกระงับการใช้งาน ไม่สามารถสร้างคำขอสินเชื่อได้';
+      } else if (code === 'DUPLICATE_LOAN_APPLICATION' || msg.includes('DUPLICATE_LOAN_APPLICATION')) {
+        errorTitle = 'มีคำขอซ้ำ';
+        userFriendlyMessage = 'ลูกค้ารายนี้มีคำขอสินเชื่อที่รอการพิจารณาอยู่แล้ว กรุณารอให้คำขอเดิมได้รับการอนุมัติหรือปฏิเสธก่อน';
+      } else if (msg.includes('DSCR')) {
+        errorTitle = 'DSCR ไม่ผ่านเกณฑ์';
+        const dscrMatch = msg.match(/DSCR ([\d.]+)/);
+        const minMatch = msg.match(/minimum threshold ([\d.]+)/);
+        const dscr = dscrMatch ? dscrMatch[1] : '?';
+        const minDscr = minMatch ? minMatch[1] : '1.2';
+        userFriendlyMessage = `อัตราส่วนความสามารถในการชำระหนี้ (DSCR) = ${dscr} ต่ำกว่าเกณฑ์ขั้นต่ำ ${minDscr} กรุณาเพิ่มรายได้หรือลดค่าใช้จ่ายและภาระหนี้`;
+      } else if (msg.includes('รายได้สุทธิ') || msg.includes('net income')) {
+        errorTitle = 'รายได้สุทธิไม่ผ่านเกณฑ์';
+        userFriendlyMessage = 'รายได้สุทธิ (รายได้ - ค่าใช้จ่าย) ต้องมากกว่า 0 กรุณาตรวจสอบข้อมูลทางการเงิน';
       } else if (error.status === 422) {
+        errorTitle = 'ข้อมูลไม่ถูกต้อง';
         if (error.details && Array.isArray(error.details)) {
-          const fieldErrors = error.details.map((detail) => {
-            const fieldNames: Record<string, string> = {
-              'customerId': 'ลูกค้า',
-              'principal': 'จำนวนเงินกู้',
-              'interestRate': 'อัตราดอกเบี้ย',
-              'termMonths': 'ระยะเวลา',
-              'annualRevenue': 'รายได้ต่อปี',
-              'annualCogs': 'ต้นทุนขาย',
-              'annualOpex': 'ค่าใช้จ่ายดำเนินงาน'
-            };
-
-            if (detail.path && detail.path.length > 0) {
-              const fieldName = fieldNames[detail.path[0]] || detail.path[0];
-
-              if (detail.message.includes('required')) {
-                return `กรุณาเลือก${fieldName}`;
-              } else if (detail.message.includes('positive')) {
-                return `${fieldName}ต้องมากกว่า 0`;
-              } else if (detail.message.includes('invalid')) {
-                return `${fieldName}ไม่ถูกต้อง`;
-              }
-            }
-
-            return detail.message || 'ข้อมูลไม่ถูกต้อง';
+          const fieldNames: Record<string, string> = {
+            customerId: 'ลูกค้า', principal: 'จำนวนเงินกู้',
+            interestRate: 'อัตราดอกเบี้ย', termMonths: 'ระยะเวลา',
+            annualRevenue: 'รายได้ต่อปี', annualCogs: 'ต้นทุนขาย', annualOpex: 'ค่าใช้จ่ายดำเนินงาน',
+          };
+          const fieldErrors = error.details.map((d: any) => {
+            const field = d.path?.[0] ? (fieldNames[d.path[0]] || d.path[0]) : '';
+            if (d.message?.includes('positive') || d.message?.includes('tooLow')) return `${field}ต้องมากกว่า 0`;
+            if (d.message?.includes('required')) return `กรุณากรอก${field}`;
+            return d.message || `${field}ไม่ถูกต้อง`;
           });
-
-          userFriendlyMessage = fieldErrors.join(' และ ');
+          userFriendlyMessage = fieldErrors.join(' | ');
         } else {
-          userFriendlyMessage = 'กรุณาตรวจสอบข้อมูลที่กรอกให้ถูกต้อง';
+          userFriendlyMessage = 'กรุณาตรวจสอบข้อมูลที่กรอกให้ครบถ้วนและถูกต้อง';
         }
-      } else if (error.status === 400) {
-        if (error.message.includes('not found')) {
-          userFriendlyMessage = 'ไม่พบข้อมูลลูกค้า กรุณาเลือกลูกค้าใหม่';
-        } else if (error.message.includes('permission')) {
-          userFriendlyMessage = 'คุณไม่มีสิทธิ์ในการสร้างคำขอสินเชื่อ';
-        } else {
-          userFriendlyMessage = error.message || 'ข้อมูลไม่ถูกต้อง';
-        }
+      } else if (error.status === 403) {
+        errorTitle = 'ไม่มีสิทธิ์';
+        userFriendlyMessage = 'คุณไม่มีสิทธิ์สร้างคำขอสินเชื่อสำหรับลูกค้ารายนี้';
+      } else if (error.status === 404) {
+        userFriendlyMessage = 'ไม่พบข้อมูลลูกค้าหรือผลิตภัณฑ์ที่เลือก กรุณาเลือกใหม่';
       } else if (error.status >= 500) {
         userFriendlyMessage = 'เกิดข้อผิดพลาดของระบบ กรุณาลองใหม่อีกครั้ง';
-      } else if (error.message) {
-        userFriendlyMessage = error.message;
+      } else if (msg) {
+        userFriendlyMessage = msg;
       }
 
       alertDialog.error({
-        title: 'ไม่สามารถสร้างคำขอได้',
+        title: errorTitle,
         description: userFriendlyMessage,
         confirmText: 'ตกลง',
       });
@@ -573,16 +590,71 @@ export default function Loans() {
       return;
     }
 
-    const revenue = parseFloat(formData.revenue) || 0;
-    const expenses = parseFloat(formData.expenses) || 0;
-    const debtPayment = parseFloat(formData.debtPayment) || 1;
+    const revenue = parseFloat(formData.revenue) || 0;   // รายได้ต่อปี
+    const expenses = parseFloat(formData.expenses) || 0; // ค่าใช้จ่ายต่อปี
+    const debtPayment = parseFloat(formData.debtPayment) || 1; // ภาระหนี้ต่อปี
     const amount = parseFloat(formData.amount) || 0;
 
-    // Calculate DSCR for frontend information
-    const netOperatingIncome = revenue - expenses;
-    const dscr = netOperatingIncome / debtPayment;
+    // Validate product limits before submit
+    if (formData.loanProductId) {
+      const product = loanProducts?.find(p => p.id === formData.loanProductId);
+      if (product) {
+        const maxAmt = Number(product.maxLoanAmount);
+        const minAmt = product.minLoanAmount ? Number(product.minLoanAmount) : null;
+        const budget = productBudgets?.[product.id];
+        const available = budget ? Number(budget.available_amount) : null;
 
-    // Show info about DSCR but don't block submission
+        if (amount > maxAmt) {
+          alertDialog.error({
+            title: 'วงเงินเกินที่กำหนด',
+            description: `จำนวนเงินกู้ ${amount.toLocaleString('th-TH')} บาท เกินวงเงินสูงสุดของผลิตภัณฑ์ "${product.productName}" ที่กำหนดไว้ ${maxAmt.toLocaleString('th-TH')} บาท`,
+            confirmText: 'ตกลง',
+          });
+          return;
+        }
+        if (minAmt !== null && amount < minAmt) {
+          alertDialog.error({
+            title: 'วงเงินต่ำกว่าที่กำหนด',
+            description: `จำนวนเงินกู้ ${amount.toLocaleString('th-TH')} บาท ต่ำกว่าวงเงินขั้นต่ำของผลิตภัณฑ์ "${product.productName}" ที่กำหนดไว้ ${minAmt.toLocaleString('th-TH')} บาท`,
+            confirmText: 'ตกลง',
+          });
+          return;
+        }
+        if (available !== null && amount > available) {
+          alertDialog.error({
+            title: 'งบประมาณไม่เพียงพอ',
+            description: `จำนวนเงินกู้ ${amount.toLocaleString('th-TH')} บาท เกินงบประมาณคงเหลือ ${available.toLocaleString('th-TH')} บาท`,
+            confirmText: 'ตกลง',
+          });
+          return;
+        }
+        if (product.minRevenue && revenue < Number(product.minRevenue)) {
+          alertDialog.error({
+            title: 'รายได้ไม่ผ่านเกณฑ์',
+            description: `รายได้ต่อปี ${revenue.toLocaleString('th-TH')} บาท ต่ำกว่าเกณฑ์ขั้นต่ำของผลิตภัณฑ์ "${product.productName}" ที่กำหนดไว้ ${Number(product.minRevenue).toLocaleString('th-TH')} บาท/ปี`,
+            confirmText: 'ตกลง',
+          });
+          return;
+        }
+      }
+    }
+
+    if (revenue <= 0) {
+      alertDialog.error({ title: 'รายได้ไม่ถูกต้อง', description: 'รายได้ต่อปีต้องมากกว่า 0', confirmText: 'ตกลง' });
+      return;
+    }
+
+    const netOperatingIncome = revenue - expenses;
+    if (netOperatingIncome <= 0) {
+      alertDialog.error({
+        title: 'รายได้สุทธิไม่ถูกต้อง',
+        description: `รายได้สุทธิ (${revenue.toLocaleString('th-TH')} - ${expenses.toLocaleString('th-TH')} = ${netOperatingIncome.toLocaleString('th-TH')} บาท) ต้องมากกว่า 0 กรุณาตรวจสอบรายได้และค่าใช้จ่าย`,
+        confirmText: 'ตกลง',
+      });
+      return;
+    }
+
+    const dscr = netOperatingIncome / debtPayment;
     if (dscr < 1.25) {
       alertDialog.info({
         title: 'DSCR ต่ำกว่าเกณฑ์แนะนำ',
@@ -591,50 +663,20 @@ export default function Loans() {
       });
     }
 
-    // Validate minimum values
-    if (revenue <= 0) {
-      alertDialog.error({
-        title: 'รายได้ไม่ถูกต้อง',
-        description: 'รายได้ต่อปีต้องมากกว่า 0',
-        confirmText: 'ตกลง',
-      });
-      return;
-    }
-
-    if (netOperatingIncome <= 0) {
-      alertDialog.error({
-        title: 'รายได้สุทธิไม่ถูกต้อง',
-        description: 'รายได้สุทธิ (รายได้ - ค่าใช้จ่าย) ต้องมากกว่า 0',
-        confirmText: 'ตกลง',
-      });
-      return;
-    }
-
-    // Prepare data for backend (Monthly basis - as per bank's DSCR calculation)
-    // Send monthly data directly, backend will handle the calculation
-    const monthlyRevenue = revenue;
-    const monthlyCogs = expenses * 0.6; // 60% of expenses as COGS
-    const monthlyOpex = expenses * 0.4; // 40% of expenses as Operating Expenses
-
-    // Convert to annual for backend API (backend will convert back to monthly for DSCR)
-    const annualRevenue = monthlyRevenue * 12;
-    const annualCogs = monthlyCogs * 12;
-    const annualOpex = monthlyOpex * 12;
+    // ส่งข้อมูลรายปีตรงๆ — backend รับ annualRevenue/annualCogs/annualOpex แล้วหาร 12 เอง
+    const annualRevenue = revenue;
+    const annualCogs = expenses * 0.6;
+    const annualOpex = expenses * 0.4;
 
     await createLoanMutation.mutateAsync({
       customerId: formData.customerId,
-      loanProductId: formData.loanProductId || undefined, // Add loan product ID
+      loanProductId: formData.loanProductId || undefined,
       principal: amount,
-      // If product selected, backend will calculate actual rate, so send any valid number
-      // If no product, use the rate entered by user
-      interestRate: formData.loanProductId
-        ? 1 // Placeholder rate (backend will override with calculated rate)
-        : parseFloat(formData.interestRate),
+      interestRate: formData.loanProductId ? 1 : parseFloat(formData.interestRate),
       termMonths: parseInt(formData.duration, 10),
       annualRevenue,
       annualCogs,
       annualOpex,
-      // Remove payment schedule data - will be set during disbursement
     });
   };
 
@@ -1042,6 +1084,58 @@ export default function Loans() {
                       <p className="text-xs text-green-700 mt-1">กำหนดจำนวนเงิน อัตราดอกเบี้ย และระยะเวลาผ่อนชำระ</p>
                     </div>
 
+                    {/* Product limits info box */}
+                    {formData.loanProductId && (() => {
+                      const product = loanProducts?.find(p => p.id === formData.loanProductId);
+                      if (!product) return null;
+                      const budget = productBudgets?.[product.id];
+                      const minAmt = product.minLoanAmount ? Number(product.minLoanAmount) : null;
+                      const maxAmt = Number(product.maxLoanAmount);
+                      const available = budget ? Number(budget.available_amount) : null;
+                      const enteredAmt = parseFloat(formData.amount) || 0;
+                      const overMax = enteredAmt > maxAmt;
+                      const underMin = minAmt !== null && enteredAmt > 0 && enteredAmt < minAmt;
+                      const overBudget = available !== null && enteredAmt > available;
+                      return (
+                        <div className={`rounded-lg border p-3 space-y-1 ${overMax || underMin || overBudget ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+                          <p className={`text-sm font-semibold ${overMax || underMin || overBudget ? 'text-red-800' : 'text-blue-800'}`}>
+                            📋 เงื่อนไขวงเงิน: {product.productName}
+                          </p>
+                          <div className="text-xs space-y-0.5">
+                            {minAmt !== null && (
+                              <p className={underMin ? 'text-red-700 font-medium' : 'text-blue-700'}>
+                                {underMin ? '⚠️' : '•'} วงเงินขั้นต่ำ: {minAmt.toLocaleString('th-TH')} บาท
+                              </p>
+                            )}
+                            <p className={overMax ? 'text-red-700 font-medium' : 'text-blue-700'}>
+                              {overMax ? '⚠️' : '•'} วงเงินสูงสุด: {maxAmt.toLocaleString('th-TH')} บาท
+                            </p>
+                            {product.maxTermMonths && (
+                              <p className="text-blue-700">• ระยะเวลาสูงสุด: {product.maxTermMonths} เดือน ({Math.round(product.maxTermMonths / 12)} ปี)</p>
+                            )}
+                            {available !== null && (
+                              <p className={overBudget ? 'text-red-700 font-medium' : 'text-blue-700'}>
+                                {overBudget ? '⚠️' : '•'} งบประมาณคงเหลือ: {available.toLocaleString('th-TH')} บาท
+                              </p>
+                            )}
+                            {product.minRevenue && (
+                              <p className="text-blue-700">• รายได้ขั้นต่ำ: {Number(product.minRevenue).toLocaleString('th-TH')} บาท/ปี</p>
+                            )}
+                            {product.minYearsInBusiness && (
+                              <p className="text-blue-700">• ธุรกิจต้องดำเนินการมาแล้ว: {product.minYearsInBusiness} ปีขึ้นไป</p>
+                            )}
+                          </div>
+                          {(overMax || underMin || overBudget) && (
+                            <p className="text-xs text-red-700 font-medium mt-1">
+                              {overMax && 'จำนวนเงินเกินวงเงินสูงสุดที่กำหนด '}
+                              {underMin && 'จำนวนเงินต่ำกว่าวงเงินขั้นต่ำที่กำหนด '}
+                              {overBudget && 'จำนวนเงินเกินงบประมาณคงเหลือ'}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
+
                     <div className="grid gap-4">
                       <div className="grid gap-2">
                         <Label htmlFor="amount" className="text-sm font-medium">จำนวนเงินกู้ (บาท) *</Label>
@@ -1130,44 +1224,53 @@ export default function Loans() {
                   <div className="space-y-4 px-1">
                     <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
                       <p className="text-sm font-medium text-purple-900">📊 ขั้นตอนที่ 3: ข้อมูลทางการเงิน</p>
-                      <p className="text-xs text-purple-700 mt-1">กรอกข้อมูลรายได้และค่าใช้จ่ายเพื่อคำนวณ DSCR</p>
+                      <p className="text-xs text-purple-700 mt-1">กรอกข้อมูลรายได้และค่าใช้จ่าย<strong>ต่อปี</strong>เพื่อคำนวณ DSCR</p>
                     </div>
 
                     <div className="grid gap-4">
                       <div className="grid gap-2">
-                        <Label htmlFor="revenue" className="text-sm font-medium">รายได้ต่อเดือน (บาท) *</Label>
+                        <Label htmlFor="revenue" className="text-sm font-medium">รายได้ต่อปี (บาท) *</Label>
                         <Input
                           id="revenue"
                           type="number"
                           value={formData.revenue}
                           onChange={(e) => setFormData({ ...formData, revenue: e.target.value })}
-                          placeholder="500,000"
+                          placeholder="6,000,000"
                           className="text-base h-11"
                         />
+                        {formData.revenue && (
+                          <p className="text-xs text-muted-foreground">≈ {(parseFloat(formData.revenue)/12).toLocaleString('th-TH', {maximumFractionDigits:0})} บาท/เดือน</p>
+                        )}
                       </div>
 
                       <div className="grid gap-2">
-                        <Label htmlFor="expenses" className="text-sm font-medium">ค่าใช้จ่ายต่อเดือน (บาท) *</Label>
+                        <Label htmlFor="expenses" className="text-sm font-medium">ค่าใช้จ่ายต่อปี (บาท) *</Label>
                         <Input
                           id="expenses"
                           type="number"
                           value={formData.expenses}
                           onChange={(e) => setFormData({ ...formData, expenses: e.target.value })}
-                          placeholder="350,000"
+                          placeholder="4,200,000"
                           className="text-base h-11"
                         />
+                        {formData.expenses && (
+                          <p className="text-xs text-muted-foreground">≈ {(parseFloat(formData.expenses)/12).toLocaleString('th-TH', {maximumFractionDigits:0})} บาท/เดือน</p>
+                        )}
                       </div>
 
                       <div className="grid gap-2">
-                        <Label htmlFor="debt" className="text-sm font-medium">ภาระหนี้ต่อเดือน (บาท) *</Label>
+                        <Label htmlFor="debt" className="text-sm font-medium">ภาระหนี้ต่อปี (บาท) *</Label>
                         <Input
                           id="debt"
                           type="number"
                           value={formData.debtPayment}
                           onChange={(e) => setFormData({ ...formData, debtPayment: e.target.value })}
-                          placeholder="100,000"
+                          placeholder="1,200,000"
                           className="text-base h-11"
                         />
+                        {formData.debtPayment && (
+                          <p className="text-xs text-muted-foreground">≈ {(parseFloat(formData.debtPayment)/12).toLocaleString('th-TH', {maximumFractionDigits:0})} บาท/เดือน</p>
+                        )}
                       </div>
                     </div>
 
@@ -1187,7 +1290,7 @@ export default function Loans() {
                               {calculateDSCR().toFixed(2)}
                             </p>
                             <p className="text-xs text-muted-foreground mt-2">
-                              สูตร: (รายได้ - ค่าใช้จ่าย) ÷ ภาระหนี้
+                              สูตร: (รายได้ - ค่าใช้จ่าย) ÷ ภาระหนี้ (รายปี)
                             </p>
                           </div>
                           <div className={`p-4 rounded-xl ${
@@ -1332,6 +1435,22 @@ export default function Loans() {
                   {branches.map((branch: Branch) => (
                     <SelectItem key={branch.id} value={branch.id}>
                       {branch.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {isManager && (
+              <Select value={officerFilter} onValueChange={setOfficerFilter}>
+                <SelectTrigger className="w-full md:w-[180px] bg-secondary text-secondary-foreground border-secondary hover:bg-secondary/90">
+                  <Users className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="พนักงานทั้งหมด" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">พนักงานทั้งหมด</SelectItem>
+                  {(filterOfficersData || []).map((officer: any) => (
+                    <SelectItem key={officer.id} value={officer.id}>
+                      {officer.firstName} {officer.lastName}
                     </SelectItem>
                   ))}
                 </SelectContent>

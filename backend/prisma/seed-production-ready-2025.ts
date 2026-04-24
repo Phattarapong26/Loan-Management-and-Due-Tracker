@@ -875,6 +875,7 @@ async function seedCustomersAndLoans(ctx: SeedContext, products: Array<any>, pro
     let nextPaymentDate: Date | null = null;
     let nextPaymentAmount: number | null = null;
     let outstanding = principal;
+    let maxOverdueFromSchedules = 0; // track real max overdue from actual OVERDUE schedules
 
     for (const row of scheduleTemplate.rows) {
       const isPast = row.paymentDate <= ctx.asOfDate;
@@ -911,6 +912,18 @@ async function seedCustomersAndLoans(ctx: SeedContext, products: Array<any>, pro
         outstanding = Math.max(0, outstanding - principalPaid);
       }
 
+      // Calculate daysOverdue from actual paymentDate, not random overdueDays
+      const actualDaysOverdue = scheduleStatus === 'OVERDUE'
+        ? Math.max(0, Math.floor((ctx.asOfDate.getTime() - row.paymentDate.getTime()) / (1000 * 60 * 60 * 24)))
+        : scheduleStatus === 'PAID' || scheduleStatus === 'PARTIAL'
+          ? 0  // paid schedules never have daysOverdue
+          : daysLate;
+
+      // Track max overdue from OVERDUE schedules only
+      if (scheduleStatus === 'OVERDUE' && actualDaysOverdue > maxOverdueFromSchedules) {
+        maxOverdueFromSchedules = actualDaysOverdue;
+      }
+
       const scheduleRecord = await prisma.paymentSchedule.create({
         data: {
           loanId: loan.id,
@@ -922,8 +935,8 @@ async function seedCustomersAndLoans(ctx: SeedContext, products: Array<any>, pro
           remainingBalance: row.remainingBalance,
           status: scheduleStatus,
           paidAt: paidAt ?? null,
-          daysOverdue: scheduleStatus === 'OVERDUE' ? overdueDays : daysLate,
-          penaltyAmount,
+          daysOverdue: actualDaysOverdue,
+          penaltyAmount: scheduleStatus === 'PAID' ? 0 : penaltyAmount,
           createdAt: addDays(disbursementDate, 1),
         },
       });
@@ -1028,6 +1041,7 @@ async function seedCustomersAndLoans(ctx: SeedContext, products: Array<any>, pro
     }
 
     // Update loan snapshot fields for frontend
+    // Use maxOverdueFromSchedules tracked during schedule creation (source of truth)
     await prisma.loan.update({
       where: { id: loan.id },
       data: {
@@ -1035,8 +1049,8 @@ async function seedCustomersAndLoans(ctx: SeedContext, products: Array<any>, pro
         lastPaymentDate: lastPaymentDate ?? null,
         nextPaymentDate: nextPaymentDate ?? null,
         nextPaymentAmount: nextPaymentAmount ?? null,
-        status:
-          scenario.includes('NPL') ? 'NPL' : overdueDays >= 90 ? 'NPL' : 'ACTIVE',
+        overdueDays: maxOverdueFromSchedules,
+        status: maxOverdueFromSchedules >= 90 ? 'NPL' : 'ACTIVE',
       },
     });
 

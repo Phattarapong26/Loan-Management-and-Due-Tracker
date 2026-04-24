@@ -97,8 +97,20 @@ export class LoanController {
                     existingLoanId ? { existingLoanId } : undefined
                 );
             }
+            if (error.message?.startsWith('DSCR ') && error.message.includes('below minimum threshold')) {
+                // Extract DSCR value and threshold for structured response
+                const dscrMatch = error.message.match(/DSCR ([\d.]+)/);
+                const thresholdMatch = error.message.match(/threshold ([\d.]+)/);
+                return ResponseUtil.error(reply, `อัตราส่วนความสามารถในการชำระหนี้ (DSCR) ต่ำกว่าเกณฑ์ขั้นต่ำ`, 400, 'DSCR_BELOW_THRESHOLD', {
+                    dscr: dscrMatch ? parseFloat(dscrMatch[1]) : null,
+                    minDscr: thresholdMatch ? parseFloat(thresholdMatch[1]) : 1.2,
+                });
+            }
+            if (error.message?.includes('รายได้สุทธิ') || error.message?.includes('net income')) {
+                return ResponseUtil.error(reply, 'รายได้สุทธิต้องมากกว่า 0 กรุณาตรวจสอบข้อมูลรายได้และค่าใช้จ่าย', 400, 'NEGATIVE_NET_INCOME');
+            }
 
-            return ResponseUtil.error(reply, error.message, 400);
+            return ResponseUtil.error(reply, 'ไม่สามารถสร้างคำขอสินเชื่อได้ กรุณาลองใหม่อีกครั้ง', 400, 'CREATE_ERROR');
         }
     };
 
@@ -125,7 +137,7 @@ export class LoanController {
 
             return ResponseUtil.success(reply, result);
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 404);
+            return ResponseUtil.error(reply, 'ไม่พบข้อมูลสินเชื่อนี้ในระบบ', 404, 'NOT_FOUND');
         }
     };
 
@@ -175,7 +187,7 @@ export class LoanController {
             return ResponseUtil.success(reply, result);
         } catch (error: any) {
             console.error('Loan Controller List Error:', error);
-            return ResponseUtil.error(reply, error.message, 400);
+            return ResponseUtil.error(reply, 'ไม่สามารถดึงข้อมูลรายการสินเชื่อได้ กรุณาลองใหม่อีกครั้ง', 400, 'LIST_ERROR');
         }
     };
 
@@ -230,7 +242,11 @@ export class LoanController {
             const details = error?.details;
             const statusCode =
                 code === 'MANAGER_APPROVAL_LIMIT_EXCEEDED' ? 403 : 400;
-            return ResponseUtil.error(reply, error.message, statusCode, code, details);
+            let userMessage = 'ไม่สามารถอนุมัติสินเชื่อได้ กรุณาลองใหม่อีกครั้ง';
+            if (code === 'MANAGER_APPROVAL_LIMIT_EXCEEDED') {
+                userMessage = 'วงเงินอนุมัติเกินอำนาจของผู้จัดการสาขา กรุณาติดต่อผู้ดูแลระบบ';
+            }
+            return ResponseUtil.error(reply, userMessage, statusCode, code, details);
         }
     };
 
@@ -267,7 +283,7 @@ export class LoanController {
 
             return ResponseUtil.success(reply, result);
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 400);
+            return ResponseUtil.error(reply, 'ไม่สามารถปฏิเสธสินเชื่อได้ กรุณาลองใหม่อีกครั้ง', 400, 'REJECT_ERROR');
         }
     };
 
@@ -298,7 +314,7 @@ export class LoanController {
 
             return ResponseUtil.success(reply, result);
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 400);
+            return ResponseUtil.error(reply, 'ไม่สามารถดึงข้อมูลสถิติสินเชื่อได้ กรุณาลองใหม่อีกครั้ง', 400, 'STATS_ERROR');
         }
     };
 
@@ -326,7 +342,7 @@ export class LoanController {
 
             return ResponseUtil.success(reply, result);
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 400);
+            return ResponseUtil.error(reply, 'ไม่สามารถดึงข้อมูลรายการรออนุมัติได้ กรุณาลองใหม่อีกครั้ง', 400, 'PENDING_ERROR');
         }
     };
 }

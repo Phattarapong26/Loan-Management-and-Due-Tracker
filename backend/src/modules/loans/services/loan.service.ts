@@ -15,7 +15,6 @@ import { notificationHelper } from '@notifications/services/notification-helper.
 import { prisma } from '@config/database.config';
 import { Prisma } from '@prisma/client';
 import { withRetryAndJitter } from '@utils/common/retry.util';
-import { DisbursementRepository } from '@disbursements/repositories/disbursement.repository';
 import { computeCreditAssessment } from '../../collections/utils/credit-assessment.util';
 
 /**
@@ -42,7 +41,6 @@ export class LoanService {
     private loanRepository: LoanRepository;
     private loanProductRepository: LoanProductRepository;
     private paymentScheduleRepository: PaymentScheduleRepository;
-    private disbursementRepository: DisbursementRepository;
     private productConfigRepository: ProductConfigRepository;
     private systemConfigRepository: SystemConfigRepository;
     private customerRepository: CustomerRepository;
@@ -53,7 +51,6 @@ export class LoanService {
         this.loanRepository = new LoanRepository();
         this.loanProductRepository = new LoanProductRepository();
         this.paymentScheduleRepository = new PaymentScheduleRepository();
-        this.disbursementRepository = new DisbursementRepository();
         this.productConfigRepository = new ProductConfigRepository();
         this.systemConfigRepository = new SystemConfigRepository();
         this.customerRepository = new CustomerRepository();
@@ -121,7 +118,7 @@ export class LoanService {
                 if (loanProduct.yearInterestTiers && loanProduct.yearInterestTiers.length > 0) {
                     // Use the first year's tier for initial rate
                     const firstYearTier = loanProduct.yearInterestTiers.find(
-                        tier => tier.startYear === 1
+                        (tier: { startYear: number; tierType: string; rate?: any; formula?: string }) => tier.startYear === 1
                     );
 
                     if (firstYearTier) {
@@ -140,7 +137,7 @@ export class LoanService {
                 // Fallback to amount-based tiers
                 if (loanProduct.interestRateTiers && loanProduct.interestRateTiers.length > 0) {
                     // Find the tier that matches the loan amount
-                    const applicableTier = loanProduct.interestRateTiers.find(tier => {
+                    const applicableTier = loanProduct.interestRateTiers.find((tier: { minAmount: any; maxAmount: any; interestRate: any }) => {
                         const minAmount = Number(tier.minAmount);
                         const maxAmount = tier.maxAmount ? Number(tier.maxAmount) : Infinity;
                         return loanAmount >= minAmount && loanAmount <= maxAmount;
@@ -479,7 +476,7 @@ export class LoanService {
                     const paidAt = startOfDay(new Date(row.paidAt));
                     dpd = Math.max(0, Math.floor((paidAt.getTime() - due.getTime()) / msPerDay));
                 } else {
-                    dpd = dpdStored;
+                    dpd = 0; // no paidAt = cannot determine actual DPD, default to 0 (safe)
                 }
             } else if (isUnpaid && isPastDue) {
                 const dpdComputed = Math.max(0, Math.floor((today.getTime() - due.getTime()) / msPerDay));
@@ -593,7 +590,7 @@ export class LoanService {
 
                     const outstanding = Number(loan.outstandingBalance || 0);
                     const interestRate = Number(loan.interestRate || 0);
-                    const monthlyRate = interestRate / 100 / 12;
+                    void (interestRate / 100 / 12); // monthlyRate reserved for future use
 
 	                    if (!pending || outstanding <= 0) {
 	                        return {
@@ -906,7 +903,6 @@ export class LoanService {
                 // Check inside tx so concurrent approvals cannot both pass
                 const existingDisb = await tx.loanDisbursement.count({ where: { loanId } });
                 if (existingDisb === 0) {
-                    const disbursementNo = await tx.loanDisbursement.count({ where: { loanId } }) + 1;
                     const disbursementDate = new Date();
                     disbursementDate.setDate(disbursementDate.getDate() + 1);
                     const firstPaymentDate = new Date(disbursementDate);

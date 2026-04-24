@@ -316,7 +316,7 @@ export default function CollectionsReminders() {
       downloadCsv(`loan_tracking_${tabLabel}_${dateStr}.csv`, csv);
       toast.success(`ส่งออก CSV สำเร็จ (${schedules.length} รายการ)`);
     } catch (error: any) {
-      toast.error(error?.message || "ไม่สามารถส่งออกข้อมูลได้");
+      toast.error('ไม่สามารถส่งออกข้อมูลได้ กรุณาลองใหม่อีกครั้ง');
     } finally {
       setIsExporting(false);
     }

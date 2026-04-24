@@ -25,7 +25,7 @@ export class LoanProductController {
 
       return ResponseUtil.success(reply, products);
     } catch (error: any) {
-      return ResponseUtil.error(reply, error.message || 'Failed to fetch loan products', 500);
+      return ResponseUtil.error(reply, 'ไม่สามารถดึงข้อมูลผลิตภัณฑ์สินเชื่อได้ กรุณาลองใหม่อีกครั้ง', 500, 'LIST_ERROR');
     }
   };
 
@@ -36,7 +36,7 @@ export class LoanProductController {
 
       return ResponseUtil.success(reply, product);
     } catch (error: any) {
-      return ResponseUtil.error(reply, error.message || 'Failed to fetch loan product', 404);
+      return ResponseUtil.error(reply, 'ไม่พบข้อมูลผลิตภัณฑ์สินเชื่อนี้ในระบบ', 404, 'NOT_FOUND');
     }
   };
 
@@ -46,7 +46,7 @@ export class LoanProductController {
 
       return ResponseUtil.success(reply, stats);
     } catch (error: any) {
-      return ResponseUtil.error(reply, error.message || 'Failed to fetch statistics', 500);
+      return ResponseUtil.error(reply, 'ไม่สามารถดึงข้อมูลสถิติผลิตภัณฑ์สินเชื่อได้ กรุณาลองใหม่อีกครั้ง', 500, 'STATS_ERROR');
     }
   };
 
@@ -78,16 +78,16 @@ export class LoanProductController {
         '[LoanProduct] Failed to create loan product'
       );
 
-      let userMessage = error?.message || 'Failed to create loan product';
+      let userMessage = 'ไม่สามารถสร้างผลิตภัณฑ์สินเชื่อได้ กรุณาลองใหม่อีกครั้ง';
       if (prismaCode === 'P2002') {
-        userMessage = `ข้อมูลซ้ำ: ${prismaMetaTarget?.join(', ') || 'productCode'} มีอยู่ในระบบแล้ว`;
+        userMessage = `ข้อมูลซ้ำ: ${prismaMetaTarget?.join(', ') || 'รหัสผลิตภัณฑ์'} มีอยู่ในระบบแล้ว`;
       } else if (prismaCode === 'P2006' || prismaCode === 'P2007') {
-        userMessage = `ค่าข้อมูลไม่ถูกต้อง: ${error?.message}`;
+        userMessage = 'ค่าข้อมูลไม่ถูกต้อง กรุณาตรวจสอบข้อมูลที่กรอก';
       } else if (prismaCode === 'P2011') {
         userMessage = `ข้อมูลจำเป็นขาดหาย: ${prismaMetaTarget?.join(', ')}`;
       }
 
-      return ResponseUtil.error(reply, userMessage, 400);
+      return ResponseUtil.error(reply, userMessage, 400, 'CREATE_ERROR');
     }
   };
 
@@ -98,7 +98,7 @@ export class LoanProductController {
 
       return ResponseUtil.success(reply, product);
     } catch (error: any) {
-      return ResponseUtil.error(reply, error.message || 'Failed to update loan product', 400);
+      return ResponseUtil.error(reply, 'ไม่สามารถอัปเดตผลิตภัณฑ์สินเชื่อได้ กรุณาลองใหม่อีกครั้ง', 400, 'UPDATE_ERROR');
     }
   };
 
@@ -109,7 +109,7 @@ export class LoanProductController {
 
       return ResponseUtil.success(reply, null);
     } catch (error: any) {
-      return ResponseUtil.error(reply, error.message || 'Failed to delete loan product', 400);
+      return ResponseUtil.error(reply, 'ไม่สามารถลบผลิตภัณฑ์สินเชื่อได้ กรุณาลองใหม่อีกครั้ง', 400, 'DELETE_ERROR');
     }
   };
 }

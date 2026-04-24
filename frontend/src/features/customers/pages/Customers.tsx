@@ -152,6 +152,7 @@ export default function Customers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
+  const [officerFilter, setOfficerFilter] = useState<string>('all'); // manager: filter by officer
   const [isExporting, setIsExporting] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectKey, setSelectKey] = useState(0);
@@ -231,6 +232,18 @@ export default function Customers() {
     staleTime: 2 * 60 * 1000,
   });
 
+  // Fetch officers in manager's branch for filter dropdown
+  const { data: filterOfficersData } = useQuery({
+    queryKey: ['filter-officers', user?.branchId],
+    queryFn: async () => {
+      if (!user?.branchId) return [];
+      const result = await usersApi.list({ branchId: user.branchId, role: 'OFFICER', status: 'ACTIVE', limit: 100 });
+      return result.data?.users || [];
+    },
+    enabled: isManager && !!user?.branchId,
+    staleTime: 5 * 60 * 1000,
+  });
+
   // Update branchId when user data is available
   useEffect(() => {
     if (user?.branchId) {
@@ -249,14 +262,14 @@ export default function Customers() {
 
   // Fetch customers
   const { data: customersData, isLoading, error } = useQuery({
-    queryKey: ['customers', { search: searchTerm, status: statusFilter, branch: isAdmin ? branchFilter : (user?.branchId || 'na'), officer: (isAdmin || isManager) ? 'all' : (user?.id || 'na'), page, pageSize }],
+    queryKey: ['customers', { search: searchTerm, status: statusFilter, branch: isAdmin ? branchFilter : (user?.branchId || 'na'), officer: (isAdmin || isManager) ? (officerFilter !== 'all' ? officerFilter : 'all') : (user?.id || 'na'), page, pageSize }],
     queryFn: async () => {
       const result = await customersApi.list({
         ...getPaginationParams(),
         search: searchTerm || undefined,
         status: statusFilter !== 'all' ? statusFilter.toUpperCase() : undefined,
         branchId: isAdmin ? (branchFilter !== 'all' ? branchFilter : undefined) : user?.branchId,
-        officerId: (isAdmin || isManager) ? undefined : user?.id,
+        officerId: isAdmin ? undefined : isManager ? (officerFilter !== 'all' ? officerFilter : undefined) : user?.id,
       });
       
       // Handle case where no customers exist (should return empty data, not error)
@@ -1029,6 +1042,22 @@ export default function Customers() {
                   {(branchesData || []).map((branch: Branch) => (
                     <SelectItem key={branch.id} value={branch.id}>
                       {branch.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {isManager && (
+              <Select value={officerFilter} onValueChange={setOfficerFilter}>
+                <SelectTrigger className="w-full md:w-[180px] bg-secondary text-secondary-foreground border-secondary hover:bg-secondary/90">
+                  <Users className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="พนักงานทั้งหมด" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">พนักงานทั้งหมด</SelectItem>
+                  {(filterOfficersData || []).map((officer: any) => (
+                    <SelectItem key={officer.id} value={officer.id}>
+                      {officer.firstName} {officer.lastName}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -49,8 +49,17 @@ export default function ChangePassword() {
             setIsSuccess(true);
             toast.success('เปลี่ยนรหัสผ่านสำเร็จ');
         } catch (err: unknown) {
-            const message = (err as Error)?.message ?? 'เกิดข้อผิดพลาด';
-            toast.error(message);
+            const errorMsg = (err as Error)?.message ?? '';
+            // Map technical errors to user-friendly messages
+            let userMessage = 'ไม่สามารถเปลี่ยนรหัสผ่านได้ กรุณาลองใหม่อีกครั้ง';
+            if (errorMsg.includes('current') || errorMsg.includes('รหัสผ่านเดิม') || errorMsg.includes('old password')) {
+                userMessage = 'รหัสผ่านปัจจุบันไม่ถูกต้อง กรุณาตรวจสอบและลองใหม่อีกครั้ง';
+            } else if (errorMsg.includes('same') || errorMsg.includes('เหมือนเดิม') || errorMsg.includes('duplicate')) {
+                userMessage = 'รหัสผ่านใหม่ต้องไม่เหมือนรหัสผ่านเดิม';
+            } else if (errorMsg.includes('session') || errorMsg.includes('unauthorized') || errorMsg.includes('401')) {
+                userMessage = 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่อีกครั้ง';
+            }
+            toast.error(userMessage);
         } finally {
             setIsLoading(false);
         }

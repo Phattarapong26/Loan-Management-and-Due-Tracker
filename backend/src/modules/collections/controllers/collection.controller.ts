@@ -35,7 +35,7 @@ export class CollectionController {
             const dashboard = await this.collectionService.getCollectionDashboard(user);
             return ResponseUtil.success(reply, dashboard);
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 500);
+            return ResponseUtil.error(reply, 'ไม่สามารถโหลดข้อมูลแดชบอร์ดได้', 500, 'LOAD_ERROR');
         }
     };
 
@@ -59,7 +59,7 @@ export class CollectionController {
             const customers = await this.collectionService.getCustomersNearDue(user, daysAhead);
             return ResponseUtil.success(reply, { customers, total: customers.length });
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 500);
+            return ResponseUtil.error(reply, 'ไม่สามารถโหลดรายการใกล้ถึงกำหนดชำระได้', 500, 'LOAD_ERROR');
         }
     };
 
@@ -83,7 +83,7 @@ export class CollectionController {
             const customers = await this.collectionService.getCustomersNearOverdue(user, daysBack);
             return ResponseUtil.success(reply, { customers, total: customers.length });
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 500);
+            return ResponseUtil.error(reply, 'ไม่สามารถโหลดรายการใกล้ครบกำหนดชำระได้', 500, 'LOAD_ERROR');
         }
     };
 
@@ -101,7 +101,7 @@ export class CollectionController {
             const customers = await this.collectionService.getOverdueCustomers(user);
             return ResponseUtil.success(reply, { customers, total: customers.length });
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 500);
+            return ResponseUtil.error(reply, 'ไม่สามารถโหลดรายการค้างชำระได้', 500, 'LOAD_ERROR');
         }
     };
 
@@ -119,7 +119,7 @@ export class CollectionController {
             const stats = await this.collectionService.getCollectionStats(user);
             return ResponseUtil.success(reply, stats);
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message, 500);
+            return ResponseUtil.error(reply, 'ไม่สามารถโหลดสถิติการติดตามลูกหนี้ได้', 500, 'LOAD_ERROR');
         }
     };
 }

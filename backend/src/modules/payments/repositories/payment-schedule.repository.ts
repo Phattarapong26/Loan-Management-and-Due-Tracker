@@ -538,9 +538,9 @@ export class PaymentScheduleRepository {
     async findOverdueUnpaid(beforeDate: Date): Promise<Array<any>> {
         return this.db.paymentSchedule.findMany({
             where: {
-                status: 'UNPAID',
+                status: { in: ['UNPAID', 'OVERDUE', 'PARTIAL'] },
                 paymentDate: { lt: beforeDate },
-                loan: { status: { in: ['ACTIVE', 'DISBURSED'] } },
+                loan: { status: { in: ['ACTIVE', 'DISBURSED', 'NPL'] } },
             },
             include: {
                 loan: {

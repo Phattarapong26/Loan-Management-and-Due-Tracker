@@ -149,7 +149,7 @@ export const lineController = {
                 },
             });
         } catch (error: any) {
-            return ResponseUtil.error(reply, error.message || 'Internal error', 500, 'INTERNAL_ERROR');
+            return ResponseUtil.error(reply, 'ไม่สามารถส่งการแจ้งเตือนทดสอบได้ กรุณาลองใหม่อีกครั้ง', 500, 'INTERNAL_ERROR');
         }
     },
 

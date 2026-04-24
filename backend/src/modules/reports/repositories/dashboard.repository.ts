@@ -56,6 +56,16 @@ export class DashboardRepository {
         return this.db.paymentSchedule.count({ where });
     }
 
+    async aggregatePaymentSchedules(where: Prisma.PaymentScheduleWhereInput): Promise<number> {
+        const result = await this.db.paymentSchedule.aggregate({ where, _sum: { totalPayment: true } });
+        return Number(result._sum.totalPayment || 0);
+    }
+
+    async aggregatePayments(where: Prisma.PaymentWhereInput): Promise<number> {
+        const result = await this.db.payment.aggregate({ where, _sum: { amount: true } });
+        return Number(result._sum.amount || 0);
+    }
+
     // ─── Contact log queries ──────────────────────────────────────────────────
 
     async findContactLogs(params: {

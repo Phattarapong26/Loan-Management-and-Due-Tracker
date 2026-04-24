@@ -76,8 +76,15 @@ const CollectionWorkflow: React.FC = () => {
         setTasks(tasksRes.data);
         setTaskStats(statsRes.data);
       }
-    } catch (error) {
-      message.error('ไม่สามารถโหลดข้อมูลได้');
+    } catch (error: any) {
+      const errorMsg = error?.message || error?.response?.data?.error || '';
+      let userMessage = 'ไม่สามารถโหลดข้อมูล Workflow ได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('network') || errorMsg.includes('connection')) {
+        userMessage = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต';
+      } else if (errorMsg.includes('session') || errorMsg.includes('unauthorized') || errorMsg.includes('401')) {
+        userMessage = 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่อีกครั้ง';
+      }
+      message.error(userMessage);
     } finally {
       setLoading(false);
     }
@@ -90,8 +97,15 @@ const CollectionWorkflow: React.FC = () => {
       setStepModalVisible(false);
       form.resetFields();
       loadData();
-    } catch (error) {
-      message.error('ไม่สามารถสร้าง Workflow Step ได้');
+    } catch (error: any) {
+      const errorMsg = error?.message || error?.response?.data?.error || '';
+      let userMessage = 'ไม่สามารถสร้าง Workflow Step ได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('duplicate') || errorMsg.includes('already exists') || errorMsg.includes('ซ้ำ')) {
+        userMessage = 'ชื่อ Step นี้มีอยู่ในระบบแล้ว กรุณาใช้ชื่ออื่น';
+      } else if (errorMsg.includes('validation') || errorMsg.includes('valid')) {
+        userMessage = 'ข้อมูลไม่ถูกต้อง กรุณาตรวจสอบและลองใหม่อีกครั้ง';
+      }
+      message.error(userMessage);
     }
   };
 
@@ -104,8 +118,15 @@ const CollectionWorkflow: React.FC = () => {
       setSelectedStep(null);
       form.resetFields();
       loadData();
-    } catch (error) {
-      message.error('ไม่สามารถอัพเดท Workflow Step ได้');
+    } catch (error: any) {
+      const errorMsg = error?.message || error?.response?.data?.error || '';
+      let userMessage = 'ไม่สามารถอัปเดต Workflow Step ได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+        userMessage = 'ไม่พบ Workflow Step นี้ในระบบ อาจถูกลบไปแล้ว';
+      } else if (errorMsg.includes('duplicate') || errorMsg.includes('already exists')) {
+        userMessage = 'ชื่อ Step นี้มีอยู่ในระบบแล้ว กรุณาใช้ชื่ออื่น';
+      }
+      message.error(userMessage);
     }
   };
 
@@ -114,8 +135,13 @@ const CollectionWorkflow: React.FC = () => {
       await collectionsApi.toggleWorkflowStep(stepId, isActive);
       message.success(isActive ? 'เปิดใช้งานสำเร็จ' : 'ปิดใช้งานสำเร็จ');
       loadData();
-    } catch (error) {
-      message.error('ไม่สามารถเปลี่ยนสถานะได้');
+    } catch (error: any) {
+      const errorMsg = error?.message || error?.response?.data?.error || '';
+      let userMessage = 'ไม่สามารถเปลี่ยนสถานะ Workflow Step ได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+        userMessage = 'ไม่พบ Workflow Step นี้ในระบบ';
+      }
+      message.error(userMessage);
     }
   };
 
@@ -128,8 +154,15 @@ const CollectionWorkflow: React.FC = () => {
           await collectionsApi.deleteWorkflowStep(stepId);
           message.success('ลบสำเร็จ');
           loadData();
-        } catch (error) {
-          message.error('ไม่สามารถลบได้');
+        } catch (error: any) {
+          const errorMsg = error?.message || error?.response?.data?.error || '';
+          let userMessage = 'ไม่สามารถลบ Workflow Step ได้ กรุณาลองใหม่อีกครั้ง';
+          if (errorMsg.includes('in use') || errorMsg.includes('referenced') || errorMsg.includes('foreign key')) {
+            userMessage = 'ไม่สามารถลบ Step นี้ได้เนื่องจากมีการใช้งานอยู่ในระบบ';
+          } else if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+            userMessage = 'ไม่พบ Workflow Step นี้ในระบบ อาจถูกลบไปแล้ว';
+          }
+          message.error(userMessage);
         }
       },
     });
@@ -140,8 +173,15 @@ const CollectionWorkflow: React.FC = () => {
       await collectionsApi.completeTask(taskId);
       message.success('ทำงานเสร็จสิ้น');
       loadData();
-    } catch (error) {
-      message.error('ไม่สามารถทำงานเสร็จสิ้นได้');
+    } catch (error: any) {
+      const errorMsg = error?.message || error?.response?.data?.error || '';
+      let userMessage = 'ไม่สามารถทำงานเสร็จสิ้นได้ กรุณาลองใหม่อีกครั้ง';
+      if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+        userMessage = 'ไม่พบงานที่ต้องการทำเสร็จสิ้น';
+      } else if (errorMsg.includes('already') || errorMsg.includes('completed')) {
+        userMessage = 'งานนี้ถูกทำเสร็จสิ้นไปแล้ว';
+      }
+      message.error(userMessage);
     }
   };
 
