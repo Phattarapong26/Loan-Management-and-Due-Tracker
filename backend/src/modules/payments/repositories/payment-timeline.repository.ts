@@ -106,7 +106,7 @@ export class PaymentTimelineRepository {
      */
     async updatePaymentScheduleStatus(id: string, data: { status?: string; daysOverdue?: number; penaltyAmount?: number }): Promise<void> {
         await (this.db as any).paymentSchedule.update({
-            where: { id },
+            where: { id, status: { not: 'PAID' } },
             data,
         });
     }

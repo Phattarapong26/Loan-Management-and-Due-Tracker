@@ -8,7 +8,7 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  X, CheckCircle2, Pencil, Save, AlertTriangle, ChevronDown, 
+  X, CheckCircle2, Save, AlertTriangle, ChevronDown, 
   ChevronUp, Layers, Loader, FileText, Search, UserCheck
 } from "lucide-react";
 import { EnhancedDataViewer } from './EnhancedDataViewer';
@@ -64,13 +64,11 @@ export function DocumentReviewModal({
   const [profile, setProfile] = useState<ParsedBusinessProfile>(normalizeProfile(initialProfile));
   const [activeSection, setActiveSection] = useState<ReviewSection>('companyInfo');
   const [isSaving, setIsSaving] = useState(false);
-  const [saveAction, setSaveAction] = useState<'create' | 'link'>('create');
+  const [saveAction] = useState<'link'>('link');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
-  const [selectedOfficerId, setSelectedOfficerId] = useState<string>('');
   const [showSheetInfo, setShowSheetInfo] = useState(false);
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
 
-  const confidence = Math.round((profile.matchConfidence || 0) * 100);
   const sectionCounts = useMemo(() => calculateSectionCounts(profile), [profile]);
 
   // Filter customers based on search term
@@ -85,21 +83,23 @@ export function DocumentReviewModal({
   }, [existingCustomers, customerSearchTerm]);
 
   const handleSave = async () => {
-    if (saveAction === 'link' && !selectedCustomerId) {
-      toast.error("กรุณาเลือกลูกค้าที่ต้องการผูกข้อมูล");
+    if (!selectedCustomerId) {
+      toast.error("กรุณาเลือกลูกค้าที่ต้องการผูกเอกสาร", {
+        description: "ค้นหาและเลือกลูกค้าในสาขาของคุณก่อนกดยืนยัน",
+      });
       return;
     }
 
     setIsSaving(true);
     try {
       await onConfirm(
-        profile, 
-        saveAction, 
-        selectedCustomerId || undefined,
-        selectedOfficerId && selectedOfficerId !== 'none' ? selectedOfficerId : undefined
+        profile,
+        'link',
+        selectedCustomerId,
+        undefined
       );
     } catch (error) {
-      toast.error("เกิดข้อผิดพลาดในการบันทึก");
+      toast.error("ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง");
     } finally {
       setIsSaving(false);
     }
@@ -245,102 +245,64 @@ export function DocumentReviewModal({
         {/* Customer Selection Bar */}
         <div className="px-6 py-3 border-b border-border bg-muted/10">
           <div className="flex flex-col gap-3">
-            {/* Action Toggle */}
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-medium text-foreground">การดำเนินการ:</span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setSaveAction('create');
-                    setSelectedCustomerId('');
-                    setCustomerSearchTerm('');
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    saveAction === 'create'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                  }`}
-                >
-                  สร้างลูกค้าใหม่
-                </button>
-                <button
-                  onClick={() => setSaveAction('link')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    saveAction === 'link'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                  }`}
-                >
-                  ผูกกับลูกค้าที่มีอยู่
-                </button>
-              </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-sm font-medium text-foreground flex items-center gap-2">
+                <UserCheck className="h-4 w-4 text-primary" />
+                ผูกเอกสารกับลูกค้า
+                <span className="text-rose-500">*</span>
+              </span>
+              {!selectedCustomerId && (
+                <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                  ยังไม่ได้เลือกลูกค้า
+                </span>
+              )}
+              {selectedCustomerId && (
+                <span className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" /> เลือกลูกค้าแล้ว
+                </span>
+              )}
             </div>
-
-            {/* Admin: Officer selection when creating new customer */}
-            {isAdmin && saveAction === 'create' && officers.length > 0 && (
-              <div className="flex items-center gap-3">
-                <UserCheck className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="text-sm text-muted-foreground whitespace-nowrap">ผูกกับพนักงาน:</span>
-                <Select value={selectedOfficerId} onValueChange={setSelectedOfficerId}>
-                  <SelectTrigger className="w-[280px] h-9">
-                    <SelectValue placeholder="เลือกพนักงาน (ไม่บังคับ)..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">— ไม่ระบุพนักงาน —</SelectItem>
-                    {officers.map((officer) => (
-                      <SelectItem key={officer.id} value={officer.id}>
-                        {officer.firstName} {officer.lastName}
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="relative flex-1 min-w-[200px] max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="ค้นหาชื่อลูกค้าหรือเลขประจำตัวผู้เสียภาษี..."
+                  value={customerSearchTerm}
+                  onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                  className="pl-10 h-9"
+                />
+              </div>
+              <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
+                <SelectTrigger className={`w-[350px] h-9 ${!selectedCustomerId ? 'border-amber-300' : 'border-emerald-300'}`}>
+                  <SelectValue placeholder="เลือกลูกค้าในสาขา..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredCustomers.length === 0 ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      {customerSearchTerm ? `ไม่พบลูกค้าที่ค้นหา "${customerSearchTerm}"` : 'ไม่มีลูกค้าในสาขานี้'}
+                    </div>
+                  ) : (
+                    filteredCustomers.map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        <div className="flex flex-col py-1">
+                          <span className="font-medium">{customer.name}</span>
+                          {customer.taxId && (
+                            <span className="text-xs text-muted-foreground">
+                              เลขประจำตัวผู้เสียภาษี: {customer.taxId}
+                            </span>
+                          )}
+                        </div>
                       </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* Customer Search & Select (shown when link action is selected) */}
-            {saveAction === 'link' && (
-              <div className="flex items-center gap-3">
-                <div className="relative flex-1 max-w-md">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="ค้นหาชื่อลูกค้าหรือเลขประจำตัวผู้เสียภาษี..."
-                    value={customerSearchTerm}
-                    onChange={(e) => setCustomerSearchTerm(e.target.value)}
-                    className="pl-10 h-9"
-                  />
-                </div>
-                <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
-                  <SelectTrigger className="w-[350px] h-9">
-                    <SelectValue placeholder="เลือกลูกค้า..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredCustomers.length === 0 ? (
-                      <div className="p-4 text-center text-sm text-muted-foreground">
-                        {customerSearchTerm ? 'ไม่พบลูกค้าที่ค้นหา' : 'ไม่มีลูกค้าในระบบ'}
-                      </div>
-                    ) : (
-                      filteredCustomers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          <div className="flex flex-col py-1">
-                            <span className="font-medium">{customer.name}</span>
-                            {customer.taxId && (
-                              <span className="text-xs text-muted-foreground">
-                                เลขประจำตัวผู้เสียภาษี: {customer.taxId}
-                              </span>
-                            )}
-                          </div>
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-                {filteredCustomers.length > 0 && (
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
-                    {filteredCustomers.length} รายการ
-                  </span>
-                )}
-              </div>
-            )}
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {filteredCustomers.length > 0 && (
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {filteredCustomers.length} รายการ
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -543,9 +505,10 @@ export function DocumentReviewModal({
             )}
 
             <Button
-              className="flex-1 sm:flex-none h-11 px-10 font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="flex-1 sm:flex-none h-11 px-10 font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               onClick={handleSave}
-              disabled={isSaving}
+              disabled={isSaving || !selectedCustomerId}
+              title={!selectedCustomerId ? 'กรุณาเลือกลูกค้าก่อนยืนยัน' : undefined}
             >
               {isSaving ? (
                 <>

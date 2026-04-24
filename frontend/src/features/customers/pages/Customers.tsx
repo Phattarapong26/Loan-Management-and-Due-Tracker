@@ -762,8 +762,8 @@ export default function Customers() {
                   <span className="text-xs text-muted-foreground">* = ข้อมูลที่จำเป็นต้องกรอก</span>
                 </DialogDescription>
               </DialogHeader>
-              {(!isAdmin || editingCustomerId) && (
-                <div className="grid gap-4 py-2 sm:py-4">
+              {/* Form fields - always show */}
+              <div className="grid gap-4 py-2 sm:py-4">
                 {/* Branch and Officer Info */}
                 <div className="rounded-lg border bg-muted/50 p-3 sm:p-4 space-y-2">
                   <p className="text-sm font-medium">ข้อมูลการมอบหมาย</p>
@@ -949,7 +949,6 @@ export default function Customers() {
                   </Select>
                 </div>
               </div>
-              )}
               <DialogFooter className="flex-col sm:flex-row gap-2">
                 <Button
                   variant="outline"

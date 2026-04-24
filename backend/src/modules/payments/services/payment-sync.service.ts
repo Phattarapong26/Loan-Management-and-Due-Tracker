@@ -123,10 +123,13 @@ export class PaymentSyncService {
 
       for (const lid of loanIds) {
         const loanSchedules = schedules.filter(s => s.loanId === lid);
-        const maxOverdue = loanSchedules.reduce((max, s) => {
-          const d = s.daysOverdue ?? 0;
-          return d > max ? d : max;
-        }, 0);
+        // Only consider schedules that are still unpaid/overdue — never PAID schedules
+        const maxOverdue = loanSchedules
+          .filter(s => ['UNPAID', 'OVERDUE', 'PARTIAL'].includes(s.status))
+          .reduce((max, s) => {
+            const d = s.daysOverdue ?? 0;
+            return d > max ? d : max;
+          }, 0);
 
         // Determine new loan status based on overdue days
         const currentLoan = loanSchedules[0]?.loan;

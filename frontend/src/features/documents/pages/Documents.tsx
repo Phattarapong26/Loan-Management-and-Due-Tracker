@@ -65,7 +65,6 @@ import { ParsedBusinessProfile } from '../utils/parsers';
 import { DocumentReviewModal } from '../components/documents/DocumentReviewModal';
 import { DocumentUpload } from '../components/documents/DocumentUpload';
 import { DocumentStatsCards } from '../components/DocumentStatsCards';
-import { showUserFriendlyError } from '@/shared/utils/user-friendly-errors';
 import { useAuth } from '@/shared/contexts/AuthContext';
 
 interface Document {
@@ -309,7 +308,10 @@ export default function Documents() {
         );
 
         if (linkError) {
-          throw new Error(linkError.message);
+          toast.error("ไม่สามารถผูกเอกสารกับลูกค้าได้", {
+            description: "ลูกค้าที่เลือกอาจไม่มีในระบบแล้ว กรุณาลองเลือกลูกค้าใหม่",
+          });
+          return;
         }
 
         toast.success("ผูกเอกสารกับลูกค้าสำเร็จ");
@@ -327,11 +329,9 @@ export default function Documents() {
 
         if (profileError) {
           console.error('[Documents] Business profile save error:', profileError);
-          // Don't throw - customer is already created, just log the error
-          toast.warning("บันทึกข้อมูลลูกค้าสำเร็จ แต่ไม่สามารถบันทึก Business Profile ได้");
+          toast.warning("บันทึกข้อมูลเอกสารสำเร็จ แต่ไม่สามารถบันทึกข้อมูลโปรไฟล์ธุรกิจได้ กรุณาแจ้งผู้ดูแลระบบ");
         } else if (profileData) {
-          // console.log('[Documents] Business profile saved successfully:', profileData);
-          toast.success("บันทึกข้อมูลลูกค้าและ Business Profile สำเร็จ");
+          toast.success("บันทึกข้อมูลและผูกเอกสารกับลูกค้าสำเร็จ");
         }
       }
 
@@ -342,8 +342,17 @@ export default function Documents() {
     } catch (error) {
       console.error("Review confirm error:", error);
       
-      // Show user-friendly error dialog
-      showUserFriendlyError(error);
+      // Show user-friendly error
+      const message = (error as any)?.message || '';
+      if (message.includes('already linked') || message.includes('duplicate')) {
+        toast.error("เอกสารนี้ถูกผูกกับลูกค้ารายนี้แล้ว");
+      } else if (message.includes('not found') || message.includes('404')) {
+        toast.error("ไม่พบลูกค้าที่เลือก กรุณาลองเลือกใหม่อีกครั้ง");
+      } else {
+        toast.error("ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง", {
+          description: "หากปัญหายังคงอยู่ กรุณาแจ้งผู้ดูแลระบบ",
+        });
+      }
     }
   };
 

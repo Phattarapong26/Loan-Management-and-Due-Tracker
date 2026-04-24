@@ -102,9 +102,9 @@ export class PaymentScheduleService {
                         ? schedulePayments[schedulePayments.length - 1]?.paymentDate 
                         : undefined,
                     isRecalculated: false,
-                    penaltyAmount: Number(schedule.penaltyAmount ?? 0),
-                    compoundInterestAmount: Number(schedule.compoundInterestAmount ?? 0),
-                    daysOverdue: schedule.daysOverdue ?? 0,
+                    penaltyAmount: 0,
+                    compoundInterestAmount: 0,
+                    daysOverdue: 0,
                 });
 
                 lastPaymentNumber = schedule.paymentNumber;
