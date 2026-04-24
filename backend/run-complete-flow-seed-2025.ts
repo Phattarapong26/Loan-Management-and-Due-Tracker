@@ -20,7 +20,7 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
-import { EncryptionUtil } from '../src/core/utils/security/encryption.util';
+import { EncryptionUtil } from './src/core/utils/security/encryption.util';
 
 const prisma = new PrismaClient();
 
@@ -784,7 +784,6 @@ async function seedCompleteSystem2025() {
           remainingBalance: remainingPrincipal,
           status: paymentStatus as any,
           daysOverdue: daysOverdue > 0 ? daysOverdue : 0,
-          paidAmount: 0,
         },
       });
 
@@ -1050,7 +1049,10 @@ async function main() {
 }
 
 const isMainModule =
-  process.argv[1] && process.argv[1].endsWith('seed-complete-system-2025.ts');
+  process.argv[1] && (
+    process.argv[1].endsWith('run-complete-flow-seed-2025.ts') ||
+    process.argv[1].endsWith('seed-complete-system-2025.ts')
+  );
 
 if (isMainModule) {
   main()

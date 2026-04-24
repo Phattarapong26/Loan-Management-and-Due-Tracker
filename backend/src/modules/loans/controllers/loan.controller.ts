@@ -1,4 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { asyncAuditLog } from '@core/services/async-audit-log.service';
 import { cachedLoanService } from '../services/loan-cached.service';
 import { ResponseUtil } from '@utils/formatting/response.util';
 import { prisma } from '@config/database.config';
@@ -81,17 +82,17 @@ export class LoanController {
 
             // Map specific error codes
             if (error.message === 'BUDGET_EXCEEDED') {
-                return ResponseUtil.error(reply, 'Budget exceeded', 400, 'BUDGET_EXCEEDED');
+                return ResponseUtil.error(reply, 'วงเงินที่ขอเกินงบประมาณคงเหลือของผลิตภัณฑ์สินเชื่อนี้ กรุณาลดจำนวนเงินกู้หรือเลือกผลิตภัณฑ์อื่น', 400, 'BUDGET_EXCEEDED');
             }
             if (error.message === 'CUSTOMER_BLACKLISTED') {
-                return ResponseUtil.error(reply, 'Customer is blacklisted', 400, 'CUSTOMER_BLACKLISTED');
+                return ResponseUtil.error(reply, 'ลูกค้ารายนี้ถูกระงับการใช้งาน ไม่สามารถสร้างคำขอสินเชื่อได้', 400, 'CUSTOMER_BLACKLISTED');
             }
             if (error.message === 'DUPLICATE_LOAN_APPLICATION') {
                 // Include existing loan ID in response for frontend to create link
                 const existingLoanId = (error as any).existingLoanId;
                 return ResponseUtil.error(
                     reply, 
-                    'Duplicate loan application', 
+                    'ลูกค้ารายนี้มีคำขอสินเชื่อที่รอการพิจารณาอยู่แล้ว กรุณารอให้คำขอเดิมได้รับการอนุมัติหรือปฏิเสธก่อน', 
                     400, 
                     'DUPLICATE_LOAN_APPLICATION',
                     existingLoanId ? { existingLoanId } : undefined
@@ -343,6 +344,111 @@ export class LoanController {
             return ResponseUtil.success(reply, result);
         } catch (error: any) {
             return ResponseUtil.error(reply, 'ไม่สามารถดึงข้อมูลรายการรออนุมัติได้ กรุณาลองใหม่อีกครั้ง', 400, 'PENDING_ERROR');
+        }
+    };
+
+    /**
+     * Soft delete loan (All roles with access can delete)
+     * Admin can view audit log of who deleted
+     */
+    delete = async (
+        request: FastifyRequest<{ Params: { id: string } }>,
+        reply: FastifyReply
+    ) => {
+        try {
+            const role = request.user!.role;
+            const userId = request.user!.userId;
+            const userEmail = request.user?.email || 'unknown';
+            const branchId = request.user?.branchId;
+
+            // RBAC: All authenticated users with loan access can delete
+            // Admin can see audit log of all deletions
+            const { loan, deletedByInfo } = await this.loanService.deleteLoan(
+                request.params.id,
+                userId,
+                {
+                    role,
+                    email: userEmail,
+                    branchId,
+                    deletedAt: new Date().toISOString(),
+                }
+            );
+
+            // Audit log — เก็บลง DB ผ่าน async queue
+            await asyncAuditLog.log({
+                userId,
+                action: 'LOAN_SOFT_DELETE',
+                entity: 'Loan',
+                entityId: request.params.id,
+                ipAddress: request.ip,
+                userAgent: request.headers['user-agent'] as string,
+                metadata: {
+                    deletedBy: deletedByInfo,
+                    contractNumber: (loan as any).contractNumber || (loan as any).contract_number,
+                    customerId: loan.customerId,
+                    principal: loan.principal,
+                    status: loan.status,
+                },
+            });
+
+            return ResponseUtil.success(reply, {
+                message: 'ลบสินเชื่อสำเร็จ',
+                deletedBy: role === 'ADMIN' ? undefined : deletedByInfo, // Admin already sees in audit log
+                auditLog: role === 'ADMIN' ? {
+                    action: 'SOFT_DELETE',
+                    loanId: request.params.id,
+                    deletedBy: deletedByInfo,
+                    timestamp: new Date().toISOString(),
+                } : undefined,
+            });
+        } catch (error: any) {
+            if (error.message === 'LOAN_NOT_FOUND') {
+                return ResponseUtil.error(reply, 'ไม่พบข้อมูลสินเชื่อนี้ในระบบ', 404, 'NOT_FOUND');
+            }
+            if (error.message === 'LOAN_ALREADY_DELETED') {
+                return ResponseUtil.error(reply, 'สินเชื่อนี้ถูกลบไปแล้ว', 400, 'ALREADY_DELETED');
+            }
+            return ResponseUtil.error(reply, 'ไม่สามารถลบสินเชื่อได้ กรุณาลองใหม่อีกครั้ง', 500, 'DELETE_ERROR');
+        }
+    };
+
+    /**
+     * Restore soft-deleted loan (Admin only)
+     */
+    restore = async (
+        request: FastifyRequest<{ Params: { id: string } }>,
+        reply: FastifyReply
+    ) => {
+        try {
+            const role = request.user!.role;
+            const userId = request.user!.userId;
+
+            if (role !== 'ADMIN') {
+                return ResponseUtil.forbidden(reply, 'เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถกู้คืนสินเชื่อได้');
+            }
+
+            await this.loanService.restoreLoan(request.params.id, userId);
+
+            // Audit log — เก็บลง DB
+            await asyncAuditLog.log({
+                userId,
+                action: 'LOAN_RESTORE',
+                entity: 'Loan',
+                entityId: request.params.id,
+                ipAddress: request.ip,
+                userAgent: request.headers['user-agent'] as string,
+                metadata: { restoredBy: { userId, role } },
+            });
+
+            return ResponseUtil.success(reply, { message: 'กู้คืนสินเชื่อสำเร็จ' });
+        } catch (error: any) {
+            if (error.message === 'LOAN_NOT_FOUND') {
+                return ResponseUtil.error(reply, 'ไม่พบข้อมูลสินเชื่อนี้ในระบบ', 404, 'NOT_FOUND');
+            }
+            if (error.message === 'LOAN_NOT_DELETED') {
+                return ResponseUtil.error(reply, 'สินเชื่อนี้ยังไม่ถูกลบ ไม่สามารถกู้คืนได้', 400, 'NOT_DELETED');
+            }
+            return ResponseUtil.error(reply, 'ไม่สามารถกู้คืนสินเชื่อได้ กรุณาลองใหม่อีกครั้ง', 500, 'RESTORE_ERROR');
         }
     };
 }

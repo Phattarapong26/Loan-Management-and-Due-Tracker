@@ -1075,4 +1075,58 @@ export class LoanService {
         const result = await this.loanRepository.getStatistics(params);
         return result;
     }
+
+    /**
+     * Soft delete loan by ID (with audit log)
+     */
+    async deleteLoan(
+        loanId: string,
+        userId: string,
+        auditInfo: { role: string; email: string; branchId?: string; deletedAt: string }
+    ): Promise<{ loan: any; deletedByInfo: any }> {
+        // Verify loan exists and is not already deleted
+        const loan = await this.loanRepository.findById(loanId, undefined, undefined, true);
+        if (!loan) {
+            throw new Error('LOAN_NOT_FOUND');
+        }
+        if (loan.deletedAt) {
+            throw new Error('LOAN_ALREADY_DELETED');
+        }
+
+        // Soft delete the loan with audit info
+        await this.loanRepository.delete(loanId, userId, auditInfo.deletedAt);
+
+        const deletedByInfo = {
+            userId,
+            email: auditInfo.email,
+            role: auditInfo.role,
+            branchId: auditInfo.branchId,
+            deletedAt: auditInfo.deletedAt,
+        };
+
+        // Log the deletion for audit
+        console.log(`[AUDIT] Loan ${loanId} soft deleted by user ${userId} (${auditInfo.email})`);
+
+        return { loan, deletedByInfo };
+    }
+
+    /**
+     * Restore soft-deleted loan (admin only)
+     */
+    async restoreLoan(loanId: string, userId: string): Promise<void> {
+        // Verify loan exists and is deleted
+        const loan = await this.loanRepository.findById(loanId, undefined, undefined, true);
+        if (!loan) {
+            throw new Error('LOAN_NOT_FOUND');
+        }
+        if (!loan.deletedAt) {
+            throw new Error('LOAN_NOT_DELETED');
+        }
+
+        // Restore the loan
+        await this.loanRepository.restore(loanId);
+
+        // Log the restoration for audit
+        console.log(`[Loan Restored] Loan ${loanId} restored by user ${userId}`);
+    }
 }

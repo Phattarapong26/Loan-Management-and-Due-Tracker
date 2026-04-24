@@ -663,10 +663,10 @@ const CreditLineManagement: React.FC = () => {
                 label="วงเงินอนุมัติ"
                 rules={[{ required: true, message: 'กรุณาระบุ' }]}
               >
-                <InputNumber
+                <InputNumber<number>
                   style={{ width: '100%' }}
                   min={0}
-                  formatter={(value) => `฿ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                  formatter={(value) => `฿ ${value ?? 0}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                   parser={(value) => value ? Number(value.replace(/฿\s?|(,*)/g, '')) : 0}
                 />
               </Form.Item>
@@ -773,11 +773,11 @@ const CreditLineManagement: React.FC = () => {
                   },
                 ]}
               >
-                <InputNumber
+                <InputNumber<number>
                   style={{ width: '100%' }}
                   min={0}
                   max={selectedCreditLine.available_balance}
-                  formatter={(value) => `฿ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                  formatter={(value) => `฿ ${value ?? 0}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                   parser={(value) => value ? Number(value.replace(/฿\s?|(,*)/g, '')) : 0}
                 />
               </Form.Item>

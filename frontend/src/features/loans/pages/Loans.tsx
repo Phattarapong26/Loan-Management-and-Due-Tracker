@@ -67,6 +67,8 @@ import {
   Loader2,
   Wallet,
   Users,
+  Trash2,
+  RotateCcw,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { UserAvatar } from '@/shared/components/ui/user-avatar';
@@ -468,6 +470,58 @@ export default function Loans() {
       alertDialog.error({
         title: 'ไม่สามารถปฏิเสธได้',
         description: error.message || 'เกิดข้อผิดพลาดในการปฏิเสธสินเชื่อ',
+        confirmText: 'ตกลง',
+      });
+    },
+  });
+
+  // Delete loan mutation (All roles with access)
+  const deleteLoanMutation = useMutation({
+    mutationFn: async (loanId: string) => {
+      const result = await loansApi.delete(loanId);
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
+      return result.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['loans'] });
+      queryClient.invalidateQueries({ queryKey: ['loan-statistics'] });
+      alertDialog.success({
+        title: 'ลบสินเชื่อสำเร็จ',
+        description: isAdmin && data?.auditLog
+          ? `ลบโดย: ${data.auditLog.deletedBy?.email} (${data.auditLog.deletedBy?.role})`
+          : 'ระบบได้บันทึกการลบเรียบร้อยแล้ว',
+        confirmText: 'ตกลง',
+      });
+    },
+    onError: (error: ApiError) => {
+      alertDialog.error({
+        title: 'ไม่สามารถลบได้',
+        description: error.message || 'เกิดข้อผิดพลาดในการลบสินเชื่อ',
+        confirmText: 'ตกลง',
+      });
+    },
+  });
+
+  // Restore loan mutation (Admin only)
+  const restoreLoanMutation = useMutation({
+    mutationFn: async (loanId: string) => {
+      const result = await loansApi.restore(loanId);
+      if (result.error) throw new Error(result.error.message ?? String(result.error));
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['loans'] });
+      queryClient.invalidateQueries({ queryKey: ['loan-statistics'] });
+      alertDialog.success({
+        title: 'กู้คืนสินเชื่อสำเร็จ',
+        description: 'ระบบได้กู้คืนข้อมูลเรียบร้อยแล้ว',
+        confirmText: 'ตกลง',
+      });
+    },
+    onError: (error: ApiError) => {
+      alertDialog.error({
+        title: 'ไม่สามารถกู้คืนได้',
+        description: error.message || 'เกิดข้อผิดพลาดในการกู้คืนสินเชื่อ',
         confirmText: 'ตกลง',
       });
     },
@@ -1612,6 +1666,44 @@ export default function Loans() {
                                 <FileText className="h-4 w-4 mr-2" />
                                 ดูเอกสาร
                               </DropdownMenuItem>
+                              {/* All roles with loan access can delete */}
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => {
+                                  alertDialog.confirm({
+                                    title: 'ยืนยันการลบสินเชื่อ',
+                                    description: isAdmin
+                                      ? `คุณต้องการลบสินเชื่อนี้ใช่หรือไม่? (Admin mode - มีสิทธิ์กู้คืน)`
+                                      : 'คุณต้องการลบสินเชื่อนี้ใช่หรือไม่? ข้อมูลจะถูกซ่อนและแจ้ง Admin',
+                                    confirmText: 'ลบ',
+                                    cancelText: 'ยกเลิก',
+                                    onConfirm: () => deleteLoanMutation.mutate(loan.id),
+                                  });
+                                }}
+                                disabled={deleteLoanMutation.isPending}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                ลบสินเชื่อ
+                              </DropdownMenuItem>
+                              {/* Admin can see deleted loans and restore */}
+                              {isAdmin && loan.deletedAt && (
+                                <DropdownMenuItem
+                                  className="text-warning"
+                                  onClick={() => {
+                                    alertDialog.confirm({
+                                      title: 'กู้คืนสินเชื่อ',
+                                      description: `สินเชื่อนี้ถูกลบโดย ${loan.deletedByName || 'ไม่ระบุ'} เมื่อ ${loan.deletedAt ? new Date(loan.deletedAt).toLocaleString('th-TH') : 'ไม่ระบุ'}`,
+                                      confirmText: 'กู้คืน',
+                                      cancelText: 'ยกเลิก',
+                                      onConfirm: () => restoreLoanMutation.mutate(loan.id),
+                                    });
+                                  }}
+                                  disabled={restoreLoanMutation.isPending}
+                                >
+                                  <RotateCcw className="h-4 w-4 mr-2" />
+                                  กู้คืนสินเชื่อ
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>

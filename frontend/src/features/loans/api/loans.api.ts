@@ -95,6 +95,20 @@ export const rejectLoan = async (id: string, reason: string) => {
   return loansApi.reject(id, { reason });
 };
 
+/**
+ * Delete loan (Admin only)
+ */
+export const deleteLoan = async (id: string) => {
+  return loansApi.delete(id);
+};
+
+/**
+ * Restore soft-deleted loan (Admin only)
+ */
+export const restoreLoan = async (id: string) => {
+  return loansApi.restore(id);
+};
+
 // Export all loans API functions
 export const loansApiService = {
   listLoans,
@@ -103,4 +117,6 @@ export const loansApiService = {
   getPendingApprovals,
   approveLoan,
   rejectLoan,
+  deleteLoan,
+  restoreLoan,
 };

@@ -556,6 +556,33 @@ export async function registerRoutes(app: FastifyInstance) {
         loanController.reject
     );
 
+    // Soft delete loan (All roles can delete with audit log)
+    app.delete<{ Params: { id: string } }>(
+        '/api/loans/:id',
+        {
+            preHandler: [
+                authenticate,
+                requireBranch,
+                authorize('ADMIN', 'MANAGER', 'OFFICER'), // All roles can delete their accessible loans
+                canAccessLoan(),
+            ],
+        },
+        loanController.delete
+    );
+
+    // Restore soft-deleted loan (Admin only)
+    app.post<{ Params: { id: string } }>(
+        '/api/loans/:id/restore',
+        {
+            preHandler: [
+                authenticate,
+                requireBranch,
+                authorize('ADMIN'), // Only ADMIN can restore loans
+            ],
+        },
+        loanController.restore
+    );
+
     // Payment routes
     app.post<{ Body: CreatePaymentInput }>(
         '/api/payments',

@@ -448,6 +448,20 @@ export const loansApi = {
             compoundInterest: boolean;
             compoundRate?: number;
         }>(`/api/loans/${loanId}/penalty-rate`, { overdueDays: overdueDays.toString() }),
+
+    delete: (id: string) =>
+        apiClient.delete<{
+            message: string;
+            auditLog?: {
+                action: string;
+                loanId: string;
+                deletedBy?: { userId: string; email: string; role: string; branchId?: string };
+                timestamp: string;
+            };
+        }>(`/api/loans/${id}`),
+
+    restore: (id: string) =>
+        apiClient.post<{ message: string }>(`/api/loans/${id}/restore`, {}),
 };
 
 // ==================== Payments ====================

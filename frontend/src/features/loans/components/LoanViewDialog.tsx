@@ -50,6 +50,9 @@ export interface Loan {
   creditScore?: number;
   creditReasons?: string[];
   creditNextActions?: string[];
+  // Soft delete fields
+  deletedAt?: string | null;
+  deletedByName?: string | null;
   // Add missing properties
   loanProduct?: LoanProduct;
   branch?: Branch;

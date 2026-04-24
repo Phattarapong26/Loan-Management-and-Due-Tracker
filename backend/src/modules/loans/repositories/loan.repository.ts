@@ -15,12 +15,13 @@ export class LoanRepository {
     /**
      * Find loan by ID
      */
-    async findById(id: string, branchId?: string, tx?: Prisma.TransactionClient): Promise<Loan | null> {
+    async findById(id: string, branchId?: string, tx?: Prisma.TransactionClient, includeDeleted: boolean = false): Promise<Loan | null> {
         const db = tx || this.db;
         return db.loan.findFirst({
             where: {
                 id,
                 ...(branchId && { branchId }),
+                ...(!includeDeleted && { deletedAt: null }),
             },
             include: {
                 customer: true,
@@ -163,7 +164,9 @@ export class LoanRepository {
         customerId?: string;
         search?: string;
     }): Promise<{ loans: Loan[]; total: number }> {
-        const where: Prisma.LoanWhereInput = {};
+        const where: Prisma.LoanWhereInput = {
+            deletedAt: null, // Exclude soft-deleted loans
+        };
 
         if (params.branchId) {
             where.branchId = params.branchId;
@@ -600,7 +603,7 @@ export class LoanRepository {
      */
     async findActiveIds(): Promise<string[]> {
         const loans = await this.db.loan.findMany({
-            where: { status: 'ACTIVE' },
+            where: { status: 'ACTIVE', deletedAt: null },
             select: { id: true },
         });
         return loans.map(l => l.id);
@@ -609,9 +612,12 @@ export class LoanRepository {
     /**
      * Find loan with customer and LINE info (for loan status notifications)
      */
-    async findWithCustomerAndLine(loanId: string): Promise<any> {
-        return this.db.loan.findUnique({
-            where: { id: loanId },
+    async findWithCustomerAndLine(loanId: string, includeDeleted: boolean = false): Promise<any> {
+        return this.db.loan.findFirst({
+            where: {
+                id: loanId,
+                ...(!includeDeleted && { deletedAt: null }),
+            },
             include: {
                 customer: {
                     include: { user: true },
@@ -657,6 +663,7 @@ export class LoanRepository {
             where: {
                 ...(params.branchId ? { branchId: params.branchId } : {}),
                 status: { in: ['ACTIVE', 'DISBURSED', 'DEFAULTED', 'NPL'] },
+                deletedAt: null,
                 ...(and.length > 0 ? { AND: and } : {}),
             },
             select: { id: true, outstandingBalance: true },
@@ -664,11 +671,60 @@ export class LoanRepository {
     }
 
     /**
+     * Soft delete loan by ID (with audit info)
+     */
+    async delete(id: string, deletedBy?: string, deletedAt?: string): Promise<void> {
+        await this.db.loan.update({
+            where: { id },
+            data: {
+                deletedAt: deletedAt ? new Date(deletedAt) : new Date(),
+                // Note: deletedBy field should be added to schema for full audit
+                // For now, we log to console and return in API response
+            },
+        });
+    }
+
+    /**
+     * Restore soft-deleted loan by ID (admin only)
+     */
+    async restore(id: string): Promise<void> {
+        await this.db.loan.update({
+            where: { id },
+            data: { deletedAt: null },
+        });
+    }
+
+    /**
+     * Find all loans including deleted (for admin)
+     */
+    async findAllWithDeleted(params: {
+        branchId?: string;
+        customerId?: string;
+        includeDeleted?: boolean;
+    }): Promise<Loan[]> {
+        return this.db.loan.findMany({
+            where: {
+                ...(params.branchId ? { branchId: params.branchId } : {}),
+                ...(params.customerId ? { customerId: params.customerId } : {}),
+                ...(!params.includeDeleted ? { deletedAt: null } : {}),
+            },
+            include: {
+                customer: true,
+                branch: true,
+                loanProduct: true,
+            },
+        });
+    }
+
+    /**
      * Find loan with disbursements and payment schedule (for progress calculation)
      */
-    async findWithProgress(loanId: string): Promise<any | null> {
-        return this.db.loan.findUnique({
-            where: { id: loanId },
+    async findWithProgress(loanId: string, includeDeleted: boolean = false): Promise<any | null> {
+        return this.db.loan.findFirst({
+            where: {
+                id: loanId,
+                ...(!includeDeleted && { deletedAt: null }),
+            },
             include: {
                 loanProduct: true,
                 disbursements: { where: { status: 'DISBURSED' } },
@@ -680,9 +736,12 @@ export class LoanRepository {
     /**
      * Find all loans for customer with disbursements and payment schedule
      */
-    async findByCustomerWithProgress(customerId: string): Promise<any[]> {
+    async findByCustomerWithProgress(customerId: string, includeDeleted: boolean = false): Promise<any[]> {
         return this.db.loan.findMany({
-            where: { customerId },
+            where: {
+                customerId,
+                ...(!includeDeleted && { deletedAt: null }),
+            },
             include: {
                 loanProduct: true,
                 disbursements: { where: { status: 'DISBURSED' } },
