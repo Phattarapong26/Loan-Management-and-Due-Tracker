@@ -172,8 +172,8 @@ const DocumentBackfill: React.FC = () => {
                                     <div>
                                         <p className="text-muted-foreground">ใบเสร็จ</p>
                                         <p className="font-medium">
-                                            <span className="text-green-600">+{lastRun.receiptsCreated}</span>
-                                            {lastRun.receiptsFailed > 0 && (
+                                            <span className="text-green-600">+{lastRun.receiptsCreated ?? 0}</span>
+                                            {(lastRun.receiptsFailed ?? 0) > 0 && (
                                                 <span className="text-red-500 ml-1">/ {lastRun.receiptsFailed} fail</span>
                                             )}
                                         </p>
@@ -181,8 +181,8 @@ const DocumentBackfill: React.FC = () => {
                                     <div>
                                         <p className="text-muted-foreground">สัญญา</p>
                                         <p className="font-medium">
-                                            <span className="text-green-600">+{lastRun.contractsCreated}</span>
-                                            {lastRun.contractsFailed > 0 && (
+                                            <span className="text-green-600">+{lastRun.contractsCreated ?? 0}</span>
+                                            {(lastRun.contractsFailed ?? 0) > 0 && (
                                                 <span className="text-red-500 ml-1">/ {lastRun.contractsFailed} fail</span>
                                             )}
                                         </p>
@@ -198,7 +198,11 @@ const DocumentBackfill: React.FC = () => {
                                     </div>
                                     <div>
                                         <p className="text-muted-foreground">ใช้เวลา</p>
-                                        <p className="font-medium">{(lastRun.durationMs / 1000).toFixed(1)}s</p>
+                                        <p className="font-medium">
+                                            {lastRun.durationMs != null && !isNaN(lastRun.durationMs)
+                                                ? `${(lastRun.durationMs / 1000).toFixed(1)}s`
+                                                : '-'}
+                                        </p>
                                     </div>
                                 </div>
                             ) : (

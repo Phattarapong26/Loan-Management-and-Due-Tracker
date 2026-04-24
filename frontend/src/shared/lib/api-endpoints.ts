@@ -1045,16 +1045,16 @@ export interface DocumentBackfillStats {
 }
 
 export interface BackfillLastRunStatus {
-    timelinesCreated: number;
-    timelinesFailed: number;
-    receiptsCreated: number;
-    receiptsFailed: number;
-    contractsCreated: number;
-    contractsFailed: number;
-    invoicesCreated: number;
-    invoicesFailed: number;
-    durationMs: number;
-    ranAt: string;
+    timelinesCreated?: number;
+    timelinesFailed?: number;
+    receiptsCreated?: number;
+    receiptsFailed?: number;
+    contractsCreated?: number;
+    contractsFailed?: number;
+    invoicesCreated?: number;
+    invoicesFailed?: number;
+    durationMs?: number;
+    ranAt?: string;
 }
 
 export const documentBackfillApi = {
