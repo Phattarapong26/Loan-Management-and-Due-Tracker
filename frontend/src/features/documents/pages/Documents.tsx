@@ -414,20 +414,20 @@ export default function Documents() {
         <div>
           <h1 className="text-2xl font-bold text-white">จัดการเอกสาร</h1>
           <p className="text-white">
-            อัพโหลดเอกสารและวิเคราะห์ข้อมูลจากไฟล์ Excel
+            อัปโหลดเอกสารและวิเคราะห์ข้อมูลจากไฟล์ Excel
           </p>
         </div>
         <Button
           onClick={() => {
             if (isAdmin && branchFilter === 'all') {
-              toast.warning('กรุณาเลือกสาขาก่อนอัพโหลดเอกสาร');
+              toast.warning('กรุณาเลือกสาขาก่อนอัปโหลดเอกสาร');
               return;
             }
             setIsUploadDialogOpen(true);
           }}
         >
           <Upload className="h-4 w-4 mr-2" />
-          อัพโหลดเอกสาร
+          อัปโหลดเอกสาร
         </Button>
       </div>
 
@@ -525,16 +525,16 @@ export default function Documents() {
             <div className="flex flex-col items-center justify-center h-64 text-center">
               <FolderOpen className="h-16 w-16 text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium mb-2">ยังไม่มีเอกสาร</h3>
-              <p className="text-muted-foreground mb-4">เริ่มต้นโดยการอัพโหลดเอกสารแรกของคุณ</p>
+              <p className="text-muted-foreground mb-4">เริ่มต้นโดยการอัปโหลดเอกสารแรกของคุณ</p>
               <Button onClick={() => {
                 if (isAdmin && branchFilter === 'all') {
-                  toast.warning('กรุณาเลือกสาขาก่อนอัพโหลดเอกสาร');
+                  toast.warning('กรุณาเลือกสาขาก่อนอัปโหลดเอกสาร');
                   return;
                 }
                 setIsUploadDialogOpen(true);
               }}>
                 <Upload className="h-4 w-4 mr-2" />
-                อัพโหลดเอกสาร
+                อัปโหลดเอกสาร
               </Button>
             </div>
           ) : (
@@ -547,7 +547,7 @@ export default function Documents() {
                     <TableHead className="font-semibold">ประเภท</TableHead>
                     <TableHead className="font-semibold">สถานะ</TableHead>
                     <TableHead className="font-semibold">ความสมบูรณ์</TableHead>
-                    <TableHead className="font-semibold">วันที่อัพโหลด</TableHead>
+                    <TableHead className="font-semibold">วันที่อัปโหลด</TableHead>
                     <TableHead className="text-right font-semibold">การจัดการ</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -664,9 +664,9 @@ export default function Documents() {
       <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>อัพโหลดเอกสาร</DialogTitle>
+            <DialogTitle>อัปโหลดเอกสาร</DialogTitle>
             <DialogDescription>
-              อัพโหลดไฟล์ Excel เพื่อ parse ข้อมูลอัตโนมัติ
+              อัปโหลดไฟล์ Excel เพื่อ parse ข้อมูลอัตโนมัติ
             </DialogDescription>
           </DialogHeader>
 
@@ -683,7 +683,7 @@ export default function Documents() {
               onUploadComplete={(documentId) => {
                 setIsUploadDialogOpen(false);
                 refetchDocs();
-                toast.success('อัพโหลดเอกสารสำเร็จ');
+                toast.success('อัปโหลดเอกสารสำเร็จ');
               }}
             />
           </div>

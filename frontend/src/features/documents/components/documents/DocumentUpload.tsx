@@ -17,7 +17,7 @@ type UploadState = 'idle' | 'uploading' | 'parsing' | 'matching' | 'review' | 'd
 
 const stageLabels: Record<UploadState, string> = {
   idle: '',
-  uploading: 'กำลังอัพโหลดไฟล์...',
+  uploading: 'กำลังอัปโหลดไฟล์...',
   parsing: 'กำลังอ่านข้อมูลจาก Excel...',
   matching: 'กำลัง Matching Schema กับ Business Profile...',
   review: 'รอการตรวจสอบ',
@@ -72,7 +72,7 @@ export function DocumentUpload({ customerId, officerId, branchId, officers = [],
         setExistingCustomers(
           data.customers.map((c: Customer) => ({
             id: c.id,
-            name: c.businessName || c.name || 'ไม่ระบุชื่อ',
+            name: c.businessName || 'ไม่ระบุชื่อ',
             taxId: c.taxId,
           }))
         );
@@ -158,7 +158,7 @@ export function DocumentUpload({ customerId, officerId, branchId, officers = [],
         idx === index ? { 
           ...f, 
           status: 'error', 
-          error: '❌ ไฟล์ไม่ถูกต้อง\n\nกรุณาอัพโหลดไฟล์ Excel (.xlsx, .xls) หรือ CSV เท่านั้น\n\nไฟล์ที่รองรับ:\n• Microsoft Excel (.xlsx)\n• Excel 97-2003 (.xls)\n• CSV (.csv)' 
+          error: '❌ ไฟล์ไม่ถูกต้อง\n\nกรุณาอัปโหลดไฟล์ Excel (.xlsx, .xls) หรือ CSV เท่านั้น\n\nไฟล์ที่รองรับ:\n• Microsoft Excel (.xlsx)\n• Excel 97-2003 (.xls)\n• CSV (.csv)' 
         } : f
       ));
       return;
@@ -272,11 +272,11 @@ export function DocumentUpload({ customerId, officerId, branchId, officers = [],
       
       if (error instanceof Error) {
         if (error.message.includes('network') || error.message.includes('fetch')) {
-          errorMessage = '❌ เกิดข้อผิดพลาดในการเชื่อมต่อ\n\nไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้\n\nกรุณา:\n• ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต\n• ลองอัพโหลดอีกครั้ง';
+          errorMessage = '❌ เกิดข้อผิดพลาดในการเชื่อมต่อ\n\nไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้\n\nกรุณา:\n• ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต\n• ลองอัปโหลดอีกครั้ง';
         } else if (error.message.includes('parse') || error.message.includes('read')) {
-          errorMessage = '❌ ไม่สามารถอ่านไฟล์ได้\n\nไฟล์อาจเสียหายหรือรูปแบบไม่ถูกต้อง\n\nกรุณา:\n• ตรวจสอบว่าไฟล์เปิดได้ใน Excel\n• ลองบันทึกไฟล์ใหม่แล้วอัพโหลดอีกครั้ง\n• ใช้ไฟล์ Excel รูปแบบ .xlsx';
+          errorMessage = '❌ ไม่สามารถอ่านไฟล์ได้\n\nไฟล์อาจเสียหายหรือรูปแบบไม่ถูกต้อง\n\nกรุณา:\n• ตรวจสอบว่าไฟล์เปิดได้ใน Excel\n• ลองบันทึกไฟล์ใหม่แล้วอัปโหลดอีกครั้ง\n• ใช้ไฟล์ Excel รูปแบบ .xlsx';
         } else if (error.message.includes('size') || error.message.includes('large')) {
-          errorMessage = '❌ ไฟล์มีขนาดใหญ่เกินไป\n\nขนาดไฟล์เกิน 10MB\n\nกรุณา:\n• ลดขนาดไฟล์โดยลบข้อมูลที่ไม่จำเป็น\n• บีบอัดไฟล์ก่อนอัพโหลด\n• แยกข้อมูลเป็นหลายไฟล์';
+          errorMessage = '❌ ไฟล์มีขนาดใหญ่เกินไป\n\nขนาดไฟล์เกิน 10MB\n\nกรุณา:\n• ลดขนาดไฟล์โดยลบข้อมูลที่ไม่จำเป็น\n• บีบอัดไฟล์ก่อนอัปโหลด\n• แยกข้อมูลเป็นหลายไฟล์';
         } else {
           errorMessage = `❌ เกิดข้อผิดพลาด\n\n${error.message}\n\nกรุณาลองอีกครั้งหรือติดต่อผู้ดูแลระบบ`;
         }
@@ -328,7 +328,7 @@ export function DocumentUpload({ customerId, officerId, branchId, officers = [],
     }
 
     if (!user) {
-      toast.error("กรุณาเข้าสู่ระบบก่อนอัพโหลดเอกสาร");
+      toast.error("กรุณาเข้าสู่ระบบก่อนอัปโหลดเอกสาร");
       return;
     }
 
@@ -366,8 +366,7 @@ export function DocumentUpload({ customerId, officerId, branchId, officers = [],
             companyName: editedData.companyInfo?.companyName || 'ไม่ระบุชื่อบริษัท',
             registrationNumber: editedData.companyInfo?.registrationNumber || editedData.companyInfo?.taxId || '0000000000000',
             taxId: editedData.companyInfo?.taxId || editedData.companyInfo?.registrationNumber || '0000000000000',
-            phone: editedData.companyInfo?.phone || editedData.companyInfo?.phoneNumber || '-',
-            phoneNumber: editedData.companyInfo?.phoneNumber || editedData.companyInfo?.phone || '-',
+            phone: editedData.companyInfo?.phone || (editedData.companyInfo as any)?.phoneNumber || '-',
             address: editedData.companyInfo?.address || 'ไม่ระบุที่อยู่',
           }
         };
@@ -482,7 +481,7 @@ export function DocumentUpload({ customerId, officerId, branchId, officers = [],
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
-            อัพโหลดเอกสาร
+            อัปโหลดเอกสาร
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -590,7 +589,7 @@ export function DocumentUpload({ customerId, officerId, branchId, officers = [],
                       {/* Stage indicators */}
                       {uploadedFile.status !== 'error' && (
                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          {['อัพโหลด', 'อ่านข้อมูล', 'Matching', 'เสร็จสิ้น'].map((label, i) => {
+                          {['อัปโหลด', 'อ่านข้อมูล', 'Matching', 'เสร็จสิ้น'].map((label, i) => {
                             const stageProgress = [0, 30, 60, 100];
                             const isActive = uploadedFile.progress >= stageProgress[i];
                             return (
@@ -630,7 +629,7 @@ export function DocumentUpload({ customerId, officerId, branchId, officers = [],
                               className="flex items-center gap-2"
                             >
                               <Upload className="w-4 h-4" />
-                              ลองอัพโหลดอีกครั้ง
+                              ลองอัปโหลดอีกครั้ง
                             </Button>
                             <Button 
                               variant="ghost" 

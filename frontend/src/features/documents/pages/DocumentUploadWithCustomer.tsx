@@ -116,7 +116,12 @@ export default function DocumentUploadWithCustomer() {
     try {
       const response = await usersApi.list({ branchId, role: 'OFFICER', limit: 100 });
       if (response.data) {
-        setOfficers(response.data.users || []);
+        setOfficers((response.data.users || []).map((u: any) => ({
+          id: u.id,
+          firstName: u.firstName || '',
+          lastName: u.lastName || '',
+          email: u.email || '',
+        })));
       }
     } catch (error) {
       console.error('Error loading officers:', error);
@@ -142,7 +147,7 @@ export default function DocumentUploadWithCustomer() {
   const handleUploadComplete = (documentId: string) => {
     setUploadedDocumentId(documentId);
     alertDialog.success({
-      title: 'อัพโหลดเอกสารสำเร็จ!',
+      title: 'อัปโหลดเอกสารสำเร็จ!',
       description: 'เอกสารถูกบันทึกเรียบร้อยแล้ว',
       confirmText: 'ตกลง',
     });
@@ -177,19 +182,19 @@ export default function DocumentUploadWithCustomer() {
     <DashboardLayout breadcrumbs={[
       { label: 'Home' },
       { label: 'เอกสาร' },
-      { label: 'อัพโหลดเอกสารลูกค้า' }
+      { label: 'อัปโหลดเอกสารลูกค้า' }
     ]}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <FileSpreadsheet className="h-7 w-7" />
-            อัพโหลดเอกสารลูกค้า
+            อัปโหลดเอกสารลูกค้า
           </h1>
           <p className="text-muted-foreground mt-1">
             {isAdmin
-              ? 'เลือกสาขา พนักงาน และลูกค้าก่อนอัพโหลดเอกสาร'
-              : 'เลือกลูกค้าและอัพโหลดเอกสารเพื่อดึงข้อมูลจากไฟล์ Excel'}
+              ? 'เลือกสาขา พนักงาน และลูกค้าก่อนอัปโหลดเอกสาร'
+              : 'เลือกลูกค้าและอัปโหลดเอกสารเพื่อดึงข้อมูลจากไฟล์ Excel'}
           </p>
         </div>
         {(selectedCustomerId || selectedBranchId) && (
@@ -206,12 +211,12 @@ export default function DocumentUploadWithCustomer() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                {isAdmin ? 'ตั้งค่าการอัพโหลด' : 'เลือกลูกค้า'}
+                {isAdmin ? 'ตั้งค่าการอัปโหลด' : 'เลือกลูกค้า'}
               </CardTitle>
               <CardDescription>
                 {isAdmin
                   ? 'เลือกสาขา พนักงาน และลูกค้าที่ต้องการ'
-                  : 'เลือกลูกค้าที่ต้องการอัพโหลดเอกสาร'}
+                  : 'เลือกลูกค้าที่ต้องการอัปโหลดเอกสาร'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -374,7 +379,7 @@ export default function DocumentUploadWithCustomer() {
               {!selectedCustomerId && canSelectCustomer && (
                 <div className="p-4 bg-info/10 border border-info/20 rounded-lg">
                   <p className="text-sm text-info-foreground">
-                    💡 กรุณาเลือกลูกค้าก่อนอัพโหลดเอกสาร
+                    💡 กรุณาเลือกลูกค้าก่อนอัปโหลดเอกสาร
                   </p>
                 </div>
               )}
@@ -400,7 +405,7 @@ export default function DocumentUploadWithCustomer() {
                     <Building2 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-medium mb-2">เลือกสาขาก่อน</h3>
                     <p className="text-muted-foreground">
-                      Admin ต้องเลือกสาขาก่อนเพื่อดูรายชื่อลูกค้าและอัพโหลดเอกสาร
+                      Admin ต้องเลือกสาขาก่อนเพื่อดูรายชื่อลูกค้าและอัปโหลดเอกสาร
                     </p>
                   </>
                 ) : (
@@ -408,7 +413,7 @@ export default function DocumentUploadWithCustomer() {
                     <Users className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-medium mb-2">เลือกลูกค้าเพื่อเริ่มต้น</h3>
                     <p className="text-muted-foreground">
-                      กรุณาเลือกลูกค้าจากรายการด้านซ้ายเพื่ออัพโหลดเอกสาร
+                      กรุณาเลือกลูกค้าจากรายการด้านซ้ายเพื่ออัปโหลดเอกสาร
                     </p>
                   </>
                 )}
@@ -420,7 +425,7 @@ export default function DocumentUploadWithCustomer() {
             <Card className="border-green-200 bg-green-50">
               <CardContent className="pt-6">
                 <p className="text-sm text-green-800">
-                  ✅ อัพโหลดเอกสารสำเร็จ! เอกสารถูกบันทึกเรียบร้อยแล้ว
+                  ✅ อัปโหลดเอกสารสำเร็จ! เอกสารถูกบันทึกเรียบร้อยแล้ว
                 </p>
               </CardContent>
             </Card>

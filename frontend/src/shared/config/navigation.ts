@@ -23,6 +23,13 @@ export const dashboardUrlByRole: Record<UserRole, string> = {
   admin: '/dashboard/admin',
   branch_manager: '/dashboard/branch-manager',
   loan_officer: '/dashboard/loan-officer',
+  // backend role variants
+  ADMIN: '/dashboard/admin',
+  MANAGER: '/dashboard/branch-manager',
+  OFFICER: '/dashboard/loan-officer',
+  USER: '/dashboard/loan-officer',
+  CUSTOMER: '/dashboard/loan-officer',
+  customer: '/dashboard/loan-officer',
 };
 
 export const navigationGroups: MenuGroup[] = [
@@ -90,7 +97,7 @@ export const navigationGroups: MenuGroup[] = [
       }
       ,
       {
-        title: 'อัพโหลดเอกสาร',
+        title: 'อัปโหลดเอกสาร',
         url: '/documents',
         icon: 'Upload',
         roles: ['admin', 'branch_manager', 'loan_officer'],
@@ -212,4 +219,10 @@ export const roleLabels: Record<UserRole, string> = {
   admin: 'ผู้ดูแลระบบ',
   branch_manager: 'ผู้จัดการสาขา',
   loan_officer: 'เจ้าหน้าที่สินเชื่อ',
+  ADMIN: 'ผู้ดูแลระบบ',
+  MANAGER: 'ผู้จัดการสาขา',
+  OFFICER: 'เจ้าหน้าที่สินเชื่อ',
+  USER: 'เจ้าหน้าที่สินเชื่อ',
+  CUSTOMER: 'ลูกค้า',
+  customer: 'ลูกค้า',
 };

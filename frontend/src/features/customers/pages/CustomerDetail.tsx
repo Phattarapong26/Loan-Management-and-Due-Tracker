@@ -1025,7 +1025,7 @@ export default function CustomerDetail() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-lg font-bold">เอกสารทั้งหมด</h3>
-              <p className="text-sm text-muted-foreground">รายการเอกสารที่อัพโหลดในระบบ</p>
+              <p className="text-sm text-muted-foreground">รายการเอกสารที่อัปโหลดในระบบ</p>
             </div>
             <div className="flex items-center gap-3">
               <Badge variant="secondary" className="font-bold text-sm px-3 py-1">
@@ -1033,7 +1033,7 @@ export default function CustomerDetail() {
               </Badge>
               <Button size="sm" className="gap-2" onClick={() => setIsUploadDialogOpen(true)}>
                 <Plus className="h-4 w-4" />
-                อัพโหลดเอกสาร
+                อัปโหลดเอกสาร
               </Button>
             </div>
           </div>
@@ -1104,10 +1104,10 @@ export default function CustomerDetail() {
                     </div>
                     <div>
                       <p className="font-medium text-lg mb-1">ยังไม่มีเอกสาร</p>
-                      <p className="text-sm text-muted-foreground mb-6">อัพโหลดเอกสารเพื่อให้ระบบวิเคราะห์ข้อมูลด้วย AI</p>
+                      <p className="text-sm text-muted-foreground mb-6">อัปโหลดเอกสารเพื่อให้ระบบวิเคราะห์ข้อมูล</p>
                       <Button onClick={() => setIsUploadDialogOpen(true)} className="gap-2">
                         <Plus className="h-4 w-4" />
-                        อัพโหลดเอกสารแรก
+                        อัปโหลดเอกสารแรก
                       </Button>
                     </div>
                   </div>
@@ -1350,9 +1350,9 @@ export default function CustomerDetail() {
       <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>อัพโหลดเอกสารธุรกิจ</DialogTitle>
+            <DialogTitle>อัปโหลดเอกสารธุรกิจ</DialogTitle>
             <DialogDescription>
-              อัพโหลดข้อมูลเกี่ยวข้องกับธุรกิจ
+              อัปโหลดข้อมูลเกี่ยวข้องกับธุรกิจ
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
