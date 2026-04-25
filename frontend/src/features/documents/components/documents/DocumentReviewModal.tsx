@@ -58,6 +58,7 @@ export function DocumentReviewModal({
   existingCustomers = [],
   officers = [],
   isAdmin = false,
+  initialCustomerId = '',
 }: DocumentReviewModalProps) {
   // console.log('[DocumentReviewModal] Initial profile:', initialProfile);
 
@@ -65,7 +66,7 @@ export function DocumentReviewModal({
   const [activeSection, setActiveSection] = useState<ReviewSection>('companyInfo');
   const [isSaving, setIsSaving] = useState(false);
   const [saveAction] = useState<'link'>('link');
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>(initialCustomerId);
   const [showSheetInfo, setShowSheetInfo] = useState(false);
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
 

@@ -38,6 +38,7 @@ export interface DocumentReviewModalProps {
   existingCustomers?: Array<{ id: string; name: string; taxId?: string }>;
   officers?: Array<{ id: string; firstName: string; lastName: string }>;
   isAdmin?: boolean;
+  initialCustomerId?: string;
 }
 
 export interface SectionCounts {

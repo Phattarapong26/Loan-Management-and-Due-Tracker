@@ -149,7 +149,7 @@ export default function Loans() {
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
-  const [currentStep, setCurrentStep] = useState(createForCustomerId ? 2 : 1);
+  const [currentStep, setCurrentStep] = useState(1);
 
   const [isCustomerOpen, setIsCustomerOpen] = useState(false);
   const [isLoanProductOpen, setIsLoanProductOpen] = useState(false);

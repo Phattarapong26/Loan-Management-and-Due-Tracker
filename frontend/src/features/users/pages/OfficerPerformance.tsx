@@ -148,7 +148,7 @@ export default function OfficerPerformance() {
           0
         );
 
-        // Default target from user profile or 500,000 (for loan disbursement)
+        // Default target from user profile or 500,000 (loan disbursement target)
         const monthlyTarget = officer.monthlyTarget ? Number(officer.monthlyTarget) : 500000;
         const targetAchievement = monthlyTarget > 0 ? (disbursedThisMonth / monthlyTarget) * 100 : 0;
         const collectionRate = outstandingBalance > 0 ? (paymentsCollected / outstandingBalance) * 100 : 0;
@@ -495,7 +495,7 @@ export default function OfficerPerformance() {
                           เป้าหมายเดือนนี้: ฿{stats.monthlyTarget.toLocaleString()}
                         </span>
                         <span className="font-bold">
-                          {stats.targetAchievement}% (฿{stats.paymentsCollected.toLocaleString()})
+                          {stats.targetAchievement}% (฿{stats.disbursedThisMonth.toLocaleString()})
                         </span>
                       </div>
                       <Progress value={Math.min(stats.targetAchievement, 100)} className="h-3" />

@@ -708,6 +708,7 @@ export default function Documents() {
               }))}
               officers={officers}
               isAdmin={isAdmin}
+              initialCustomerId={selectedDoc.customerId || ''}
             />
           )}
           
