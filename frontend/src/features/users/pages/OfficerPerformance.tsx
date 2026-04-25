@@ -108,10 +108,13 @@ export default function OfficerPerformance() {
         const totalDisbursed = loans
           .filter((l: Loan) => ['ACTIVE', 'DISBURSED', 'PAID_OFF'].includes(l.status))
           .reduce((sum: number, l: Loan) => sum + Number(l.principal || 0), 0);
-        const outstandingBalance = activeLoans.reduce(
-          (sum: number, l: Loan) => sum + Number(l.outstandingBalance || 0),
-          0
-        );
+        // รวม ACTIVE, DISBURSED, NPL ที่ยังมียอดคงค้าง
+        const outstandingBalance = loans
+          .filter((l: Loan) => ['ACTIVE', 'DISBURSED', 'NPL'].includes(l.status))
+          .reduce(
+            (sum: number, l: Loan) => sum + Number(l.outstandingBalance || l.remainingAmount || l.principal || 0),
+            0
+          );
         const nplCount = loans.filter(
           (l: Loan) => l.status === 'NPL' || (l.status === 'ACTIVE' && (l.overdueDays || 0) >= 90)
         ).length;
