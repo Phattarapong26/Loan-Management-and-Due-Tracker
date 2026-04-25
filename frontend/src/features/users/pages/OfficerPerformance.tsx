@@ -63,6 +63,12 @@ interface OfficerStats {
 export default function OfficerPerformance() {
   const { user } = useAuth();
   const { toast } = useToast();
+
+  const formatAmount = (value: number) => {
+    if (value >= 1_000_000) return `฿${(value / 1_000_000).toFixed(2)}M`;
+    if (value >= 1_000) return `฿${(value / 1_000).toFixed(0)}K`;
+    return `฿${value.toLocaleString()}`;
+  };
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -96,31 +102,30 @@ export default function OfficerPerformance() {
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
       const statsPromises = officers.map(async (officer: Officer) => {
-        // Get loans
-        const loansResult = await loansApi.list({
-          officerId: officer.id,
-          limit: 1000,
-        });
+        // Get stats from statistics endpoint (same logic as dashboard - includes customer.createdBy)
+        const [loansResult, statsResult] = await Promise.all([
+          loansApi.list({ officerId: officer.id, limit: 1000 }),
+          loansApi.getStatistics({ officerId: officer.id }),
+        ]);
         const loans = loansResult.data?.loans || [];
+        const officerStats = statsResult.data;
 
-        // Calculate stats
-        const activeLoans = loans.filter((l: Loan) => l.status === 'ACTIVE');
+        // Use stats from API for accuracy (matches dashboard logic)
+        const totalLoansCount = officerStats?.totalLoans ?? loans.length;
+        const activeLoansCount = officerStats?.activeCount ?? loans.filter((l: Loan) => l.status === 'ACTIVE').length;
+        const nplCount = officerStats?.nplCount ?? loans.filter(
+          (l: Loan) => l.status === 'NPL' || (l.status === 'ACTIVE' && (l.overdueDays || 0) >= 90)
+        ).length;
+        const overdueCount = officerStats?.overdueCount ?? loans.filter(
+          (l: Loan) => l.status === 'ACTIVE' && (l.overdueDays || 0) > 0
+        ).length;
+        const outstandingBalance = officerStats?.totalOutstanding ?? loans
+          .filter((l: Loan) => ['ACTIVE', 'DISBURSED', 'NPL'].includes(l.status))
+          .reduce((sum: number, l: Loan) => sum + Number(l.outstandingBalance || l.remainingAmount || l.principal || 0), 0);
+
         const totalDisbursed = loans
           .filter((l: Loan) => ['ACTIVE', 'DISBURSED', 'PAID_OFF'].includes(l.status))
           .reduce((sum: number, l: Loan) => sum + Number(l.principal || 0), 0);
-        // รวม ACTIVE, DISBURSED, NPL ที่ยังมียอดคงค้าง
-        const outstandingBalance = loans
-          .filter((l: Loan) => ['ACTIVE', 'DISBURSED', 'NPL'].includes(l.status))
-          .reduce(
-            (sum: number, l: Loan) => sum + Number(l.outstandingBalance || l.remainingAmount || l.principal || 0),
-            0
-          );
-        const nplCount = loans.filter(
-          (l: Loan) => l.status === 'NPL' || (l.status === 'ACTIVE' && (l.overdueDays || 0) >= 90)
-        ).length;
-        const overdueCount = loans.filter(
-          (l: Loan) => l.status === 'ACTIVE' && (l.overdueDays || 0) > 0
-        ).length;
 
         // Get approved loans this month (นับสินเชื่อที่อนุมัติในเดือนนี้)
         const approvedThisMonth = loans.filter((l: Loan) => {
@@ -158,8 +163,8 @@ export default function OfficerPerformance() {
 
         return {
           officerId: officer.id,
-          totalLoans: loans.length,
-          activeLoans: activeLoans.length,
+          totalLoans: totalLoansCount,
+          activeLoans: activeLoansCount,
           approvedLoans: approvedLoansCount,
           totalDisbursed,
           disbursedThisMonth,
@@ -326,12 +331,7 @@ export default function OfficerPerformance() {
               </CardHeader>
               <CardContent className="relative z-10">
                 <div className="text-2xl font-bold">
-                  ฿
-                  {(
-                    statsData.reduce((sum: number, s: OfficerStats) => sum + s.outstandingBalance, 0) /
-                    1000000
-                  ).toFixed(2)}
-                  M
+                  {formatAmount(statsData.reduce((sum: number, s: OfficerStats) => sum + s.outstandingBalance, 0))}
                 </div>
               </CardContent>
             </Card>
@@ -352,12 +352,7 @@ export default function OfficerPerformance() {
               </CardHeader>
               <CardContent className="relative z-10">
                 <div className="text-2xl font-bold text-emerald-600">
-                  ฿
-                  {(
-                    statsData.reduce((sum: number, s: OfficerStats) => sum + s.disbursedThisMonth, 0) /
-                    1000000
-                  ).toFixed(2)}
-                  M
+                  {formatAmount(statsData.reduce((sum: number, s: OfficerStats) => sum + s.disbursedThisMonth, 0))}
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
                   {statsData.reduce((sum: number, s: OfficerStats) => sum + s.approvedLoans, 0)} สัญญา
@@ -464,7 +459,7 @@ export default function OfficerPerformance() {
                         <Wallet className="h-5 w-5 mx-auto mb-1 text-blue-600" />
                         <p className="text-xs text-blue-600 mb-1">มูลค่าคงค้าง</p>
                         <p className="text-lg font-bold text-blue-600">
-                          ฿{(stats.outstandingBalance / 1000).toFixed(0)}K
+                          {formatAmount(stats.outstandingBalance)}
                         </p>
                       </div>
 
@@ -472,7 +467,7 @@ export default function OfficerPerformance() {
                         <DollarSign className="h-5 w-5 mx-auto mb-1 text-emerald-600" />
                         <p className="text-xs text-emerald-600 mb-1">เก็บได้เดือนนี้</p>
                         <p className="text-lg font-bold text-emerald-600">
-                          ฿{(stats.paymentsCollected / 1000).toFixed(0)}K
+                          {formatAmount(stats.paymentsCollected)}
                         </p>
                       </div>
 
@@ -623,21 +618,21 @@ export default function OfficerPerformance() {
                   <div className="p-4 border rounded-lg">
                     <p className="text-sm text-slate-600 mb-1">มูลค่าปล่อยทั้งหมด</p>
                     <p className="text-2xl font-bold text-blue-600">
-                      ฿{(selectedOfficerStats.totalDisbursed / 1000000).toFixed(2)}M
+                      {formatAmount(selectedOfficerStats.totalDisbursed)}
                     </p>
                   </div>
 
                   <div className="p-4 border rounded-lg">
                     <p className="text-sm text-slate-600 mb-1">มูลค่าคงค้าง</p>
                     <p className="text-2xl font-bold text-amber-600">
-                      ฿{(selectedOfficerStats.outstandingBalance / 1000000).toFixed(2)}M
+                      {formatAmount(selectedOfficerStats.outstandingBalance)}
                     </p>
                   </div>
 
                   <div className="p-4 border rounded-lg">
                     <p className="text-sm text-slate-600 mb-1">เก็บเงินได้เดือนนี้</p>
                     <p className="text-2xl font-bold text-emerald-600">
-                      ฿{(selectedOfficerStats.paymentsCollected / 1000).toFixed(0)}K
+                      {formatAmount(selectedOfficerStats.paymentsCollected)}
                     </p>
                   </div>
                 </div>
