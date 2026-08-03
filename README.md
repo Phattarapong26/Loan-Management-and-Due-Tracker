@@ -539,8 +539,6 @@ Risk Mitigation:
 > ✅ **Implemented** = Working in production  
 > 🎯 **Designed** = Documented requirements for future implementation  
 
----
-
 #### **Current Approval Workflow (Implemented)**
 
 ```mermaid
@@ -578,8 +576,6 @@ flowchart TD
 2. **Budget Check** → Real-time budget availability using Serializable transaction
 3. **Manager Authority** → Manager can approve up to 15M THB
 4. **Budget Reservation** → Atomic budget commit to prevent race conditions
-
----
 
 #### **Designed Business Rules (Future Enhancement)**
 
@@ -639,8 +635,6 @@ flowchart TD
 - ✅ **Reduce ambiguity** ในการพัฒนาระยะต่อไป
 - ✅ **Enable incremental development** แบบ agile
 - ✅ **Serve as test cases** สำหรับ QA testing
-
----
 
 #### **✅ Implemented Core Validations**
 
