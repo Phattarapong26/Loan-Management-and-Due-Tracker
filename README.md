@@ -908,7 +908,7 @@ graph TB
     style Payment fill:#c8e6c9
     style Future1 fill:#ffecb3
     style Future2 fill:#ffecb3
-
+```
 
 #### **Integration Patterns & Data Flow**
 
@@ -927,7 +927,7 @@ graph TB
 
 #### **Data Governance & Compliance**
 
-```
+
 DATA CLASSIFICATION & PROTECTION
 ═══════════════════════════════════════════════════════════════════
 
