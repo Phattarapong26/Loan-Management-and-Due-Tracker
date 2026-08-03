@@ -1759,10 +1759,10 @@ This is a portfolio project, but I'm open to suggestions and feedback!
 
 **Phattarapong** — Business Analyst | System Analyst | Full-Stack Developer
 
-- 📧 Email: [your-email@example.com]
-- 💼 LinkedIn: [your-linkedin-profile]
+- 📧 Email: phattarapong.phe@gmail.com
+- 💼 Web Port: https://webpatblog-production.up.railway.app/
 - 🐙 GitHub: [@Phattarapong26](https://github.com/Phattarapong26)
-- 📱 LINE: [your-line-id]
+- 📱 LINE: pat665.com
 
 **Available for:**
 - 💼 Business Analyst positions
@@ -1774,13 +1774,6 @@ This is a portfolio project, but I'm open to suggestions and feedback!
 
 <div align="center">
 
-### **🚀 From Business Pain Points to Production-Ready Solution**
-
-*This project demonstrates the power of combining business analysis with technical execution*
-
-**💼 BA:** Analyzed 6 pain points → Quantified 27M บาท value  
-**🏗️ SA:** Designed scalable architecture → 99.8% uptime  
-**👨‍💻 Dev:** Implemented full-stack → Production-ready system
 
 ---
 
