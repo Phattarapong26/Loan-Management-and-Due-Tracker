@@ -1309,7 +1309,6 @@ WHERE overdueDays >= 90
 
 ## 💼 BA Skills Demonstrated in This Project
 
-### **📋 Complete BA Skillset Showcase**
 
 ### **📋 Complete BA Skillset Showcase**
 
@@ -1552,15 +1551,6 @@ This is a portfolio project, but I'm open to suggestions and feedback!
 
 ---
 
-## 📞 Contact
-
-**Phattarapong** — Business Analyst & Full-Stack Developer
-
-- 📧 Email: phattarapong.phe@gmail.com
-- 💼 Web Port: https://webpatblog-production.up.railway.app/
-- 🐙 GitHub: [@Phattarapong26](https://github.com/Phattarapong26)
-
----
 
 ## 🏆 Project Highlights
 
