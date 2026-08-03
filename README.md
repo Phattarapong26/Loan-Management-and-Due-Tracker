@@ -803,51 +803,50 @@ WHY LINE OA?
 
 ```mermaid
 graph TB
-  subgraph External["🌐 EXTERNAL SYSTEMS"]
-    CoreBank["🏦 Core Banking System<br/>• Account Info<br/>• Disbursement<br/>• Balance"]
-    LINE["📱 LINE OA API<br/>• Push Notification<br/>• Rich Menu<br/>• Webhook"]
-    Bureau["📊 Credit Bureau NCB<br/>• Credit Report<br/>• NPL History<br/>• Debt Ratio"]
-  end
-
-  subgraph Gateway["🛡️ API GATEWAY - Fastify Backend"]
-    RateLimit["Rate Limiting"]
-    Auth["JWT Auth"]
-    Threat["Threat Detection"]
-  end
-
-  subgraph DataLayer["💾 DATA & PROCESSING LAYER"]
-    Postgres[("📦 PostgreSQL 15<br/>• Loans<br/>• Customers<br/>• Payments<br/>• Audit Log")]
-    Redis[("⚡ Redis 7<br/>• Session<br/>• Query Cache<br/>• Rate Limit")]
-    Queue["⏰ Bull Queue<br/>• NPL Check<br/>• Penalty Calc<br/>• Disbursement<br/>• LINE Retry"]
-  end
-
-  subgraph Frontend["🖥️ FRONTEND - React 18"]
-    Dashboard["📊 Dashboard"]
-    LoanMgmt["📋 Loan Management"]
-  end
-
-  Users["👤 End Users<br/>Officer / Manager / Customer"]
-
-  CoreBank -->|REST + SOAP| Gateway
-  LINE -->|Webhook| Gateway
-  Bureau -->|REST API| Gateway
-
-  Gateway --> Postgres
-  Gateway --> Redis
-  Gateway --> Queue
-
-  Postgres <--> LoanMgmt
-  Redis <--> Dashboard
-  Queue --> Dashboard
-
-  Dashboard --> Users
-  LoanMgmt --> Users
-
-  style External fill:#e3f2fd,stroke:#1e88e5,stroke-width:2px
-  style Gateway fill:#fff3e0,stroke:#fb8c00,stroke-width:2px
-  style DataLayer fill:#f3e5f5,stroke:#8e24aa,stroke-width:2px
-  style Frontend fill:#e8f5e9,stroke:#43a047,stroke-width:2px
-
+    subgraph External["🌐 EXTERNAL SYSTEMS"]
+        CoreBank[🏦 Core Banking System<br/>• Account Info<br/>• Disbursement<br/>• Balance]
+        LINE[📱 LINE OA API<br/>• Push Notification<br/>• Rich Menu<br/>• Webhook]
+        Bureau[📊 Credit Bureau NCB<br/>• Credit Report<br/>• NPL History<br/>• Debt Ratio]
+    end
+    
+    subgraph Gateway["🛡️ API GATEWAY - Fastify Backend"]
+        RateLimit[Rate Limiting]
+        Auth[JWT Auth]
+        Threat[Threat Detection]
+    end
+    
+    subgraph DataLayer["💾 DATA & PROCESSING LAYER"]
+        Postgres[(📦 PostgreSQL 15<br/>• Loans<br/>• Customers<br/>• Payments<br/>• Audit Log)]
+        Redis[(⚡ Redis 7<br/>• Session<br/>• Query Cache<br/>• Rate Limit)]
+        Queue[⏰ Bull Queue<br/>• NPL Check<br/>• Penalty Calc<br/>• Disbursement<br/>• LINE Retry]
+    end
+    
+    subgraph Frontend["🖥️ FRONTEND - React 18"]
+        Dashboard[📊 Dashboard]
+        LoanMgmt[📋 Loan Management]
+        Analytics[📈 Analytics]
+    end
+    
+    Users[👤 End Users<br/>Officer / Manager / Customer]
+    
+    CoreBank -->|REST + SOAP| Gateway
+    LINE -->|Webhook| Gateway
+    Bureau -->|REST API| Gateway
+    
+    Gateway --> Postgres
+    Gateway --> Redis
+    Gateway --> Queue
+    
+    Postgres <--> Frontend
+    Redis <--> Frontend
+    Queue --> Frontend
+    
+    Frontend --> Users
+    
+    style External fill:#e3f2fd
+    style Gateway fill:#fff3e0
+    style DataLayer fill:#f3e5f5
+    style Frontend fill:#e8f5e9
 ```
 
 #### **Integration Patterns & Data Flow**
@@ -863,6 +862,7 @@ graph TB
 
 #### **Data Governance & Compliance**
 
+```
 DATA CLASSIFICATION & PROTECTION
 ═══════════════════════════════════════════════════════════════════
 
@@ -1774,6 +1774,13 @@ This is a portfolio project, but I'm open to suggestions and feedback!
 
 <div align="center">
 
+### **🚀 From Business Pain Points to Production-Ready Solution**
+
+*This project demonstrates the power of combining business analysis with technical execution*
+
+**💼 BA:** Analyzed 6 pain points → Quantified 27M บาท value  
+**🏗️ SA:** Designed scalable architecture → 99.8% uptime  
+**👨‍💻 Dev:** Implemented full-stack → Production-ready system
 
 ---
 
