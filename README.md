@@ -982,9 +982,6 @@ COMPLIANCE CHECKPOINTS
    ├─ Transaction monitoring (>500K flagged)
    ├─ Suspicious Activity Report (SAR) integration
    └─ Politically Exposed Person (PEP) screening
-```
-
----
 
 ### **การทำงานของระบบ (High-level Overview)**
 
