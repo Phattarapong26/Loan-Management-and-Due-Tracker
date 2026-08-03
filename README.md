@@ -801,7 +801,8 @@ WHY LINE OA?
 
 ### **🔗 System Integration Architecture (BA + Technical Design)**
 
-```mermaidgraph TB
+```mermaid
+graph TB
   subgraph External["🌐 EXTERNAL SYSTEMS"]
     CoreBank["🏦 Core Banking System<br/>• Account Info<br/>• Disbursement<br/>• Balance"]
     LINE["📱 LINE OA API<br/>• Push Notification<br/>• Rich Menu<br/>• Webhook"]
@@ -823,7 +824,6 @@ WHY LINE OA?
   subgraph Frontend["🖥️ FRONTEND - React 18"]
     Dashboard["📊 Dashboard"]
     LoanMgmt["📋 Loan Management"]
-    Analytics["📈 Analytics"]
   end
 
   Users["👤 End Users<br/>Officer / Manager / Customer"]
@@ -842,13 +842,13 @@ WHY LINE OA?
 
   Dashboard --> Users
   LoanMgmt --> Users
-  Analytics --> Users
 
-  style External fill:#e3f2fd
-  style Gateway fill:#fff3e0
-  style DataLayer fill:#f3e5f5
-  style Frontend fill:#e8f5e9
+  style External fill:#e3f2fd,stroke:#1e88e5,stroke-width:2px
+  style Gateway fill:#fff3e0,stroke:#fb8c00,stroke-width:2px
+  style DataLayer fill:#f3e5f5,stroke:#8e24aa,stroke-width:2px
+  style Frontend fill:#e8f5e9,stroke:#43a047,stroke-width:2px
 
+```
 
 #### **Integration Patterns & Data Flow**
 
@@ -863,7 +863,6 @@ WHY LINE OA?
 
 #### **Data Governance & Compliance**
 
-```
 DATA CLASSIFICATION & PROTECTION
 ═══════════════════════════════════════════════════════════════════
 
