@@ -17,9 +17,9 @@
 
 ## 📌 Overview
 
-A full-stack loan management system built for SME banking, handling the complete lifecycle of loan applications — from customer onboarding and credit assessment to disbursement, repayment tracking, and NPL management.
+ปัญหา (Pain Point): ธุรกิจ SME และเจ้าหน้าที่สินเชื่อมักได้รับข้อมูลทางการเงินเป็นไฟล์ Excel ที่รูปแบบไม่สม่ำเสมอ (เช่น merged cells, ตารางหลายชุด, ชื่อคอลัมน์ไม่คงที่) ทำให้การประเมินเครดิตต้องใช้การแปลงข้อมูลและตรวจสอบด้วยคนจำนวนมาก เกิดความล่าช้า และเพิ่มความเสี่ยงจากข้อมูลขาดหรือผิดพลาดในการตัดสินใจอนุมัติและการเบิกจ่ายเงิน
 
-> **Built with production-grade architecture**: role-based access control, real-time notifications via LINE OA, automated penalty calculation, Redis caching, and comprehensive security middleware.
+แนวทางของระบบ: ระบบนี้ออกแบบมาเพื่อแปลง Excel ให้เป็นข้อมูลเชิงโครงสร้างแบบ deterministic (อาศัยกฎและ parser ที่อ่านได้จากโค้ด ไม่พึ่งพิง AI สำหรับโครงสร้างหลัก) โดยมีชั้นจั��การ merged-cells, ตรวจ��ับตารางแบบไดนามิก, แมป sheet ตาม configuration และรัน parser ย่อยเพื่อแปลงเป็นโครงสร้างกลาง (เช่น ParsedBusinessProfile / ParsedExcelData) จากนั้นตรวจสอบคุณภาพข้อมูล (confidence), เติมข้อมูลเสริมจาก credit bureau/statement, คำนวณ DSCR/score และขับเคลื่อน workflow การอนุมัติ → สร้าง transaction การเบิกจ่ายภายใน serializable DB transaction ก่อนส่งคำสั่งชำระเงินจริง
 
 ---
 
@@ -37,6 +37,80 @@ A full-stack loan management system built for SME banking, handling the complete
 | 🛡️ **Security Layer** | SSRF/XSS/SQL injection detection, rate limiting, IP blocking |
 | 📈 **Reports & Analytics** | NPL ratio, DPD buckets, officer performance, branch summary |
 | 🏢 **Multi-branch** | Branch isolation with cross-branch admin visibility |
+
+---
+
+## 🏗️ System Architecture & Data Flow (อธิบายจากการอ่านโค้ด)
+
+ภาพรวมการทำงาน (Data Flow) ที่ได้จากการอ่านโค้ดในโปรเจกต์:
+
+1. รับไฟล์ Excel (Buffer) แล้วอ่านด้วย exceljs-adapter (backend/src/core/utils/exceljs-adapter.ts) → แปลงเป็น WorkBook/WorkSheet (2D array) พร้อมข้อมูล merged ranges
+2. ทำ pre-processing โดยเติมค่าใน merged cells (fillMergedCells) เพื่อป้องกันการสูญหายของค่าเมื่อแปลงเป็น JSON
+3. ตรวจจับตารางและ header แบบไดนามิก (excel-table-detector) เพื่อหา header row, ขอบเขตของ���้อมูล และ closing rows เช่น รวม/ยอดรวม
+4. แมปชื่อ sheet ไปยังชนิดเอกสารด้วย SHEET_CONFIGS (helpers/excel-sheet-config.ts) เช่น loan_application, financial_statement, tax_certificate
+5. เรียก parser เฉพาะด้าน (parsers/extended) เช่น parseFinancialStatements, parseVATRecords, parseCreditBureauReports, parseBankStatements, parseDSCR เพื่อแปลงตารางเป็นโครงสร้างข้อมูลกลาง (ParsedBusinessProfile / ParsedExcelData)
+6. ประเมินคุณภาพการแยกข้อมูลด้วย calculateConfidence (helpers/excel-parser-confidence.ts) แล้วเก็บ warnings / missing fields
+7. บันทึกผลลัพธ์เชิงโครงสร้างลงฐานข้อมูล (Prisma/PostgreSQL) พร้อม transactional logic (approval/disbursement ใช้ serializable transaction เพื่อป้องกัน race condition และ duplicate disbursement)
+8. ใช้ Redis สำหรับ caching (query/session) และ Bull/BullMQ สำหรับ background jobs (เช่น NPL detection ทุก 15 นาที, daily penalty run)
+9. เมื่อผ่���นเกณฑ์อนุมัติ: สร้างรายการเบิกจ่ายภายใน transaction เดียว → trigger notification (LINE OA) → เรียก API การชำระเงิน/ระบบบัญชีภายนอกเพื่อทำการโอนหรือออกบันทึกจ่าย
+
+---
+
+### Excel-parsed Data Structures (13 ส่วน — แมปจาก interfaces/parsers ในโค้ด)
+
+ระบบจะสกัดข้อมูลจาก Excel และแมปเป็นโครงสร้างกลางตามไฟล์ parser และ adapter ใน repository ดังนี้:
+
+1) Company Info (companyInfo)
+   - โครงสร้าง: { companyName, registrationNumber?, taxId?, registeredCapital?, paidUpCapital?, address?, phone?, email?, establishmentYear? }
+   - ใช้สำหรับ KYC, การอ้างอิงลูกค้า และแสดงในรายงาน
+
+2) Shareholders
+   - โครงสร้าง: [{ name, sharePercentage, shareValue, hasSigningAuthority, conditions }]
+   - ใช้ตรวจสอบผู้มีอำนาจลงนามและสัดส่วนการถือหุ้น
+
+3) Loan Summary (loanSummary)
+   - โครงสร้าง: { existingLoans: [...], newLoans: [...], totalExisting, totalNew, totalAll }
+   - ใช้สรุปภาระหนี้ปัจจุบันและวงเงินที่ขอใหม่ เป็น input ให้ DSCR/credit scoring
+
+4) Financial Statements (financialStatements / ExtendedFinancialStatement)
+   - โครงสร้าง: รายการบัญชีตามปี { lineItem, year, amount, category } และฟิลด์ขยาย (revenue, ebitda, netProfit, depreciation, tax, etc.)
+   - ใช้คำนวณอัตราส่วนทางการเงินและตรวจสอบความต่อเนื่องของรายได้
+
+5) Balance Sheets (balanceSheets / ExtendedBalanceSheet)
+   - โครงสร้าง: [{ period, totalAssets, totalLiabilities, equity, currentAssets?, nonCurrentAssets?, currentLiabilities?, nonCurrentLiabilities? }]
+   - ใช้วิเคราะห์สภาพคล่องและความมั่นคงทางการเงิน
+
+6) VAT / Tax Records (vatRecords / ภพ30)
+   - โครงสร้าง: [{ period, companyName, taxId, salesAmount, purchaseAmount, taxWithheld, cashSales?, creditSales? }]
+   - ใช้เป็น cross-check รา��ได้และประเมินภาษี
+
+7) Credit Bureau Reports (creditBureau / creditBureauReports)
+   - โครงสร้าง: { borrowerName, reportDate, totalCreditLimit, totalOutstanding, creditUtilization, nplAccounts, accounts: [...] }
+   - ใช้ประกอบ scoring และตรวจจับ NPL
+
+8) Bank Statements (bankStatements)
+   - โครงสร้าง: [{ accountName, bank, accountNumber, period, openingBalance, closingBalance, totalDeposits, totalWithdrawals, balance }]
+   - ใช้วิเคราะห์กระแสเงินสดจริงและเป็น input ให้ working capital / DSCR
+
+9) Investment Structure (investmentStructure)
+   - โครงสร้าง: { totalInvestment, debtToEquityRatio, items: [{ name, ownCapital, bankLoan, fundLoan, smeBank, total }], notes }
+   - ใช้วิเคราะห์โครงสร้างทุน-หนี้และ covenant
+
+10) Working Capital Analysis (workingCapitalAnalysis)
+   - โครงสร้าง: { totalNeeded, additionalNeeded, receivables: { percentage, days, amount }, stock, payables: { percentage, days, amount }, existingCredit }
+   - ใช้กำหนดวงเงินหมุนเวียนและระยะเวลาคืนทุน
+
+11) Projections / Cashflow Projections (projections)
+   - โครงสร้าง: { headers, revenue[], costOfSales[], grossProfit[], ebitda[], netProfit[], dscr[], debtRepayment[] }
+   - ใช้ทำ stress-test และคาดการณ์ความสามารถในการชำระหนี้
+
+12) Suppliers & Customers (suppliersAndCustomers)
+   - โครงสร้าง: [{ name, type, transactionVolume, outstandingReceivableOrPayable }]
+   - ใช้ประเมิน concentration risk และความเชื่อมโยงของเงินทุนหมุนเวียน
+
+13) DSCR / Debt Service Schedule (dscr)
+   - โครงสร้าง: [{ period, interestPayment, principalPayment, totalDebtService, dscrValue }]
+   - ใช้เป็นเงื่อนไขอนุมัติหลักและสร้าง repayment schedule ก่อน disbursement
 
 ---
 
@@ -66,30 +140,6 @@ A full-stack loan management system built for SME banking, handling the complete
 
 ---
 
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                     Client Browser                       │
-│              React 18 + Vite + TypeScript                │
-└──────────────────────┬──────────────────────────────────┘
-                       │ HTTPS
-┌──────────────────────▼──────────────────────────────────┐
-│                  Fastify API Server                       │
-│  ┌─────────────┐  ┌──────────────┐  ┌───────────────┐  │
-│  │  Auth/RBAC  │  │  Business    │  │   Security    │  │
-│  │  Middleware │  │  Logic Layer │  │   Scanner     │  │
-│  └─────────────┘  └──────────────┘  └───────────────┘  │
-└──────────┬──────────────────┬───────────────────────────┘
-           │                  │
-┌──────────▼──────┐  ┌────────▼────────┐
-│   PostgreSQL 15  │  │    Redis 7      │
-│   (Prisma ORM)   │  │  (Cache/Queue)  │
-└──────────────────┘  └─────────────────┘
-```
-
----
-
 ## 🚀 Quick Start (Docker)
 
 ```bash
@@ -108,13 +158,6 @@ docker exec duetracker-backend npx tsx prisma/seed-complete-system-2025.ts
 # Frontend: http://localhost:5173
 # Backend:  http://localhost:3000
 ```
-
-**Default credentials after seed:**
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | phattarapong.phe@gmail.com | 1234567890 |
-| Manager | dearnull88@gmail.com | manager123 |
-| Officer | drpattarapong66@gmail.com | officer123 |
 
 ---
 
