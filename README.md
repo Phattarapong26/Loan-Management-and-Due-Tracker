@@ -305,23 +305,23 @@ Day 1: Officer receives Excel files            Day 1: Officer uploads Excel
 │      Manual data entry (2-3 hours)           │      Auto-parsed in 15 min ✓
 │      Calculate DSCR manually                 │      DSCR calculated automatically ✓
 │      Print & prepare documents               │      All digital ✓
-│                                               │
+│                                              │
 Day 2: Submit to Manager's desk                │      Submit via system
 │      Manager may not be available            │      LINE notification sent ✓
 │      Wait for physical signature             │      
-│                                               │
+│                                              │
 Day 3: Manager reviews when back               Same Day: Manager approves via mobile
 │      Check budget manually                   │      System checks budget automatically ✓
 │      Sign paper                              │      Digital approval ✓
 │      Send back to Officer                    │      Instant notification ✓
-│                                               │
+│                                              │
 Day 4: Officer prepares disbursement           │      Auto-disbursement queued ✓
 │      Manual bank transfer                    │      
-│                                               │
+│                                              │
 Day 5: Money transferred                       Day 2: Money transferred ✓
 │      Manually notify customer                │      Auto LINE notification ✓
 │      Start manual tracking in Excel          │      Auto repayment tracking ✓
-│                                               │
+│                                              │
 Ongoing: Manual check overdue daily            Ongoing: Auto-check every 15 min ✓
          Manual calculate penalty                       Auto-calculate penalty ✓
          Manual send reminders                          Auto LINE reminders ✓
@@ -406,44 +406,47 @@ Risk Mitigation:
 
 #### **Decision Tree: Loan Approval**
 
+```mermaid
+flowchart TD
+    Start[📄 Loan Submit] --> ConfCheck{Confidence Score?}
+    
+    ConfCheck -->|≥ 85%| DSCRCheck{DSCR Value?}
+    ConfCheck -->|< 85%| ReturnOfficer[🔄 RETURN TO OFFICER<br/>Verify Data]
+    
+    DSCRCheck -->|≥ 1.25| AutoApprove[✅ AUTO APPROVE<br/>if amount < 5M]
+    DSCRCheck -->|1.00 - 1.24| ManualReview[⚠️ MANUAL REVIEW<br/>REQUIRED]
+    DSCRCheck -->|< 1.00| AutoReject[❌ AUTO REJECT]
+    
+    AutoApprove --> BudgetCheck{Budget Available?}
+    ManualReview --> BudgetCheck
+    AutoReject --> BudgetCheck
+    ReturnOfficer --> End1[↩️ Back to Officer]
+    
+    BudgetCheck -->|YES| ReserveBudget[💰 Reserve Budget<br/>→ APPROVED<br/>→ Queue Disbursement]
+    BudgetCheck -->|NO| PendingBudget[⏳ PENDING_BUDGET<br/>Wait for next month]
+    
+    ReserveBudget --> Success[🎉 Approval Complete]
+    PendingBudget --> End2[⏸️ On Hold]
+    
+    style Start fill:#e3f2fd
+    style ConfCheck fill:#fff3e0
+    style DSCRCheck fill:#fff3e0
+    style BudgetCheck fill:#fff3e0
+    style AutoApprove fill:#c8e6c9
+    style ManualReview fill:#fff9c4
+    style AutoReject fill:#ffcdd2
+    style ReturnOfficer fill:#ffecb3
+    style ReserveBudget fill:#a5d6a7
+    style PendingBudget fill:#ffccbc
+    style Success fill:#4caf50
 ```
-                           ┌─────────────────┐
-                           │  Loan Submit    │
-                           └────────┬────────┘
-                                    │
-                        ┌───────────▼───────────┐
-                        │ Confidence Score?     │
-                        └───────┬───────┬───────┘
-                                │       │
-                        ≥85%    │       │  <85%
-                                │       │
-                    ┌───────────▼───┐   └──────────────┐
-                    │ DSCR Check    │                  │
-                    └───────┬───────┘                  │
-                            │                          │
-                ┌───────────┼───────────┐              │
-                │           │           │              │
-             ≥1.25      1.00-1.24     <1.00            │
-                │           │           │              │
-        ┌───────▼──┐  ┌─────▼────┐  ┌──▼─────┐   ┌────▼────────┐
-        │ AUTO     │  │ MANUAL   │  │ AUTO   │   │ RETURN TO   │
-        │ APPROVE  │  │ REVIEW   │  │ REJECT │   │ OFFICER     │
-        │ (if <5M) │  │ REQUIRED │  │        │   │ (Verify Data│
-        └──────────┘  └──────────┘  └────────┘   └─────────────┘
-             │             │              │              │
-             │             │              │              │
-        ┌────▼─────────────▼──────────────▼──────────────▼─────┐
-        │         Budget Available Check                        │
-        └────┬──────────────────────────────────────────────┬───┘
-             │                                              │
-         YES │                                              │ NO
-             │                                              │
-    ┌────────▼────────┐                          ┌─────────▼──────┐
-    │ Reserve Budget  │                          │ PENDING_BUDGET │
-    │ → APPROVED      │                          │ (Wait for next │
-    │ → Queue Disburse│                          │  month)        │
-    └─────────────────┘                          └────────────────┘
-```
+
+**Decision Flow Summary:**
+
+1. **Confidence Check** → ถ้า < 85% ส่งกลับให้ Officer ตรวจสอบ
+2. **DSCR Assessment** → แบ่งเป็น 3 zones: Green (≥1.25), Yellow (1.00-1.24), Red (<1.00)
+3. **Budget Validation** → ตรวจสอบงบประมาณก่อน commit
+4. **Final Decision** → APPROVED / PENDING / REJECTED
 
 #### **Business Rules Matrix**
 
@@ -522,9 +525,9 @@ Phase 1: PREPARATION                    Phase 2: REVIEW                    Phase
 📱 Opens system                         🖥️  System displays:                📊 Dashboard shows:
    Uploads Excel                           ├─ Confidence score                ├─ PENDING_APPROVAL
    ↓                                       ├─ 13 data structures              ├─ Time elapsed
-⏱️  Wait 15-20 sec                        ├─ DSCR calculation                └─ Assigned manager
+⏱️  Wait 15-20 sec                         ├─ DSCR calculation                 └─ Assigned manager
    ↓                                       ├─ Red flags/warnings              ↓
-✅ Parsing complete                       └─ Missing fields                  📱 Receives LINE:
+✅ Parsing complete                        └─ Missing fields                  📱 Receives LINE:
    ↓                                       ↓                                  "Manager approved!"
    
 😊 HAPPY: Clear UI,                     😊 HAPPY: Easy to spot issues      😊 HAPPY: Instant notification
@@ -540,84 +543,93 @@ Phase 1: PREPARATION                    Phase 2: REVIEW                    Phase
 
 #### **Wireframe: Approval Dashboard (Manager View)**
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│  SME D BANK                          🔔 Notifications (3)  👤 Manager   │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  📊 DASHBOARD  📋 PENDING LOANS  ✅ APPROVED  ❌ REJECTED  📈 REPORTS  │
-│                                                                          │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  Pending Approval (8)                            🔍 Search │ 🔽 Filter  │
-│                                                                          │
-│  ┌────────────────────────────────────────────────────────────────────┐│
-│  │ #L-2026-001  │  บริษัท ABC จำกัด  │  5,000,000 ฿  │  🟢 DSCR 1.45││
-│  │ Officer: สมชาย ใจดี              Submitted: 2 hours ago           ││
-│  │ ────────────────────────────────────────────────────────────────  ││
-│  │ 📄 Confidence: 92%  │  💰 Budget: ✅ Available  │  ⏱️ Priority: HIGH││
-│  │                                                                    ││
-│  │         [📁 View Details]  [✅ APPROVE]  [❌ REJECT]              ││
-│  └────────────────────────────────────────────────────────────────────┘│
-│                                                                          │
-│  ┌────────────────────────────────────────────────────────────────────┐│
-│  │ #L-2026-002  │  ร้าน XYZ  │  2,500,000 ฿  │  🟡 DSCR 1.18       ││
-│  │ Officer: สมหญิง รักงาน           Submitted: 5 hours ago           ││
-│  │ ────────────────────────────────────────────────────────────────  ││
-│  │ 📄 Confidence: 78%  │  💰 Budget: ✅ Available  │  ⏱️ Priority: MED││
-│  │ ⚠️  Low DSCR - Manual review required                             ││
-│  │                                                                    ││
-│  │         [📁 View Details]  [⚠️ REVIEW]                             ││
-│  └────────────────────────────────────────────────────────────────────┘│
-│                                                                          │
-│  ┌────────────────────────────────────────────────────────────────────┐│
-│  │ #L-2026-003  │  บจก. DEF  │  10,000,000 ฿  │  🔴 DSCR 0.95      ││
-│  │ Officer: สมศักดิ์ พยายาม         Submitted: 1 day ago             ││
-│  │ ────────────────────────────────────────────────────────────────  ││
-│  │ 📄 Confidence: 88%  │  💰 Budget: ⚠️ 75% used  │  ⏱️ Priority: HIGH││
-│  │ 🚨 DSCR below threshold - Auto-recommend REJECT                   ││
-│  │                                                                    ││
-│  │         [📁 View Details]  [🔒 OVERRIDE REJECT]                    ││
-│  └────────────────────────────────────────────────────────────────────┘│
-│                                                                          │
-│  📄 Showing 3 of 8     [← Previous]  [1] 2 3  [Next →]                 │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
+**📊 SME D BANK - Manager Dashboard**  
+*🔔 Notifications (3) | 👤 Manager*
 
-KEY DESIGN DECISIONS (BA Perspective):
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✓ Color-coded DSCR (🟢 🟡 🔴) → Quick visual scanning
-✓ Confidence score upfront → Manager knows data quality before clicking
-✓ Budget status visible → Prevent wasted review time on no-budget cases
-✓ Priority flag → Focus on time-sensitive applications first
-✓ One-click actions → Mobile-friendly (managers often away from desk)
-✓ Inline warnings → No need to dig into details for obvious issues
-✓ Smart defaults → Auto-suggest action based on rules (approve/reject/review)
-```
+**Navigation:** 📊 DASHBOARD | 📋 PENDING LOANS | ✅ APPROVED | ❌ REJECTED | 📈 REPORTS
+
+---
+
+**Pending Approval (8)** | 🔍 Search | 🔽 Filter
+
+| Loan Details | Risk Assessment | Status & Actions |
+|:-------------|:----------------|:-----------------|
+| **#L-2026-001** │ บริษัท ABC จำกัด<br>� Officer: สมชาย ใจดี<br>💰 Amount: **5,000,000 ฿**<br>⏱️ Submitted: 2 hours ago | 🟢 **DSCR 1.45** (Excellent)<br>📄 Confidence: **92%**<br>💰 Budget: ✅ **Available**<br>⏱️ Priority: **HIGH** | `[📁 View Details]`<br>`[✅ APPROVE]`<br>`[❌ REJECT]` |
+| **#L-2026-002** │ ร้าน XYZ<br>� Officer: สมหญิง รักงาน<br>💰 Amount: **2,500,000 ฿**<br>⏱️ Submitted: 5 hours ago | 🟡 **DSCR 1.18** (Borderline)<br>📄 Confidence: **78%**<br>💰 Budget: ✅ **Available**<br>⚠️ *Low DSCR - Manual review required* | `[📁 View Details]`<br>`[⚠️ REVIEW]` |
+| **#L-2026-003** │ บจก. DEF<br>👤 Officer: สมศักดิ์ พยายาม<br>💰 Amount: **10,000,000 ฿**<br>⏱️ Submitted: 1 day ago | 🔴 **DSCR 0.95** (Below threshold)<br>📄 Confidence: **88%**<br>💰 Budget: ⚠️ **75% used**<br>🚨 *Auto-recommend: REJECT* | `[📁 View Details]`<br>`[🔒 OVERRIDE REJECT]` |
+
+📄 *Showing 3 of 8* | `[← Previous]` `[1]` `2` `3` `[Next →]`
+
+---
+
+#### **🎯 Key Design Decisions (BA Perspective)**
+
+| Design Element | Rationale | Business Impact |
+|:---------------|:----------|:----------------|
+| 🟢 🟡 🔴 **Color-coded DSCR** | Quick visual scanning | ↓ 50% review time |
+| **Confidence score upfront** | Manager knows data quality before clicking | Better decision quality |
+| **Budget status visible** | Prevent wasted review time on no-budget cases | ↓ 30% unnecessary clicks |
+| **Priority flag** | Focus on time-sensitive applications first | Meet SLA targets |
+| **One-click actions** | Mobile-friendly (managers often away from desk) | ↑ 70% faster approvals |
+| **Inline warnings** | No need to dig into details for obvious issues | Faster triage |
+| **Smart defaults** | Auto-suggest action based on rules | Reduce cognitive load |
+
 
 #### **Mobile-First: LINE OA Notification Design**
 
-```
-┌──────────────────────────┐
-│    📱 LINE Chat          │
-├──────────────────────────┤
-│                          │
-│  💼 SME D BANK          │
-│  Official Account        │
-│                          │
-│  ─────────────────────   │
-│                          │
-│  🎉 สินเชื่อของคุณ       │
-│     ได้รับการอนุมัติแล้ว! │
-│                          │
-│  📋 รายละเอียด:          │
-│  • วงเงิน: 5,000,000 ฿  │
-│  • อัตราดอกเบี้ย: 7% ต่อปี│
-│  • ระยะเวลา: 36 เดือน    │
-│                          │
-│  ⏰ ชำระงวดแรก:          │
-│     15 พฤษภาคม 2026      │
-│                          │
+**📱 LINE Chat Interface**
+
+<table>
+<tr>
+<td width="300px">
+
+**💼 SME D BANK**  
+*Official Account*
+
+---
+
+🎉 **สินเชื่อของคุณได้รับการอนุมัติแล้ว!**
+
+**📋 รายละเอียด:**
+- วงเงิน: **5,000,000 ฿**
+- อัตราดอกเบี้ย: **7% ต่อปี**
+- ระยะเวลา: **36 เดือน**
+
+⏰ **ชำระงวดแรก:**  
+15 พฤษภาคม 2026
+
+`[📄 ดูรายละเอียด]`  
+`[💬 ติดต่อเจ้าหน้าที่]`
+
+---
+
+🔔 **Reminder** *(3 days before due)*
+
+⚠️ **เตือนชำระเงิน!**
+
+งวดที่ 1 ครบกำหนด:  
+**15 พฤษภาคม 2026**  
+จำนวน: **150,000 ฿**
+
+`[💳 ชำระเลย]`  
+`[📅 ขอผ่อนผัน]`
+
+</td>
+</tr>
+</table>
+
+---
+
+#### **💡 Why LINE OA for This Project?**
+
+| Factor | Rationale | Impact |
+|:-------|:----------|:-------|
+| 📊 **Penetration Rate** | 95% in Thailand | Reach almost all customers |
+| 📬 **Open Rate** | 80% vs 20% (email) | 4× better engagement |
+| 🎨 **Rich Menu** | Self-service options | ↓ Support calls 60% |
+| 💬 **Two-way Communication** | Customer can reply instantly | Better CX |
+| 🔔 **Push Notification** | Permission already granted | No opt-in friction |
+| 📱 **Familiar Interface** | No new app to install | ↑ Adoption rate |
 │  ┌────────────────────┐  │
 │  │ 📄 ดูรายละเอียด   │  │
 │  └────────────────────┘  │
@@ -658,62 +670,52 @@ WHY LINE OA?
 
 ### **🔗 System Integration Architecture (BA + Technical Design)**
 
-```
-                    ┌─────────────────────────────────────────┐
-                    │         EXTERNAL SYSTEMS                │
-                    └─────────────────────────────────────────┘
-                                      │
-         ┌────────────────────────────┼────────────────────────────┐
-         │                            │                            │
-         ▼                            ▼                            ▼
-┌──────────────────┐      ┌──────────────────┐       ┌──────────────────┐
-│  Core Banking    │      │  LINE OA API     │       │  Credit Bureau   │
-│  System          │      │  (Messaging)     │       │  API (NCB)       │
-│                  │      │                  │       │                  │
-│  • Account Info  │      │  • Push Notif    │       │  • Credit Report │
-│  • Disbursement  │      │  • Rich Menu     │       │  • NPL History   │
-│  • Balance       │      │  • Webhook       │       │  • Debt Ratio    │
-└────────┬─────────┘      └────────┬─────────┘       └────────┬─────────┘
-         │                         │                          │
-         │ REST API                │ Webhook                  │ REST API
-         │ + SOAP (Legacy)         │                          │
-         │                         │                          │
-         └─────────────────────────┼──────────────────────────┘
-                                   │
-                                   ▼
-         ┌─────────────────────────────────────────────────────────┐
-         │              API GATEWAY (Fastify Backend)              │
-         │  ┌─────────────────────────────────────────────────┐   │
-         │  │  Rate Limiting  │  Auth JWT  │  Threat Detection│   │
-         │  └─────────────────────────────────────────────────┘   │
-         └─────────────────────────────────────────────────────────┘
-                                   │
-         ┌─────────────────────────┼────────────────────────────┐
-         │                         │                            │
-         ▼                         ▼                            ▼
-┌──────────────────┐    ┌──────────────────┐       ┌──────────────────┐
-│  PostgreSQL 15   │    │   Redis 7        │       │  Bull Queue      │
-│                  │    │                  │       │                  │
-│  • Loans         │    │  • Session       │       │  • NPL Check     │
-│  • Customers     │    │  • Query Cache   │       │  • Penalty Calc  │
-│  • Payments      │    │  • Rate Limit    │       │  • Disbursement  │
-│  • Audit Log     │    │  • Job Queue     │       │  • LINE Retry    │
-└──────────────────┘    └──────────────────┘       └──────────────────┘
-         │                         │                            │
-         └─────────────────────────┼────────────────────────────┘
-                                   │
-                                   ▼
-         ┌─────────────────────────────────────────────────────────┐
-         │                   FRONTEND (React)                      │
-         │                                                         │
-         │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐   │
-         │  │ Dashboard   │  │ Loan Mgmt   │  │ Analytics   │   │
-         │  └─────────────┘  └─────────────┘  └─────────────┘   │
-         └─────────────────────────────────────────────────────────┘
-                                   │
-                                   ▼
-                            👤 End Users
-                    (Officer / Manager / Customer)
+```mermaid
+graph TB
+    subgraph External["🌐 EXTERNAL SYSTEMS"]
+        CoreBank[🏦 Core Banking System<br/>• Account Info<br/>• Disbursement<br/>• Balance]
+        LINE[📱 LINE OA API<br/>• Push Notification<br/>• Rich Menu<br/>• Webhook]
+        Bureau[📊 Credit Bureau NCB<br/>• Credit Report<br/>• NPL History<br/>• Debt Ratio]
+    end
+    
+    subgraph Gateway["🛡️ API GATEWAY - Fastify Backend"]
+        RateLimit[Rate Limiting]
+        Auth[JWT Auth]
+        Threat[Threat Detection]
+    end
+    
+    subgraph DataLayer["💾 DATA & PROCESSING LAYER"]
+        Postgres[(📦 PostgreSQL 15<br/>• Loans<br/>• Customers<br/>• Payments<br/>• Audit Log)]
+        Redis[(⚡ Redis 7<br/>• Session<br/>• Query Cache<br/>• Rate Limit)]
+        Queue[⏰ Bull Queue<br/>• NPL Check<br/>• Penalty Calc<br/>• Disbursement<br/>• LINE Retry]
+    end
+    
+    subgraph Frontend["🖥️ FRONTEND - React 18"]
+        Dashboard[📊 Dashboard]
+        LoanMgmt[📋 Loan Management]
+        Analytics[📈 Analytics]
+    end
+    
+    Users[👤 End Users<br/>Officer / Manager / Customer]
+    
+    CoreBank -->|REST + SOAP| Gateway
+    LINE -->|Webhook| Gateway
+    Bureau -->|REST API| Gateway
+    
+    Gateway --> Postgres
+    Gateway --> Redis
+    Gateway --> Queue
+    
+    Postgres <--> Frontend
+    Redis <--> Frontend
+    Queue --> Frontend
+    
+    Frontend --> Users
+    
+    style External fill:#e3f2fd
+    style Gateway fill:#fff3e0
+    style DataLayer fill:#f3e5f5
+    style Frontend fill:#e8f5e9
 ```
 
 #### **Integration Patterns & Data Flow**
@@ -790,54 +792,34 @@ COMPLIANCE CHECKPOINTS
 
 ### **การทำงานของระบบ (High-level Overview)**
 
-```
-┌─────────────────┐
-│ Excel Upload    │ ← ลูกค้า/Officer upload งบการเงิน
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────────────────────────────────────────────┐
-│ EXCEL PARSER ENGINE (Dynamic & Deterministic)           │
-│ ─────────────────────────────────────────────────────── │
-│ 1. Read Excel with exceljs-adapter                      │
-│ 2. Fill merged cells (prevent data loss)                │
-│ 3. Detect tables & headers dynamically                  │
-│ 4. Map sheets to document types (SHEET_CONFIGS)         │
-│ 5. Run specialized parsers (13 types)                   │
-│ 6. Calculate confidence score                           │
-└────────┬────────────────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────────────────────────┐
-│ STRUCTURED DATA (PostgreSQL)                            │
-│ - Company Info                                          │
-│ - Financial Statements (3 years)                        │
-│ - DSCR Calculation                                      │
-│ - Credit Bureau Report                                  │
-│ - Bank Statements                                       │
-└────────┬────────────────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────────────────────────┐
-│ APPROVAL WORKFLOW (Role-based)                          │
-│ Officer Review → Manager Approve → Budget Check         │
-│ (Serializable Transaction = No Race Condition)          │
-└────────┬────────────────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────────────────────────┐
-│ DISBURSEMENT (Single Transaction)                       │
-│ Create disbursement record → Send LINE notification     │
-│ → Trigger payment API                                   │
-└────────┬────────────────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────────────────────────┐
-│ REPAYMENT TRACKING                                      │
-│ - Daily penalty calculation (Background Job)            │
-│ - Auto-escalate to NPL at 90 DPD                        │
-│ - LINE notification before due date                     │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    Upload[📄 Excel Upload<br/>ลูกค้า/Officer upload งบการเงิน] --> Parser
+    
+    subgraph Parser[📊 EXCEL PARSER ENGINE]
+        P1[1. Read Excel with exceljs-adapter]
+        P2[2. Fill merged cells]
+        P3[3. Detect tables & headers dynamically]
+        P4[4. Map sheets to document types]
+        P5[5. Run specialized parsers 13 types]
+        P6[6. Calculate confidence score]
+        P1 --> P2 --> P3 --> P4 --> P5 --> P6
+    end
+    
+    Parser --> DB[(💾 STRUCTURED DATA<br/>PostgreSQL)]
+    
+    DB --> Workflow[⚙️ APPROVAL WORKFLOW<br/>Officer Review → Manager Approve<br/>Budget Check]
+    
+    Workflow --> Disburse[💰 DISBURSEMENT<br/>Create record → LINE notification<br/>→ Trigger payment API]
+    
+    Disburse --> Track[🔔 REPAYMENT TRACKING<br/>Daily penalty calculation<br/>Auto-escalate NPL ≥90 days<br/>LINE notifications]
+    
+    style Upload fill:#e3f2fd
+    style Parser fill:#fff3e0
+    style DB fill:#f3e5f5
+    style Workflow fill:#e8f5e9
+    style Disburse fill:#fff9c4
+    style Track fill:#ffebee
 ```
 
 ### **📊 Excel Parser: 13 Data Structure Types**
@@ -845,7 +827,7 @@ COMPLIANCE CHECKPOINTS
 ระบบแปลง Excel ให้เป็นข้อมูลเชิงโครงสร้างที่พร้อมใช้งาน (ตาม interfaces ใน `backend/src/core/interfaces/parsers`):
 
 | # | Data Type | Business Purpose | Key Fields |
-|---|---|---|---|
+|:--|:----------|:-----------------|:-----------|
 | 1 | **Company Info** | ข้อมูลพื้นฐาน KYC | companyName, taxId, registeredCapital, establishmentYear |
 | 2 | **Shareholders** | ตรวจสอบผู้มีอำนาจลงนาม | name, sharePercentage, hasSigningAuthority |
 | 3 | **Loan Summary** | ภาระหนี้ปัจจุบัน + ที่ขอใหม่ | existingLoans, newLoans, totalAll |
@@ -1114,41 +1096,67 @@ WHERE overdueDays >= 90
 
 ### **📋 Complete BA Skillset Showcase**
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     BUSINESS ANALYST COMPETENCIES                   │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  1️⃣  BUSINESS ANALYSIS                   2️⃣  PROCESS MANAGEMENT    │
-│  ├─ Requirements Gathering                ├─ Process Mapping (AS-IS)│
-│  ├─ Pain Point Identification             ├─ Process Design (TO-BE) │
-│  ├─ Root Cause Analysis (5 Whys)          ├─ Workflow Optimization  │
-│  ├─ Cost-Benefit Analysis                 ├─ Bottleneck Analysis    │
-│  ├─ ROI Calculation                       └─ SLA Definition         │
-│  └─ Business Case Development                                       │
-│                                                                      │
-│  3️⃣  DOCUMENTATION                        4️⃣  STAKEHOLDER MGMT      │
-│  ├─ Sequence Diagrams                     ├─ User Interviews        │
-│  ├─ Decision Trees                        ├─ Impact Analysis        │
-│  ├─ Business Rules Matrix                 ├─ Change Management      │
-│  ├─ Data Flow Diagrams                    ├─ Training Plan          │
-│  ├─ Wireframes & User Journeys            └─ Communication Strategy │
-│  └─ Technical Specifications                                        │
-│                                                                      │
-│  5️⃣  DATA ANALYSIS                        6️⃣  TECHNICAL LIAISON     │
-│  ├─ Data Structure Design                 ├─ API Requirements       │
-│  ├─ Data Quality Metrics                  ├─ Integration Patterns   │
-│  ├─ KPI Definition                        ├─ Security Requirements  │
-│  ├─ Performance Metrics                   ├─ Scalability Design     │
-│  └─ Compliance Mapping                    └─ Technical Feasibility  │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
-```
+### **📋 Complete BA Skillset Showcase**
+
+<table>
+<tr>
+<td width="50%">
+
+#### **1️⃣ BUSINESS ANALYSIS**
+- ✅ Requirements Gathering
+- ✅ Pain Point Identification
+- ✅ Root Cause Analysis (5 Whys)
+- ✅ Cost-Benefit Analysis
+- ✅ ROI Calculation
+- ✅ Business Case Development
+
+#### **3️⃣ DOCUMENTATION**
+- ✅ Sequence Diagrams
+- ✅ Decision Trees
+- ✅ Business Rules Matrix
+- ✅ Data Flow Diagrams
+- ✅ Wireframes & User Journeys
+- ✅ Technical Specifications
+
+#### **5️⃣ DATA ANALYSIS**
+- ✅ Data Structure Design
+- ✅ Data Quality Metrics
+- ✅ KPI Definition
+- ✅ Performance Metrics
+- ✅ Compliance Mapping
+
+</td>
+<td width="50%">
+
+#### **2️⃣ PROCESS MANAGEMENT**
+- ✅ Process Mapping (AS-IS)
+- ✅ Process Design (TO-BE)
+- ✅ Workflow Optimization
+- ✅ Bottleneck Analysis
+- ✅ SLA Definition
+
+#### **4️⃣ STAKEHOLDER MGMT**
+- ✅ User Interviews
+- ✅ Impact Analysis
+- ✅ Change Management
+- ✅ Training Plan
+- ✅ Communication Strategy
+
+#### **6️⃣ TECHNICAL LIAISON**
+- ✅ API Requirements
+- ✅ Integration Patterns
+- ✅ Security Requirements
+- ✅ Scalability Design
+- ✅ Technical Feasibility
+
+</td>
+</tr>
+</table>
 
 ### **🎯 Real-World BA Artifacts Created**
 
 | Artifact | Purpose | Location in README | BA Value |
-|---|---|---|---|
+|:---------|:--------|:-------------------|:---------|
 | **Sequence Diagram** | เอกสารการทำงานของระบบทั้งหมด | Process Flow section | แสดงความเข้าใจ end-to-end flow |
 | **Pain Point Analysis** | ระบุปัญหา + ผลกระทบ + ต้นทุน | Problem Statement section | Justify project investment |
 | **Business Rules Matrix** | กฎการตัดสินใจที่ชัดเจน | Decision Logic section | ป้องกัน ambiguity ในการพัฒนา |
