@@ -850,7 +850,7 @@ WHY LINE OA?
 ✓ Two-way communication (customer can reply)
 ✓ Push notification permission already granted
 ✓ Familiar interface (no new app to install)
-```
+
 
 ---
 
@@ -908,7 +908,7 @@ graph TB
     style Payment fill:#c8e6c9
     style Future1 fill:#ffecb3
     style Future2 fill:#ffecb3
-```
+
 
 #### **Integration Patterns & Data Flow**
 
