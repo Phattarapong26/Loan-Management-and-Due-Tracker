@@ -535,7 +535,56 @@ Risk Mitigation:
 
 ### **⚙️ Decision Logic & Business Rules (BA Documentation)**
 
-#### **Decision Tree: Loan Approval**
+> **📌 Status Legend:**  
+> ✅ **Implemented** = Working in production  
+> 🎯 **Designed** = Documented requirements for future implementation  
+
+---
+
+#### **Current Approval Workflow (Implemented)**
+
+```mermaid
+flowchart TD
+    Start[📄 Loan Submit] --> DSCRCheck{DSCR Value?}
+    
+    DSCRCheck -->|≥ 1.2| BudgetCheck{Budget Available?}
+    DSCRCheck -->|< 1.2| RejectLow[❌ REJECT<br/>DSCR ต่ำกว่าเกณฑ์ขั้นต่ำ]
+    
+    BudgetCheck -->|YES| ManagerReview[👔 Manager Manual Review]
+    BudgetCheck -->|NO| PendingBudget[⏳ PENDING_BUDGET<br/>งบไม่เพียงพอ]
+    
+    ManagerReview -->|Approve| ReserveBudget[💰 Reserve Budget<br/>→ APPROVED]
+    ManagerReview -->|Reject| RejectManual[❌ REJECTED<br/>By Manager]
+    
+    ReserveBudget --> Success[🎉 Approval Complete]
+    PendingBudget --> End1[⏸️ On Hold]
+    RejectLow --> End2[❌ Loan Rejected]
+    RejectManual --> End3[❌ Loan Rejected]
+    
+    style Start fill:#e3f2fd
+    style DSCRCheck fill:#fff3e0
+    style BudgetCheck fill:#fff3e0
+    style ManagerReview fill:#fff9c4
+    style ReserveBudget fill:#a5d6a7
+    style PendingBudget fill:#ffccbc
+    style Success fill:#4caf50
+    style RejectLow fill:#ffcdd2
+    style RejectManual fill:#ffcdd2
+```
+
+**✅ Implemented Validation Logic:**
+
+1. **DSCR Validation** → Minimum threshold 1.2 (configurable via system config)
+2. **Budget Check** → Real-time budget availability using Serializable transaction
+3. **Manager Authority** → Manager can approve up to 15M THB
+4. **Budget Reservation** → Atomic budget commit to prevent race conditions
+
+---
+
+#### **Designed Business Rules (Future Enhancement)**
+
+> **💡 BA Note:** ส่วนนี้แสดง **business rules ที่ออกแบบไว้** จากการวิเคราะห์ pain points และ interviews กับผู้ใช้งานจริง  
+> Business rules เหล่านี้ช่วยลด manual review time และเพิ่ม automation ในอนาคต
 
 ```mermaid
 flowchart TD
@@ -572,25 +621,37 @@ flowchart TD
     style Success fill:#4caf50
 ```
 
-**Decision Flow Summary:**
+**🎯 Designed Business Rules Matrix:**
 
-1. **Confidence Check** → ถ้า < 85% ส่งกลับให้ Officer ตรวจสอบ
-2. **DSCR Assessment** → แบ่งเป็น 3 zones: Green (≥1.25), Yellow (1.00-1.24), Red (<1.00)
-3. **Budget Validation** → ตรวจสอบงบประมาณก่อน commit
-4. **Final Decision** → APPROVED / PENDING / REJECTED
-
-#### **Business Rules Matrix**
-
-| Rule ID | Condition | Action | Priority | Exception Handling |
+| Rule ID | Condition | Action | Priority | Implementation Status |
 |---|---|---|---|---|
-| **BR-001** | Confidence Score < 85% | RETURN to Officer for verification | 🔴 High | Officer can override with justification |
-| **BR-002** | DSCR ≥ 1.25 AND Amount < 5M | AUTO-APPROVE (if budget available) | 🟢 Critical | Require Manager approval if customer has existing NPL |
-| **BR-003** | DSCR 1.00-1.24 | Require Manual Review | 🟡 Medium | Senior Manager can approve with additional collateral |
-| **BR-004** | DSCR < 1.00 | AUTO-REJECT | 🔴 High | Branch Manager can override (requires documentation) |
-| **BR-005** | Budget Insufficient | PENDING_BUDGET | 🟡 Medium | Escalate to Regional Manager for budget reallocation |
-| **BR-006** | Overdue Days ≥ 90 | AUTO-ESCALATE to NPL | 🔴 High | None (Regulatory requirement) |
-| **BR-007** | Same customer > 3 applications/month | Flag for fraud review | 🟡 Medium | Legitimate business expansion cases allowed with docs |
-| **BR-008** | Credit Bureau shows NPL history | Require additional documents | 🟡 Medium | >3 years old NPL can be waived |
+| **BR-001** | Confidence Score < 85% | RETURN to Officer for verification | 🔴 High | 🎯 Designed |
+| **BR-002** | DSCR ≥ 1.25 AND Amount < 5M | AUTO-APPROVE (if budget available) | 🟢 Critical | 🎯 Designed |
+| **BR-003** | DSCR 1.00-1.24 | Require Manual Review | 🟡 Medium | ✅ Implemented (All require manual) |
+| **BR-004** | DSCR < 1.00 | AUTO-REJECT | 🔴 High | 🎯 Designed |
+| **BR-005** | Budget Insufficient | PENDING_BUDGET | 🟡 Medium | ✅ Implemented |
+| **BR-006** | Overdue Days ≥ 90 | AUTO-ESCALATE to NPL | 🔴 High | ✅ Implemented (Daily job) |
+| **BR-007** | Same customer > 3 applications/month | Flag for fraud review | 🟡 Medium | 🎯 Designed |
+| **BR-008** | Credit Bureau shows NPL history | Require additional documents | 🟡 Medium | 🎯 Designed |
+
+**💡 BA Value:** แม้ว่า rules บางข้อยังไม่ได้ implement แต่การออกแบบไว้ล่วงหน้าช่วย:
+- ✅ **Clarify requirements** ให้ stakeholders เข้าใจ expected behavior
+- ✅ **Reduce ambiguity** ในการพัฒนาระยะต่อไป
+- ✅ **Enable incremental development** แบบ agile
+- ✅ **Serve as test cases** สำหรับ QA testing
+
+---
+
+#### **✅ Implemented Core Validations**
+
+| Validation Rule | Implementation | Location in Code |
+|---|---|---|
+| **DSCR ≥ 1.2** | ✅ Configurable threshold check | `loan.service.ts` line 284-294 |
+| **Budget Availability** | ✅ Serializable transaction | `loan.service.ts` line 856-871 |
+| **Manager Authority Limit** | ✅ 15M THB max | `loan.service.ts` line 838-848 |
+| **NPL Detection (90 days)** | ✅ Daily cron job | `payment-sync.job.ts` |
+| **Budget Race Condition** | ✅ Retry with jitter | `withRetryAndJitter` wrapper |
+| **Confidence Score Calculation** | ✅ Excel parser | `excel-parser.service.ts` line 1169 |
 
 #### **Exception Handling Workflow**
 
@@ -803,10 +864,11 @@ WHY LINE OA?
 
 ```mermaid
 graph TB
-    subgraph External["🌐 EXTERNAL SYSTEMS"]
-        CoreBank[🏦 Core Banking System<br/>• Account Info<br/>• Disbursement<br/>• Balance]
-        LINE[📱 LINE OA API<br/>• Push Notification<br/>• Rich Menu<br/>• Webhook]
-        Bureau[📊 Credit Bureau NCB<br/>• Credit Report<br/>• NPL History<br/>• Debt Ratio]
+    subgraph External["🌐 EXTERNAL INTEGRATIONS"]
+        LINE[📱 LINE OA API<br/>• Push Notification<br/>• Rich Menu<br/>• Webhook<br/>✅ Implemented]
+        Payment[💳 Payment Webhooks<br/>• Slip Upload<br/>• Payment Confirmation<br/>✅ Implemented]
+        Future1[🏦 Core Banking<br/>• Disbursement API<br/>• Account Verification<br/>🔮 Future]
+        Future2[📊 Credit Bureau NCB<br/>• Credit Report API<br/>• NPL History<br/>🔮 Future]
     end
     
     subgraph Gateway["🛡️ API GATEWAY - Fastify Backend"]
@@ -818,7 +880,7 @@ graph TB
     subgraph DataLayer["💾 DATA & PROCESSING LAYER"]
         Postgres[(📦 PostgreSQL 15<br/>• Loans<br/>• Customers<br/>• Payments<br/>• Audit Log)]
         Redis[(⚡ Redis 7<br/>• Session<br/>• Query Cache<br/>• Rate Limit)]
-        Queue[⏰ Bull Queue<br/>• NPL Check<br/>• Penalty Calc<br/>• Disbursement<br/>• LINE Retry]
+        Queue[⏰ Bull Queue<br/>• NPL Check<br/>• Penalty Calc<br/>• LINE Notifications<br/>• Rich Menu Sync]
     end
     
     subgraph Frontend["🖥️ FRONTEND - React 18"]
@@ -829,9 +891,10 @@ graph TB
     
     Users[👤 End Users<br/>Officer / Manager / Customer]
     
-    CoreBank -->|REST + SOAP| Gateway
     LINE -->|Webhook| Gateway
-    Bureau -->|REST API| Gateway
+    Payment -->|Webhook| Gateway
+    Future1 -.->|Future Integration| Gateway
+    Future2 -.->|Future Integration| Gateway
     
     Gateway --> Postgres
     Gateway --> Redis
@@ -847,18 +910,26 @@ graph TB
     style Gateway fill:#fff3e0
     style DataLayer fill:#f3e5f5
     style Frontend fill:#e8f5e9
+    style LINE fill:#c8e6c9
+    style Payment fill:#c8e6c9
+    style Future1 fill:#ffecb3
+    style Future2 fill:#ffecb3
 ```
 
 #### **Integration Patterns & Data Flow**
 
-| Integration Point | Pattern | Data Format | Frequency | Error Handling |
-|---|---|---|---|---|
-| **Core Banking → Loan System** | Pull (REST API) | JSON | On-demand | Retry 3x with exponential backoff |
-| **Loan System → LINE OA** | Push (Webhook) | JSON | Event-driven | Queue with retry (max 24h) |
-| **Credit Bureau → Loan System** | Pull (REST API) | XML → JSON | Per loan application | Cache 7 days, fallback to manual |
-| **Excel Upload → Parser** | Sync Processing | Binary → JSON | On-demand | Return error with confidence score |
-| **Background Jobs → DB** | Cron-based Pull | SQL | Every 15 min | Alert DevOps on 3 consecutive failures |
-| **Frontend → Backend** | REST API | JSON | Real-time | Show user-friendly error + support contact |
+| Integration Point | Pattern | Data Format | Frequency | Status | Error Handling |
+|:------------------|:--------|:------------|:----------|:-------|:---------------|
+| **Loan System → LINE OA** | Push (Webhook) | JSON | Event-driven | ✅ **Implemented** | Queue with retry (max 24h) |
+| **Payment Webhook → System** | Push (Webhook) | JSON | On payment | ✅ **Implemented** | Idempotency key + validation |
+| **Excel Upload → Parser** | Sync Processing | Binary → JSON | On-demand | ✅ **Implemented** | Return error with confidence score |
+| **Background Jobs → DB** | Cron-based Pull | SQL | Every 15 min | ✅ **Implemented** | Alert DevOps on 3 consecutive failures |
+| **Frontend → Backend** | REST API | JSON | Real-time | ✅ **Implemented** | Show user-friendly error + support contact |
+| **Core Banking API** | Pull (REST API) | JSON | On-demand | 🔮 **Future** | Retry 3x with exponential backoff |
+| **Credit Bureau API** | Pull (REST API) | XML → JSON | Per application | 🔮 **Future** | Cache 7 days, fallback to manual |
+
+**🎯 Current Focus**: ระบบปัจจุบันเน้น **internal workflow automation** และ **LINE OA integration** เพื่อลด manual work และเพิ่ม customer engagement  
+**🔮 Future Roadmap**: Integration กับ Core Banking และ Credit Bureau เพื่อ automate disbursement และ credit scoring
 
 #### **Data Governance & Compliance**
 
@@ -953,22 +1024,41 @@ flowchart TD
     style Track fill:#ffebee
 ```
 
-### **📊 Excel Parser: 13 Data Structure Types**
+### **📊 Excel Parser: Data Structure Design**
 
-ระบบแปลง Excel ให้เป็นข้อมูลเชิงโครงสร้างที่พร้อมใช้งาน (ตาม interfaces ใน `backend/src/core/interfaces/parsers`):
+ระบบออกแบบให้รองรับการแปลง Excel หลากหลายรูปแบบเป็นข้อมูลเชิงโครงสร้าง:
 
-| # | Data Type | Business Purpose | Key Fields |
-|:--|:----------|:-----------------|:-----------|
-| 1 | **Company Info** | ข้อมูลพื้นฐาน KYC | companyName, taxId, registeredCapital, establishmentYear |
-| 2 | **Shareholders** | ตรวจสอบผู้มีอำนาจลงนาม | name, sharePercentage, hasSigningAuthority |
-| 3 | **Loan Summary** | ภาระหนี้ปัจจุบัน + ที่ขอใหม่ | existingLoans, newLoans, totalAll |
-| 4 | **Financial Statements** | งบกำไรขาดทุน 3 ปี | revenue, ebitda, netProfit, depreciation |
-| 5 | **Balance Sheets** | งบแสดงฐานะการเงิน | totalAssets, totalLiabilities, equity |
-| 6 | **VAT Records (ภพ.30)** | Cross-check รายได้ | period, salesAmount, purchaseAmount, taxWithheld |
-| 7 | **Credit Bureau** | ประวัติสินเชื่อ | totalOutstanding, creditUtilization, nplAccounts |
-| 8 | **Bank Statements** | กระแสเงินสดจริง | totalDeposits, totalWithdrawals, closingBalance |
-| 9 | **Investment Structure** | โครงสร้างทุน-หนี้ | totalInvestment, debtToEquityRatio |
-| 10 | **Working Capital** | วิเคราะห์เงินทุนหมุนเวียน | receivables, stock, payables, additionalNeeded |
+**🎯 Design Philosophy:**
+- **Dynamic Detection**: ตรวจจับตาราง headers และขอบเขตอัตโนมัติ
+- **Merged Cell Handling**: จัดการ merged cells ให้ไม่สูญหายข้อมูล
+- **Confidence Score**: ประเมินคุณภาพการ parse (0-100%)
+- **Configurable Mapping**: แมป sheet names ตาม business rules
+
+**Core Data Structures (Implemented):**
+
+| # | Data Type | Business Purpose | Implementation Status |
+|:--|:----------|:-----------------|:---------------------|
+| 1 | **Company Info** | ข้อมูลพื้นฐาน KYC | ✅ Implemented |
+| 2 | **Financial Statements** | งบกำไรขาดทุน | ✅ Implemented |
+| 3 | **Balance Sheets** | งบแสดงฐานะการเงิน | ✅ Implemented |
+| 4 | **Loan Summary** | ภาระหนี้ปัจจุบัน + ที่ขอใหม่ | ✅ Implemented |
+| 5 | **DSCR Calculation** | ความสามารถชำระหนี้ | ✅ Implemented |
+| 6 | **Payment Schedule** | ตารางชำระเงิน | ✅ Implemented |
+
+**Extended Structures (Designed - Future Enhancement):**
+
+| # | Data Type | Business Purpose | Status |
+|:--|:----------|:-----------------|:-------|
+| 7 | **VAT Records (ภพ.30)** | Cross-check รายได้ | 🔮 Planned |
+| 8 | **Credit Bureau** | ประวัติสินเชื่อ | 🔮 Planned (External API) |
+| 9 | **Bank Statements** | กระแสเงินสดจริง | 🔮 Planned |
+| 10 | **Shareholders** | โครงสร้างผู้ถือหุ้น | 🔮 Planned |
+| 11 | **Investment Structure** | โครงสร้างทุน-หนี้ | 🔮 Planned |
+| 12 | **Working Capital** | วิเคราะห์เงินทุนหมุนเวียน | 🔮 Planned |
+| 13 | **Cashflow Projections** | คาดการณ์กระแสเงินสด | 🔮 Planned |
+
+**💡 BA Insight:**  
+การออกแบบ 13 data types แสดงถึง **comprehensive business analysis** ของ loan underwriting process ทั้งหมด แม้ว่าจะยัง implement ไม่ครบ แต่แสดงให้เห็น **depth of domain knowledge** และ **scalability planning**
 | 11 | **Cashflow Projections** | คาดการณ์รายได้-ค่าใช้จ่าย | revenue[], ebitda[], dscr[] |
 | 12 | **Suppliers & Customers** | Concentration risk | name, transactionVolume, outstanding |
 | 13 | **DSCR Schedule** | ตารางชำระหนี้ | period, interestPayment, principalPayment, dscrValue |
@@ -1771,16 +1861,8 @@ This is a portfolio project, but I'm open to suggestions and feedback!
 - 🤝 Consulting & Freelance projects
 
 ---
-
+F
 <div align="center">
-
-### **🚀 From Business Pain Points to Production-Ready Solution**
-
-*This project demonstrates the power of combining business analysis with technical execution*
-
-**💼 BA:** Analyzed 6 pain points → Quantified 27M บาท value  
-**🏗️ SA:** Designed scalable architecture → 99.8% uptime  
-**👨‍💻 Dev:** Implemented full-stack → Production-ready system
 
 ---
 
