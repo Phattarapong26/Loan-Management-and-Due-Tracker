@@ -504,8 +504,8 @@ This is a portfolio project, but I'm open to suggestions and feedback!
 
 **Phattarapong** — Business Analyst & Full-Stack Developer
 
-- 📧 Email: [your-email@example.com]
-- 💼 LinkedIn: [your-linkedin-profile]
+- 📧 Email: phattarapong.phe@gmail.com
+- 💼 Web Port: https://webpatblog-production.up.railway.app/
 - 🐙 GitHub: [@Phattarapong26](https://github.com/Phattarapong26)
 
 ---
