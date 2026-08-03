@@ -803,50 +803,50 @@ WHY LINE OA?
 
 ```mermaid
 graph TB
-    subgraph External["🌐 EXTERNAL SYSTEMS"]
-        CoreBank[🏦 Core Banking System<br/>• Account Info<br/>• Disbursement<br/>• Balance]
-        LINE[📱 LINE OA API<br/>• Push Notification<br/>• Rich Menu<br/>• Webhook]
-        Bureau[📊 Credit Bureau NCB<br/>• Credit Report<br/>• NPL History<br/>• Debt Ratio]
-    end
-    
-    subgraph Gateway["🛡️ API GATEWAY - Fastify Backend"]
-        RateLimit[Rate Limiting]
-        Auth[JWT Auth]
-        Threat[Threat Detection]
-    end
-    
-    subgraph DataLayer["💾 DATA & PROCESSING LAYER"]
-        Postgres[(📦 PostgreSQL 15<br/>• Loans<br/>• Customers<br/>• Payments<br/>• Audit Log)]
-        Redis[(⚡ Redis 7<br/>• Session<br/>• Query Cache<br/>• Rate Limit)]
-        Queue[⏰ Bull Queue<br/>• NPL Check<br/>• Penalty Calc<br/>• Disbursement<br/>• LINE Retry]
-    end
-    
-    subgraph Frontend["🖥️ FRONTEND - React 18"]
-        Dashboard[📊 Dashboard]
-        LoanMgmt[📋 Loan Management]
-        Analytics[📈 Analytics]
-    end
-    
-    Users[👤 End Users<br/>Officer / Manager / Customer]
-    
-    CoreBank -->|REST + SOAP| Gateway
-    LINE -->|Webhook| Gateway
-    Bureau -->|REST API| Gateway
-    
-    Gateway --> Postgres
-    Gateway --> Redis
-    Gateway --> Queue
-    
-    Postgres <--> Frontend
-    Redis <--> Frontend
-    Queue --> Frontend
-    
-    Frontend --> Users
-    
-    style External fill:#e3f2fd
-    style Gateway fill:#fff3e0
-    style DataLayer fill:#f3e5f5
-    style Frontend fill:#e8f5e9
+  subgraph External["🌐 EXTERNAL SYSTEMS"]
+    CoreBank[🏦 Core Banking System\n• Account Info\n• Disbursement\n• Balance]
+    LINE[📱 LINE OA API\n• Push Notification\n• Rich Menu\n• Webhook]
+    Bureau[📊 Credit Bureau NCB\n• Credit Report\n• NPL History\n• Debt Ratio]
+  end
+
+  subgraph Gateway["🛡️ API GATEWAY - Fastify Backend"]
+    RateLimit[Rate Limiting]
+    Auth[JWT Auth]
+    Threat[Threat Detection]
+  end
+
+  subgraph DataLayer["💾 DATA & PROCESSING LAYER"]
+    Postgres[(📦 PostgreSQL 15\n• Loans\n• Customers\n• Payments\n• Audit Log)]
+    Redis[(⚡ Redis 7\n• Session\n• Query Cache\n• Rate Limit)]
+    Queue[⏰ Bull Queue\n• NPL Check\n• Penalty Calc\n• Disbursement\n• LINE Retry]
+  end
+
+  subgraph Frontend["🖥️ FRONTEND - React 18"]
+    Dashboard[📊 Dashboard]
+    LoanMgmt[📋 Loan Management]
+    Analytics[📈 Analytics]
+  end
+
+  Users[👤 End Users\nOfficer / Manager / Customer]
+
+  CoreBank -->|REST + SOAP| Gateway
+  LINE -->|Webhook| Gateway
+  Bureau -->|REST API| Gateway
+
+  Gateway --> Postgres
+  Gateway --> Redis
+  Gateway --> Queue
+
+  Postgres <--> Frontend
+  Redis <--> Frontend
+  Queue --> Frontend
+
+  Frontend --> Users
+
+  style External fill:#e3f2fd
+  style Gateway fill:#fff3e0
+  style DataLayer fill:#f3e5f5
+  style Frontend fill:#e8f5e9
 ```
 
 #### **Integration Patterns & Data Flow**
